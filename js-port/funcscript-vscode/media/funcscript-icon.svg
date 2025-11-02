@@ -1,5 +1,5 @@
 <svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
-  <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="'Avenir Next', 'Helvetica Neue', sans-serif" font-size="64" letter-spacing="1">
-    <tspan fill="blue">f</tspan><tspan fill="red">{</tspan><tspan fill="green">x</tspan><tspan fill="red">}</tspan>
+  <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="64" letter-spacing="1">
+    <tspan fill="#ff0000" font-size="120" dy="6">f</tspan><tspan fill="#ff0000" dx="4" dy="18">(</tspan><tspan fill="#ff0000" dy="0">x</tspan><tspan fill="#ff0000" dy="0">)</tspan>
   </text>
 </svg>
