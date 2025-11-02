@@ -3,11 +3,14 @@
   "fonts": [],
   "iconDefinitions": {
     "funcscriptFile": {
-      "iconPath": "./media/funcscript-icon.svg"
+      "iconPath": "../media/funcscript-icon.png"
     }
   },
   "fileExtensions": {
     "fx": "funcscriptFile"
+  },
+  "languageIds": {
+    "funcscript": "funcscriptFile"
   },
   "light": {},
   "highContrast": {}

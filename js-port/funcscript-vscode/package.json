@@ -17,10 +17,22 @@
     "Programming Languages"
   ],
   "activationEvents": [
-    "onLanguage:funcscript"
+    "onLanguage:funcscript",
+    "onCommand:funcscript.selectIconTheme",
+    "onCommand:funcscript.inspectIconMapping"
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "funcscript.selectIconTheme",
+        "title": "FuncScript: Apply Icon Theme"
+      },
+      {
+        "command": "funcscript.inspectIconMapping",
+        "title": "FuncScript: Inspect Icon Mapping"
+      }
+    ],
     "languages": [
       {
         "id": "funcscript",

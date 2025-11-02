@@ -250,12 +250,70 @@ class FuncScriptFoldingRangeProvider {
 function activate(context) {
     outputChannel = vscode.window.createOutputChannel(outputChannelId);
     log('Activating FuncScript extension');
+    const iconThemeSetting = vscode.workspace.getConfiguration('workbench').get('iconTheme');
+    log(`Current workbench.iconTheme: ${iconThemeSetting ?? '<unset>'}`);
+    const iconUri = vscode.Uri.joinPath(context.extensionUri, 'media', 'funcscript-icon.svg');
+    vscode.workspace.fs.stat(iconUri).then(() => log(`FuncScript icon resource found at ${iconUri.toString(true)}`), (error) => log(`FuncScript icon resource missing: ${error instanceof Error ? error.message : String(error)}`));
     const cache = new DocumentAnalysisCache();
     const selector = { language: 'funcscript' };
     context.subscriptions.push(vscode.languages.registerDocumentSemanticTokensProvider(selector, new FuncScriptSemanticTokensProvider(cache), legend));
     context.subscriptions.push(vscode.languages.registerFoldingRangeProvider(selector, new FuncScriptFoldingRangeProvider(cache)));
     context.subscriptions.push(vscode.workspace.onDidCloseTextDocument((document) => cache.evict(document)));
     context.subscriptions.push(outputChannel);
+    context.subscriptions.push(vscode.workspace.onDidChangeConfiguration((event) => {
+        if (event.affectsConfiguration('workbench.iconTheme')) {
+            const updated = vscode.workspace
+                .getConfiguration('workbench')
+                .get('iconTheme');
+            log(`workbench.iconTheme changed to ${updated ?? '<unset>'}`);
+        }
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand('funcscript.selectIconTheme', async () => {
+        try {
+            await vscode.workspace
+                .getConfiguration('workbench')
+                .update('iconTheme', 'funcscript-icons', vscode.ConfigurationTarget.Global);
+            log('workbench.iconTheme updated to funcscript-icons');
+            void vscode.window.showInformationMessage('FuncScript icon theme applied.');
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            log(`Failed to set icon theme: ${message}`);
+            void vscode.window.showErrorMessage(`Failed to apply FuncScript icon theme: ${message}`);
+        }
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand('funcscript.inspectIconMapping', async () => {
+        try {
+            const workbenchConfig = vscode.workspace.getConfiguration('workbench');
+            const current = workbenchConfig.get('iconTheme');
+            log(`Inspecting icon theme. workbench.iconTheme=${current ?? '<unset>'}`);
+            const inspected = workbenchConfig.inspect('iconTheme');
+            if (inspected) {
+                log(`  iconTheme scope -> default=${inspected.defaultValue ?? '<unset>'}, global=${inspected.globalValue ?? '<unset>'}, workspace=${inspected.workspaceValue ?? '<unset>'}`);
+            }
+            const themeUri = vscode.Uri.joinPath(context.extensionUri, 'themes', 'funcscript-icon-theme.json');
+            const raw = await vscode.workspace.fs.readFile(themeUri);
+            const text = new TextDecoder('utf-8').decode(raw);
+            const parsed = JSON.parse(text);
+            const iconPath = parsed.iconDefinitions?.funcscriptFile?.iconPath ?? '<missing>';
+            const fileExts = parsed.fileExtensions ? Object.entries(parsed.fileExtensions) : [];
+            const languageIds = parsed.languageIds ? Object.entries(parsed.languageIds) : [];
+            const lookup = (key) => fileExts.find(([ext]) => ext === key)?.[1] ?? '<none>';
+            const langLookup = (key) => languageIds.find(([id]) => id === key)?.[1] ?? '<none>';
+            log(`  funcscriptFile iconPath=${iconPath}; fileExtensions=${fileExts
+                .map(([ext, id]) => `${ext}->${id}`)
+                .join(', ') || '<none>'}; languageIds=${languageIds
+                .map(([id, value]) => `${id}->${value}`)
+                .join(', ') || '<none>'}`);
+            log(`  lookup: fx->${lookup('fx')} (language funcscript->${langLookup('funcscript')}), cs->${lookup('cs')} (language csharp->${langLookup('csharp')})`);
+            void vscode.window.showInformationMessage('FuncScript icon theme details logged.');
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            log(`Icon inspection failed: ${message}`);
+            void vscode.window.showErrorMessage(`FuncScript icon inspection failed: ${message}`);
+        }
+    }));
 }
 function deactivate() { }
 //# sourceMappingURL=extension.js.map

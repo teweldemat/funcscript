@@ -26,7 +26,7 @@ Use `vsce package` (from the [VSCE CLI](https://code.visualstudio.com/api/workin
 
 ## Icon Theme
 
-This extension ships a file icon for `.fx` files. After installing, run **Preferences: File Icon Theme** and choose **FuncScript** to apply the custom `f(x)` icon in the explorer and tabs.
+This extension ships a file icon for `.fx` files. After installing, either run **FuncScript: Apply Icon Theme** (Command Palette) or choose **FuncScript** under **Preferences: File Icon Theme** to apply the custom `f(x)` icon in the explorer and tabs.
 
 ## File Associations
 
