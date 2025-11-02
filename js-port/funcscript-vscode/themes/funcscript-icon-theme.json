@@ -1,0 +1,14 @@
+{
+  "$schema": "vscode://schemas/icon-theme",
+  "fonts": [],
+  "iconDefinitions": {
+    "funcscriptFile": {
+      "iconPath": "./media/funcscript-icon.svg"
+    }
+  },
+  "fileExtensions": {
+    "fx": "funcscriptFile"
+  },
+  "light": {},
+  "highContrast": {}
+}

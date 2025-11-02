@@ -2,9 +2,10 @@
   "name": "funcscript-vscode",
   "displayName": "FuncScript",
   "description": "Parser-backed syntax highlighting and folding for FuncScript (.fx) files.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "tewelde",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
+  "icon": "media/funcscript-icon.png",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/teweldemat/funcscript-1.git"
@@ -26,6 +27,13 @@
         "aliases": ["FuncScript", "funcscript"],
         "extensions": [".fx"],
         "configuration": "./language-configuration.json"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "funcscript-icons",
+        "label": "FuncScript",
+        "path": "./themes/funcscript-icon-theme.json"
       }
     ]
   },

@@ -24,9 +24,17 @@ This extension adds parser-backed language support for FuncScript `.fx` files in
 
 Use `vsce package` (from the [VSCE CLI](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)) to build a `.vsix` package for distribution.
 
+## Icon Theme
+
+This extension ships a file icon for `.fx` files. After installing, run **Preferences: File Icon Theme** and choose **FuncScript** to apply the custom `f(x)` icon in the explorer and tabs.
+
 ## File Associations
 
 The extension automatically associates files ending in `.fx` with the FuncScript language definition.
+
+## License
+
+Licensed under the MIT License. See `LICENSE` for details.
 
 ## Contributing
 
