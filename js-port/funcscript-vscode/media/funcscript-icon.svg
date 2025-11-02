@@ -1,15 +1,5 @@
 <svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1A237E" />
-      <stop offset="100%" stop-color="#3E2780" />
-    </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.25" />
-    </filter>
-  </defs>
-  <rect x="8" y="8" width="112" height="112" rx="24" fill="url(#bgGradient)" />
-  <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="'Avenir Next', 'Helvetica Neue', sans-serif" font-size="64" fill="#FFFFFF" filter="url(#shadow)" letter-spacing="1">
-    f(x)
+  <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="'Avenir Next', 'Helvetica Neue', sans-serif" font-size="64" letter-spacing="1">
+    <tspan fill="blue">f</tspan><tspan fill="red">{</tspan><tspan fill="green">x</tspan><tspan fill="red">}</tspan>
   </text>
 </svg>

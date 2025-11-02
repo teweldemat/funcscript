@@ -17,35 +17,25 @@
     "Programming Languages"
   ],
   "activationEvents": [
-    "onLanguage:funcscript",
-    "onCommand:funcscript.selectIconTheme",
-    "onCommand:funcscript.inspectIconMapping"
+    "onLanguage:funcscript"
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "funcscript.selectIconTheme",
-        "title": "FuncScript: Apply Icon Theme"
-      },
-      {
-        "command": "funcscript.inspectIconMapping",
-        "title": "FuncScript: Inspect Icon Mapping"
-      }
-    ],
     "languages": [
       {
         "id": "funcscript",
-        "aliases": ["FuncScript", "funcscript"],
-        "extensions": [".fx"],
-        "configuration": "./language-configuration.json"
-      }
-    ],
-    "iconThemes": [
-      {
-        "id": "funcscript-icons",
-        "label": "FuncScript",
-        "path": "./themes/funcscript-icon-theme.json"
+        "aliases": [
+          "FuncScript",
+          "funcscript"
+        ],
+        "extensions": [
+          ".fx"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./media/funcscript-icon.png",
+          "dark": "./media/funcscript-icon.png"
+        }
       }
     ]
   },
@@ -58,7 +48,8 @@
     "@types/node": "^20.11.30",
     "@types/vscode": "^1.84.0",
     "tslib": "^2.6.2",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vsce": "^2.15.0"
   },
   "dependencies": {
     "@tewelde/funcscript": "file:../funcscript-js"
