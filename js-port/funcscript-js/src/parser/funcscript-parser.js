@@ -418,13 +418,14 @@ function getInfixFunctionCall(context, siblings, index) {
   fnLiteral.Pos = identifierStart;
   fnLiteral.Length = afterIdentifier - identifierStart;
 
-  const startNode = buffer.find((n) => n.NodeType !== ParseNodeType.WhiteSpace);
-  const startPos = startNode ? startNode.Pos : index;
+  const firstNode = buffer.find((n) => n.NodeType !== ParseNodeType.WhiteSpace);
+  const startPos = firstNode ? firstNode.Pos : (buffer.length > 0 ? buffer[0].Pos : index);
   const expressionLength = Math.max(0, currentIndex - startPos);
+  const nodeChildren = buffer.filter((n) => n.Pos >= startPos);
 
   const call = new FunctionCallExpression(fnLiteral, operands.slice(), startPos, expressionLength);
 
-  siblings.push(new ParseNode(ParseNodeType.GeneralInfixExpression, index, currentIndex - index, buffer.slice()));
+  siblings.push(new ParseNode(ParseNodeType.GeneralInfixExpression, startPos, expressionLength, nodeChildren));
 
   return new ParseBlockResult(currentIndex, call);
 }
@@ -1443,10 +1444,17 @@ function getStringTemplateWithDelimiter(context, siblings, delimiter, index) {
   let buffer = '';
 
   while (true) {
-    let afterEscape = getLiteralMatch(context.Expression, currentIndex, '\\');
+    let afterEscape = getLiteralMatch(context.Expression, currentIndex, '\\{');
     if (afterEscape > currentIndex) {
       currentIndex = afterEscape;
-      buffer += '\\';
+      buffer += '{';
+      continue;
+    }
+
+    afterEscape = getLiteralMatch(context.Expression, currentIndex, '\\}');
+    if (afterEscape > currentIndex) {
+      currentIndex = afterEscape;
+      buffer += '}';
       continue;
     }
 
@@ -1464,6 +1472,28 @@ function getStringTemplateWithDelimiter(context, siblings, delimiter, index) {
       continue;
     }
 
+    afterEscape = getLiteralMatch(context.Expression, currentIndex, '\\\\');
+    if (afterEscape > currentIndex) {
+      currentIndex = afterEscape;
+      buffer += '\\';
+      continue;
+    }
+
+    afterEscape = getLiteralMatch(context.Expression, currentIndex, '\\u');
+    if (afterEscape > currentIndex) {
+      const unicodeStart = currentIndex + 2;
+      const unicodeEnd = unicodeStart + 4;
+      if (unicodeEnd <= context.Expression.length) {
+        const unicodeStr = context.Expression.substring(unicodeStart, unicodeEnd);
+        const code = parseInt(unicodeStr, 16);
+        if (!Number.isNaN(code)) {
+          buffer += String.fromCharCode(code);
+          currentIndex = unicodeEnd;
+          continue;
+        }
+      }
+    }
+
     afterEscape = getLiteralMatch(context.Expression, currentIndex, `\\${delimiter}`);
     if (afterEscape > currentIndex) {
       currentIndex = afterEscape;
@@ -1471,10 +1501,10 @@ function getStringTemplateWithDelimiter(context, siblings, delimiter, index) {
       continue;
     }
 
-    afterEscape = getLiteralMatch(context.Expression, currentIndex, '\\{');
+    afterEscape = getLiteralMatch(context.Expression, currentIndex, '\\');
     if (afterEscape > currentIndex) {
       currentIndex = afterEscape;
-      buffer += '{';
+      buffer += '\\';
       continue;
     }
 

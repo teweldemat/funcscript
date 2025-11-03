@@ -8,7 +8,7 @@ const { FsList, ArrayFsList } = require('./model/fs-list');
 const { KeyValueCollection, SimpleKeyValueCollection } = require('./model/key-value-collection');
 const { FsError } = require('./model/fs-error');
 const buildBuiltinMap = require('./funcs');
-const { ParseNode } = require('./parser/parse-node');
+const { ParseNode, ParseNodeType } = require('./parser/parse-node');
 
 const { MapDataProvider } = dataProviders;
 const { ensureTyped, typeOf, valueOf } = valueModule;
@@ -165,6 +165,10 @@ function evaluateTemplate(template, provider = new DefaultFsDataProvider()) {
   return parts.join('');
 }
 
+function isListContainer(nodeType) {
+  return nodeType === ParseNodeType.FunctionParameterList || nodeType === ParseNodeType.IdentiferList;
+}
+
 function colorParseTree(node) {
   if (!node || typeof node.Length !== 'number' || node.Length <= 0) {
     return [];
@@ -184,7 +188,28 @@ function colorParseTree(node) {
     if (!child || typeof child.Pos !== 'number' || typeof child.Length !== 'number') {
       continue;
     }
+
     const childPos = child.Pos;
+
+    if (isListContainer(node.NodeType) &&
+        (child.NodeType === ParseNodeType.OpenBrace || child.NodeType === ParseNodeType.CloseBrance)) {
+      if (childPos > cursor) {
+        result.push(new ParseNode(node.NodeType, cursor, childPos - cursor));
+      }
+      result.push(new ParseNode(node.NodeType, childPos, child.Length));
+      cursor = childPos + child.Length;
+      continue;
+    }
+
+    if (node.NodeType === ParseNodeType.LambdaExpression && child.NodeType === ParseNodeType.LambdaArrow) {
+      if (childPos > cursor) {
+        result.push(new ParseNode(node.NodeType, cursor, childPos - cursor));
+      }
+      result.push(new ParseNode(node.NodeType, childPos, child.Length));
+      cursor = childPos + child.Length;
+      continue;
+    }
+
     if (childPos > cursor) {
       result.push(new ParseNode(node.NodeType, cursor, childPos - cursor));
     }
