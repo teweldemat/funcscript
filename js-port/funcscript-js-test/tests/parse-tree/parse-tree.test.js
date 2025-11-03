@@ -215,9 +215,9 @@ describe('ParseTreeTests', () => {
       [ParseNodeType.LiteralInteger, 1],
       [ParseNodeType.Operator, 1],
       [ParseNodeType.Identifier, 3],
-      [ParseNodeType.FunctionParameterList, 1],
+      [ParseNodeType.OpenBrace, 1],
       [ParseNodeType.LiteralInteger, 2],
-      [ParseNodeType.FunctionParameterList, 1]
+      [ParseNodeType.CloseBrance, 1]
     );
   });
 
@@ -239,11 +239,65 @@ describe('ParseTreeTests', () => {
     assertNodeSequence(
       color,
       0,
-      [ParseNodeType.IdentiferList, 1],
+      [ParseNodeType.OpenBrace, 1],
       [ParseNodeType.Identifier, 1],
-      [ParseNodeType.IdentiferList, 1],
-      [ParseNodeType.LambdaExpression, 2],
+      [ParseNodeType.CloseBrance, 1],
+      [ParseNodeType.LambdaArrow, 2],
       [ParseNodeType.LiteralInteger, 2]
+    );
+  });
+
+  it('TestColoring3', () => {
+    const provider = new DefaultFsDataProvider();
+    const expression = '1 //123\n+3';
+    const { block, parseNode, errors, nextIndex } = parseExpression(expression, provider);
+
+    expect(block, 'Parser should produce an expression block for comment coloring').to.exist;
+    expect(parseNode, 'Parser should produce a parse node for comment coloring').to.exist;
+    expect(errors, 'Comment coloring sample should parse without errors').to.be.empty;
+
+    assertRootNode(parseNode, expression);
+    assertTreeSpanConsistency(parseNode);
+    expect(nextIndex).to.equal(expression.length);
+
+    const color = colorParseTree(parseNode);
+    expect(color).to.have.lengthOf(5);
+    assertNodeSequence(
+      color,
+      0,
+      [ParseNodeType.LiteralInteger, 1],
+      [ParseNodeType.WhiteSpace, 1],
+      [ParseNodeType.Comment, 6],
+      [ParseNodeType.Operator, 1],
+      [ParseNodeType.LiteralInteger, 1]
+    );
+  });
+
+  it('TestColoringLambdaWithComment', () => {
+    const provider = new DefaultFsDataProvider();
+    const expression = '(a)=>a //xyz';
+    const { block, parseNode, errors, nextIndex } = parseExpression(expression, provider);
+
+    expect(block, 'Parser should produce an expression block for lambda comment coloring').to.exist;
+    expect(parseNode, 'Parser should produce a parse node for lambda comment coloring').to.exist;
+    expect(errors, 'Lambda comment coloring sample should parse without errors').to.be.empty;
+
+    assertRootNode(parseNode, expression);
+    assertTreeSpanConsistency(parseNode);
+    expect(nextIndex).to.equal(expression.length);
+
+    const color = colorParseTree(parseNode);
+    expect(color).to.have.lengthOf(7);
+    assertNodeSequence(
+      color,
+      0,
+      [ParseNodeType.OpenBrace, 1],
+      [ParseNodeType.Identifier, 1],
+      [ParseNodeType.CloseBrance, 1],
+      [ParseNodeType.LambdaArrow, 2],
+      [ParseNodeType.Identifier, 1],
+      [ParseNodeType.WhiteSpace, 1],
+      [ParseNodeType.Comment, 5]
     );
   });
 

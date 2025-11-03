@@ -10,7 +10,8 @@ import {
 } from 'react';
 import FuncScriptEditor, {
   type FuncScriptEditorProps,
-  type FuncScriptParseNode
+  type FuncScriptParseNode,
+  VSCODE_FONT_STACK
 } from './FuncScriptEditor.js';
 import {
   Engine,
@@ -957,7 +958,7 @@ const nodeErrorStyle: CSSProperties = {
 const expressionPreviewBaseStyle: CSSProperties = {
   fontSize: 11,
   lineHeight: 1.4,
-  fontFamily: 'Roboto Mono, monospace',
+  fontFamily: VSCODE_FONT_STACK,
   padding: '8px 12px',
   borderTop: '1px solid #e1e4e8',
   backgroundColor: '#f6f8fa',

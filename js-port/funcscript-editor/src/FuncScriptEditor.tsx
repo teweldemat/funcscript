@@ -24,6 +24,9 @@ import * as parserModule from '@tewelde/funcscript/parser';
 
 const { FuncScriptParser } = parserModule as { FuncScriptParser: any };
 
+export const VSCODE_FONT_STACK =
+  '"Cascadia Code", "Fira Code", "Fira Mono", "Menlo", "Consolas", "Liberation Mono", "Courier New", monospace';
+
 type HighlightCallbacks = {
   getSegmentsCallback: () => ((segments: ColoredSegment[]) => void) | undefined;
   getErrorCallback: () => ((message: string | null) => void) | undefined;
@@ -63,9 +66,9 @@ type FuncScriptAnalysis = {
 const defaultContainerStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  border: '1px solid #d0d7de',
+  border: '1px solid #2d2d2d',
   borderRadius: 6,
-  backgroundColor: '#ffffff',
+  backgroundColor: '#1e1e1e',
   overflow: 'hidden'
 };
 
@@ -357,9 +360,13 @@ const FuncScriptEditor = ({
         EditorView.theme(
           {
             '&': {
-              fontFamily: 'Roboto Mono, monospace',
+              fontFamily: VSCODE_FONT_STACK,
+              fontWeight: 400,
+              fontSize: '13px',
               minHeight: `${minHeight}px`,
-              height: '100%'
+              height: '100%',
+              backgroundColor: '#1e1e1e',
+              color: '#d4d4d4'
             },
             '.cm-content': {
               padding: '16px 0'
@@ -367,9 +374,32 @@ const FuncScriptEditor = ({
             '.cm-scroller': {
               overflow: 'auto',
               height: '100%'
+            },
+            '.cm-gutters': {
+              backgroundColor: '#1e1e1e',
+              color: '#858585',
+              border: 'none'
+            },
+            '.cm-activeLine': {
+              backgroundColor: 'rgba(255, 255, 255, 0.08)'
+            },
+            '.cm-activeLineGutter': {
+              color: '#c6c6c6'
+            },
+            '.cm-lineNumbers .cm-gutterElement': {
+              padding: '0 6px'
+            },
+            '.cm-selectionBackground': {
+              backgroundColor: 'rgba(128, 189, 255, 0.35) !important'
+            },
+            '.cm-cursor': {
+              borderLeftColor: '#aeafad'
+            },
+            '.cm-foldGutter': {
+              color: '#c5c5c5'
             }
           },
-          { dark: false }
+          { dark: true }
         ),
         ...funcscriptExtensions,
         EditorView.updateListener.of((update) => {

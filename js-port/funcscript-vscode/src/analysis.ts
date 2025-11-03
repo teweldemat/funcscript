@@ -170,6 +170,51 @@ const filterCommentSegments = (commentSegments: ParseSegment[], baseSegments: Pa
   });
 };
 
+const subtractSegments = (baseSegments: ParseSegment[], removals: ParseSegment[]) => {
+  if (!removals.length) {
+    return baseSegments;
+  }
+
+  const sortedRemovals = [...removals].sort((a, b) => a.start - b.start || a.end - b.end);
+  const result: ParseSegment[] = [];
+
+  for (const base of baseSegments) {
+    let pending: Array<{ start: number; end: number }> = [{ start: base.start, end: base.end }];
+
+    for (const removal of sortedRemovals) {
+      const nextPending: Array<{ start: number; end: number }> = [];
+
+      for (const segment of pending) {
+        if (removal.end <= segment.start || removal.start >= segment.end) {
+          nextPending.push(segment);
+          continue;
+        }
+
+        if (removal.start > segment.start) {
+          nextPending.push({ start: segment.start, end: Math.max(segment.start, removal.start) });
+        }
+
+        if (removal.end < segment.end) {
+          nextPending.push({ start: Math.min(segment.end, removal.end), end: segment.end });
+        }
+      }
+
+      pending = nextPending;
+      if (!pending.length) {
+        break;
+      }
+    }
+
+    for (const segment of pending) {
+      if (segment.end > segment.start) {
+        result.push({ ...base, start: segment.start, end: segment.end });
+      }
+    }
+  }
+
+  return result;
+};
+
 const findFirstCodeIndex = (text: string) => {
   for (let index = 0; index < text.length; index += 1) {
     const ch = text[index];
@@ -244,7 +289,9 @@ export const analyzeText = (text: string): ParseOutcome => {
     const baseSegments = rawSegments
       .map((segment) => toSegment(segment, text.length))
       .filter((segment): segment is ParseSegment => Boolean(segment));
-    const merged = baseSegments.concat(filterCommentSegments(commentSegments, baseSegments));
+    const filteredComments = filterCommentSegments(commentSegments, baseSegments);
+    const trimmedBase = subtractSegments(baseSegments, filteredComments);
+    const merged = trimmedBase.concat(filteredComments);
     const segments = merged
       .sort((a, b) => (a.start === b.start ? a.end - b.end : a.start - b.start));
 

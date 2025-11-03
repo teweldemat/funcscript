@@ -1,5 +1,6 @@
 import { type CSSProperties } from 'react';
 import type { ColoredSegment } from './funcscriptColoring.js';
+export declare const VSCODE_FONT_STACK = "\"Cascadia Code\", \"Fira Code\", \"Fira Mono\", \"Menlo\", \"Consolas\", \"Liberation Mono\", \"Courier New\", monospace";
 type RawParseNode = {
     Pos?: number;
     pos?: number;

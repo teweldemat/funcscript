@@ -258,9 +258,9 @@ namespace FuncScript.Test
                 (ParseNodeType.LiteralInteger, 1),
                 (ParseNodeType.Operator, 1),
                 (ParseNodeType.Identifier, 3),
-                (ParseNodeType.FunctionParameterList, 1),
+                (ParseNodeType.OpenBrace, 1),
                 (ParseNodeType.LiteralInteger, 2),
-                (ParseNodeType.FunctionParameterList, 1));
+                (ParseNodeType.CloseBrance, 1));
         }
 
         [Test]
@@ -281,11 +281,67 @@ namespace FuncScript.Test
             var color = FuncScriptRuntime.ColorParseTree(node).ToArray();
             Assert.That(color, Has.Length.EqualTo(5));
             AssertNodeSequence(color, 0,
-                (ParseNodeType.IdentiferList, 1),
+                (ParseNodeType.OpenBrace, 1),
                 (ParseNodeType.Identifier, 1),
-                (ParseNodeType.IdentiferList, 1),
-                (ParseNodeType.LambdaExpression, 2),
+                (ParseNodeType.CloseBrance, 1),
+                (ParseNodeType.LambdaArrow, 2),
                 (ParseNodeType.LiteralInteger, 2));
+
+        }
+
+        [Test]
+        public void TestColoring3()
+        {
+            var provider = new DefaultFsDataProvider();
+            var expression = @"1 //123
++3";
+            var errors = new List<FuncScriptParser.SyntaxErrorData>();
+            var result = ParseExpression(provider, expression, errors);
+            var block = result.ExpressionBlock;
+            var node = result.ParseNode;
+            Assert.That(block, Is.Not.Null);
+            Assert.That(node, Is.Not.Null);
+            Assert.That(errors, Is.Empty);
+            AssertRootNode(node, expression);
+            AssertTreeSpanConsitency(node);
+            Assert.That(result.NextIndex, Is.EqualTo(expression.Length));
+            var color = FuncScriptRuntime.ColorParseTree(node).ToArray();
+            Assert.That(color, Has.Length.EqualTo(5));
+            AssertNodeSequence(color, 0,
+                (ParseNodeType.LiteralInteger, 1),
+                (ParseNodeType.WhiteSpace, 1),
+                (ParseNodeType.Comment, 6),
+                (ParseNodeType.Operator, 1),
+                (ParseNodeType.LiteralInteger, 1)
+                );
+
+        }
+
+        [Test]
+        public void TestColoringLambdaWithComment()
+        {
+            var provider = new DefaultFsDataProvider();
+            var expression = "(a)=>a //xyz";
+            var errors = new List<FuncScriptParser.SyntaxErrorData>();
+            var result = ParseExpression(provider, expression, errors);
+            var block = result.ExpressionBlock;
+            var node = result.ParseNode;
+            Assert.That(block, Is.Not.Null);
+            Assert.That(node, Is.Not.Null);
+            Assert.That(errors, Is.Empty);
+            AssertRootNode(node, expression);
+            AssertTreeSpanConsitency(node);
+            Assert.That(result.NextIndex, Is.EqualTo(expression.Length));
+            var color = FuncScriptRuntime.ColorParseTree(node).ToArray();
+            Assert.That(color, Has.Length.EqualTo(7));
+            AssertNodeSequence(color, 0,
+                (ParseNodeType.OpenBrace, 1),
+                (ParseNodeType.Identifier, 1),
+                (ParseNodeType.CloseBrance, 1),
+                (ParseNodeType.LambdaArrow, 2),
+                (ParseNodeType.Identifier, 1),
+                (ParseNodeType.WhiteSpace, 1),
+                (ParseNodeType.Comment, 5));
 
         }
 

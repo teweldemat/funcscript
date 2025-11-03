@@ -719,7 +719,7 @@ namespace FuncScript
                 {
                     if (ch.Pos > i)
                         ret.Add(new ParseNode(node.NodeType, i, ch.Pos - i));
-                    ret.Add(new ParseNode(node.NodeType, ch.Pos, ch.Length));
+                    ret.Add(new ParseNode(ch.NodeType, ch.Pos, ch.Length));
                     i = ch.Pos + ch.Length;
                     continue;
                 }
@@ -728,7 +728,7 @@ namespace FuncScript
                 {
                     if (ch.Pos > i)
                         ret.Add(new ParseNode(node.NodeType, i, ch.Pos - i));
-                    ret.Add(new ParseNode(node.NodeType, ch.Pos, ch.Length));
+                    ret.Add(new ParseNode(ch.NodeType, ch.Pos, ch.Length));
                     i = ch.Pos + ch.Length;
                     continue;
                 }

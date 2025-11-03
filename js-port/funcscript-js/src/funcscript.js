@@ -196,7 +196,7 @@ function colorParseTree(node) {
       if (childPos > cursor) {
         result.push(new ParseNode(node.NodeType, cursor, childPos - cursor));
       }
-      result.push(new ParseNode(node.NodeType, childPos, child.Length));
+      result.push(new ParseNode(child.NodeType, childPos, child.Length));
       cursor = childPos + child.Length;
       continue;
     }
@@ -205,7 +205,7 @@ function colorParseTree(node) {
       if (childPos > cursor) {
         result.push(new ParseNode(node.NodeType, cursor, childPos - cursor));
       }
-      result.push(new ParseNode(node.NodeType, childPos, child.Length));
+      result.push(new ParseNode(child.NodeType, childPos, child.Length));
       cursor = childPos + child.Length;
       continue;
     }

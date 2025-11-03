@@ -10,7 +10,8 @@ const tokenTypesLegend: vscode.SemanticTokensLegend['tokenTypes'] = [
   'variable',
   'operator',
   'property',
-  'function'
+  'function',
+  'type'
 ];
 
 const tokenModifiersLegend: vscode.SemanticTokensLegend['tokenModifiers'] = [];
@@ -22,21 +23,30 @@ type TokenType = (typeof tokenTypesLegend)[number];
 type NodeTypeClassifier = Partial<Record<string, TokenType>>;
 
 const NODE_TYPE_TOKEN: NodeTypeClassifier = {
+  RootExpression: 'variable',
+  WhiteSpace: 'variable',
   Comment: 'comment',
+  StringDelimeter: 'string',
   FunctionParameterList: 'variable',
   FunctionCall: 'function',
   MemberAccess: 'property',
   Selection: 'property',
   InfixExpression: 'operator',
   LiteralInteger: 'number',
-  KeyWord: 'keyword',
   LiteralDouble: 'number',
   LiteralLong: 'number',
+  LiteralFloat: 'number',
+  LiteralBoolean: 'keyword',
+  KeyWord: 'keyword',
   Identifier: 'variable',
   IdentiferList: 'variable',
   Operator: 'operator',
+  LambdaArrow: 'operator',
+  ThirdOperandDelimeter: 'operator',
   LambdaExpression: 'function',
   ExpressionInBrace: 'operator',
+  SwitchExpression: 'keyword',
+  IfExpression: 'keyword',
   LiteralString: 'string',
   StringTemplate: 'string',
   KeyValuePair: 'property',
@@ -44,16 +54,22 @@ const NODE_TYPE_TOKEN: NodeTypeClassifier = {
   List: 'variable',
   Key: 'property',
   Case: 'keyword',
-  DataConnection: 'function',
-  NormalErrorSink: 'keyword',
-  SigSequence: 'keyword',
+  DataConnection: 'type',
+  NormalErrorSink: 'type',
+  SigSequence: 'type',
   ErrorKeyWord: 'keyword',
-  SignalConnection: 'function',
+  SignalConnection: 'type',
   GeneralInfixExpression: 'operator',
-  PrefixOperatorExpression: 'operator'
+  PrefixOperatorExpression: 'operator',
+  OpenBrace: 'operator',
+  CloseBrance: 'operator',
+  ListSeparator: 'operator',
+  Colon: 'operator'
 };
 
 const FALLBACK_TOKEN: TokenType = 'variable';
+
+const SKIP_NODE_TYPES = new Set<string>(['RootExpression', 'WhiteSpace', 'InfixExpression', 'GeneralInfixExpression']);
 
 const outputChannelId = 'FuncScript';
 let outputChannel: vscode.OutputChannel | undefined;
@@ -145,18 +161,14 @@ class FuncScriptSemanticTokensProvider implements vscode.DocumentSemanticTokensP
     const pushedSegments: Array<{ line: number; character: number; length: number; type: TokenType }> = [];
 
     for (const segment of segments) {
+      if (SKIP_NODE_TYPES.has(segment.nodeType)) {
+        continue;
+      }
+
       const explicitToken = NODE_TYPE_TOKEN[segment.nodeType];
       const tokenType = explicitToken ?? FALLBACK_TOKEN;
       if (!explicitToken) {
         unknownNodeTypes.add(segment.nodeType);
-      }
-
-      const segmentText = text.slice(segment.start, segment.end);
-      if (!isMeaningful(segmentText)) {
-        log(
-          `  skipped segment start=${segment.start} end=${segment.end} type=${segment.nodeType} (non-meaningful)`
-        );
-        continue;
       }
 
       const range = toRange(document, segment.start, segment.end, docLength);
