@@ -17,6 +17,7 @@ namespace FuncScript.Core
 
             var exp = context.Expression;
             var errors = context.ErrorsList;
+            var buffer = CreateNodeBuffer(siblings);
 
             ParseBlockResult operandResult;
             var currentIndex = index;
@@ -34,7 +35,7 @@ namespace FuncScript.Core
 
             while (true)
             {
-                var operatorResult = GetOperator(context,siblings, candidates, currentIndex);
+                var operatorResult = GetOperator(context, buffer, candidates, currentIndex);
                 if (!operatorResult.HasProgress(currentIndex))
                     break;
 
@@ -60,7 +61,7 @@ namespace FuncScript.Core
                     operands.Add(nextOperand.ExpressionBlock);
                     currentIndex = nextOperand.NextIndex;
 
-                    var repeated = GetToken(context, currentIndex,siblings,ParseNodeType.Operator, symbol);
+                    var repeated = GetToken(context, currentIndex, buffer, ParseNodeType.Operator, symbol);
                     if (repeated == currentIndex)
                         break;
 
@@ -106,6 +107,7 @@ namespace FuncScript.Core
                 currentExpression = combined;
             }
 
+            CommitNodeBuffer(siblings, buffer);
 
             return new ParseBlockResult(currentIndex, currentExpression);
         }

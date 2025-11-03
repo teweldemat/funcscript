@@ -9,8 +9,16 @@ using System.Text;
 namespace FuncScript.Test
 {
 
-    public class TestSet2
+    public class BasicTests
     {
+        
+        [Test]
+        public void One()
+        {
+            var exp = @"1";
+            var res = FuncScriptRuntime.Evaluate(exp);
+            Assert.That(res,Is.EqualTo(1));
+        }
         [Test]
         public void OnePlusOne()
         {
@@ -37,15 +45,6 @@ namespace FuncScript.Test
             {
                 FuncScriptRuntime.Evaluate("{a:5;a:6;return 5;}");
             });
-        }
-
-
-    }
-    public class Tests
-    {
-        [SetUp]
-        public void Setup()
-        {
         }
         public static object AssertSingleResult(string expStr)
         {

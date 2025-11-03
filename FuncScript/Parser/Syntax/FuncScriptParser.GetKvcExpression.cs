@@ -16,9 +16,10 @@ namespace FuncScript.Core
             var exp = context.Expression;
 
             var currentIndex = index;
+            var nodeItems = new List<ParseNode>();
             if (!nakedMode)
             {
-                var afterOpen = GetToken(context, currentIndex,siblings,ParseNodeType.OpenBrace, "{");
+                var afterOpen = GetToken(context, currentIndex,nodeItems,ParseNodeType.OpenBrace, "{");
                 if (afterOpen == currentIndex)
                     return new ValueParseResult<KvcExpression>(index, null, null);
 
@@ -27,7 +28,6 @@ namespace FuncScript.Core
 
             var keyValues = new List<KvcExpression.KeyValueExpression>();
             ExpressionBlock returnExpression = null;
-            var nodeItems = new List<ParseNode>();
 
             while (true)
             {
@@ -62,7 +62,7 @@ namespace FuncScript.Core
 
             if (!nakedMode)
             {
-                var afterClose = GetToken(context, currentIndex,siblings,ParseNodeType.CloseBrance, "}");
+                var afterClose = GetToken(context, currentIndex,nodeItems,ParseNodeType.CloseBrance, "}");
                 if (afterClose == currentIndex)
                 {
                     errors.Add(new SyntaxErrorData(currentIndex, 0, "'}' expected"));
@@ -85,7 +85,7 @@ namespace FuncScript.Core
             }
 
             var parseNode = new ParseNode(ParseNodeType.KeyValueCollection, index, currentIndex - index, nodeItems);
-            siblings?.Add(parseNode);
+            siblings.Add(parseNode);
             return new ValueParseResult<KvcExpression>(currentIndex, kvcExpression);
         }
     }

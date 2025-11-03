@@ -17,9 +17,10 @@ namespace FuncScript.Core
             string matchedSymbol = null;
             string functionName = null;
             var currentIndex = index;
+            var buffer = CreateNodeBuffer(siblings);
             foreach (var op in s_prefixOp)
             {
-                var nextIndex = GetToken(context, index,siblings,ParseNodeType.Operator,op[0]);
+                var nextIndex = GetToken(context, index,buffer,ParseNodeType.Operator,op[0]);
                 if (nextIndex > index)
                 {
                     matchedSymbol = op[0];
@@ -62,7 +63,9 @@ namespace FuncScript.Core
             var parseNode = new ParseNode(ParseNodeType.PrefixOperatorExpression, index, currentIndex - index,
                 childNodes);
 
-            siblings?.Add(parseNode);
+            buffer.AddRange(childNodes);
+            buffer.Add(parseNode);
+            CommitNodeBuffer(siblings, buffer);
 
             return new ParseBlockResult(currentIndex, expression);
         }

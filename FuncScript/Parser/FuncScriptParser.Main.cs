@@ -42,6 +42,7 @@ namespace FuncScript.Core
             List,
             Key,
             Case,
+            IfExpression,
             GeneralInfixExpression,
             PrefixOperatorExpression
         }
@@ -106,6 +107,7 @@ namespace FuncScript.Core
         const string KW_CASE = "case";
         const string KW_SWITCH = "switch";
         private const string KW_ERROR = "fault";
+        
         static HashSet<string> s_KeyWords;
 
         static FuncScriptParser()
@@ -116,6 +118,8 @@ namespace FuncScript.Core
             s_KeyWords.Add(KW_CASE);
             s_KeyWords.Add(KW_SWITCH);
             s_KeyWords.Add(KW_SWITCH);
+            s_KeyWords.Add("then");
+            s_KeyWords.Add("else");
         }
     }
 }

@@ -14,15 +14,15 @@ namespace FuncScript.Core
             if (candidates == null)
                 throw new ArgumentNullException(nameof(candidates));
 
-            var exp = context.Expression;
             var errors = context.ErrorsList;
+            var nodes = new List<ParseNode>();
 
             ParseBlockResult operandResult;
             var currentIndex = index;
             if (level == 0)
-                operandResult = GetInfixFunctionCall(context, new List<ParseNode>(), currentIndex);
+                operandResult = GetInfixFunctionCall(context, nodes, currentIndex);
             else
-                operandResult = GetInfixExpressionSingleLevel(context, new List<ParseNode>(), level - 1,
+                operandResult = GetInfixExpressionSingleLevel(context, nodes, level - 1,
                     s_operatorSymols[level - 1], currentIndex);
 
             if (!operandResult.HasProgress(currentIndex) || operandResult.ExpressionBlock == null)
@@ -33,25 +33,25 @@ namespace FuncScript.Core
 
             while (true)
             {
-                var operatorResult = GetOperator(context,siblings, candidates, currentIndex);
+                var operatorResult = GetOperator(context,nodes, candidates, currentIndex);
                 if (!operatorResult.HasProgress(currentIndex))
                     break;
 
                 var symbol = operatorResult.Value.symbol;
+                ParseNode operatorNode = nodes.Count > 0 ? nodes[nodes.Count - 1] : null;
                 currentIndex = operatorResult.NextIndex;
                 var indexBeforeOperator = currentIndex;
 
                 var operands = new List<ExpressionBlock> { currentExpression };
-                var operandNodes = new List<ParseNode>();
 
                 while (true)
                 {
 
                     ParseBlockResult nextOperand;
                     if (level == 0)
-                        nextOperand = GetInfixFunctionCall(context, operandNodes, currentIndex);
+                        nextOperand = GetInfixFunctionCall(context, nodes, currentIndex);
                     else
-                        nextOperand = GetInfixExpressionSingleLevel(context, operandNodes, level - 1,
+                        nextOperand = GetInfixExpressionSingleLevel(context, nodes, level - 1,
                             s_operatorSymols[level - 1], currentIndex);
 
                     if (!nextOperand.HasProgress(currentIndex) || nextOperand.ExpressionBlock == null)
@@ -60,7 +60,7 @@ namespace FuncScript.Core
                     operands.Add(nextOperand.ExpressionBlock);
                     currentIndex = nextOperand.NextIndex;
 
-                    var repeated = GetToken(context, currentIndex,siblings,ParseNodeType.Operator, symbol);
+                    var repeated = GetToken(context, currentIndex,nodes,ParseNodeType.Operator, symbol);
                     if (repeated == currentIndex)
                         break;
                     currentIndex = repeated;
@@ -92,20 +92,10 @@ namespace FuncScript.Core
                 {
                     var function = context.Provider.Get(symbol);
                     var functionLiteral = new LiteralBlock(function);
-                    ParseNode operatorLocation = null;
-                    foreach (var child in operandNodes)
+                    if (operatorNode != null)
                     {
-                        if (child.NodeType == ParseNodeType.Operator)
-                        {
-                            operatorLocation = child;
-                            break;
-                        }
-                    }
-
-                    if (operatorLocation != null)
-                    {
-                        functionLiteral.Pos = operatorLocation.Pos;
-                        functionLiteral.Length = operatorLocation.Length;
+                        functionLiteral.Pos = operatorNode.Pos;
+                        functionLiteral.Length = operatorNode.Length;
                     }
 
                     combined = new FunctionCallExpression
@@ -117,11 +107,13 @@ namespace FuncScript.Core
                     };
                 }
 
-                var nodeStart = operandNodes.Count > 0 ? operandNodes[0].Pos : startPos;
-                var nodeLength = endPos - nodeStart;
                 currentExpression = combined;
             }
 
+            foreach (var node in nodes)
+            {
+                siblings.Add(node);
+            }
 
             return new ParseBlockResult(currentIndex, currentExpression);
         }

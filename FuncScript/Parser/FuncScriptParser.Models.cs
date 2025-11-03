@@ -85,14 +85,6 @@ namespace FuncScript.Core
             public T Value { get; }
         }
 
-        public class CommentParseResult : ValueParseResult<string>
-        {
-            public CommentParseResult(int nextIndex, string text, ParseNode parseNode)
-                : base(nextIndex, text)
-            {
-            }
-
-            public string Text => Value;
-        }
+        
     }
 }

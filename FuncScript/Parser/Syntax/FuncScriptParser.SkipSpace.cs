@@ -20,13 +20,32 @@ namespace FuncScript.Core
 
             if (i > index)
             {
-                siblings.Add(new ParseNode(ParseNodeType.WhiteSpace, index, i - index));
+                var length = i - index;
+                var addWhitespace = true;
+                for (var s = siblings.Count - 1; s >= 0; s--)
+                {
+                    var existing = siblings[s];
+                    if (existing.NodeType != ParseNodeType.WhiteSpace)
+                        continue;
+                    if (existing.Pos == index && existing.Length == length)
+                    {
+                        addWhitespace = false;
+                    }
+
+                    if (existing.Pos <= index)
+                        break;
+                }
+
+                if (addWhitespace)
+                {
+                    siblings.Add(new ParseNode(ParseNodeType.WhiteSpace, index, length));
+                }
             }
 
             var commentResult = GetCommentBlock(context,siblings, i);
-            if (commentResult.HasProgress(i))
+            if (commentResult>i)
             {
-                i = commentResult.NextIndex;
+                i = commentResult;
             }
 
             return i;

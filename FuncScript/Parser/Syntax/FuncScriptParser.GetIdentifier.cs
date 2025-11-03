@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using FuncScript.Core;
 
 namespace FuncScript.Core
@@ -26,7 +27,8 @@ namespace FuncScript.Core
             if (index >= context.Expression.Length)
                 return new IdenResult(index,null,null);
 
-            var currentIndex = SkipSpace(context,siblings, index);
+            var buffer = CreateNodeBuffer(siblings);
+            var currentIndex = SkipSpace(context, buffer, index);
             if (currentIndex >= context.Expression.Length)
                 return new IdenResult(index,null,null);
 
@@ -48,8 +50,9 @@ namespace FuncScript.Core
             }
 
             var parseNode = new ParseNode(ParseNodeType.Identifier, currentIndex, i - currentIndex);
-            siblings.Add(parseNode);
-            return new IdenResult(index,iden,idenLower);
+            buffer.Add(parseNode);
+            CommitNodeBuffer(siblings, buffer);
+            return new IdenResult(i, iden, idenLower);
         }
     }
 }

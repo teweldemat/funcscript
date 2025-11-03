@@ -22,6 +22,11 @@ namespace FuncScript.Core
             var expression = unitResult.ExpressionBlock;
             currentIndex = unitResult.NextIndex;
 
+            foreach (var node in unitNodes)
+            {
+                siblings.Add(node);
+            }
+
             while (true)
             {
                 var callChildren = new List<ParseNode>();
@@ -30,6 +35,10 @@ namespace FuncScript.Core
                 {
                     expression = callResult.ExpressionBlock;
                     currentIndex = callResult.NextIndex;
+                    foreach (var node in callChildren)
+                    {
+                        siblings.Add(node);
+                    }
                     continue;
                 }
 
@@ -39,6 +48,10 @@ namespace FuncScript.Core
                 {
                     expression = memberResult.ExpressionBlock;
                     currentIndex = memberResult.NextIndex;
+                    foreach (var node in memberChildren)
+                    {
+                        siblings.Add(node);
+                    }
                     continue;
                 }
 
@@ -56,6 +69,10 @@ namespace FuncScript.Core
 
                     expression = selector;
                     currentIndex = selectorResult.NextIndex;
+                    foreach (var node in selectorChildren)
+                    {
+                        siblings.Add(node);
+                    }
                     continue;
                 }
 

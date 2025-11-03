@@ -16,8 +16,9 @@ namespace FuncScript.Core
             var exp = context.Expression;
             if (index >= exp.Length)
                 return index;
-            
-            var nextIndex = GetToken(context, index, siblings, ParseNodeType.KeyWord, keyword);
+
+            var buffer = CreateNodeBuffer(siblings);
+            var nextIndex = GetToken(context, index, buffer, ParseNodeType.KeyWord, keyword);
             if (nextIndex == index)
                 return index;
 
@@ -25,6 +26,8 @@ namespace FuncScript.Core
             {
                 return index;
             }
+
+            CommitNodeBuffer(siblings, buffer);
 
             return nextIndex;
         }

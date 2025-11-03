@@ -7,19 +7,31 @@ namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        static ParseBlockResult GetStringTemplate(ParseContext context, IList<ParseNode> siblings, int index)
+        static ParseBlockResult GetStringTemplate(ParseContext context, List<ParseNode> siblings, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
 
-            var doubleResult = GetStringTemplate(context, siblings, "\"", index);
+            var doubleBuffer = CreateNodeBuffer(siblings);
+            var doubleResult = GetStringTemplate(context, doubleBuffer, "\"", index);
             if (doubleResult.HasProgress(index))
+            {
+                CommitNodeBuffer(siblings, doubleBuffer);
                 return doubleResult;
+            }
 
-            return GetStringTemplate(context, siblings, "'", index);
+            var singleBuffer = CreateNodeBuffer(siblings);
+            var singleResult = GetStringTemplate(context, singleBuffer, "'", index);
+            if (singleResult.HasProgress(index))
+            {
+                CommitNodeBuffer(siblings, singleBuffer);
+                return singleResult;
+            }
+
+            return ParseBlockResult.NoAdvance(index);
         }
 
-        static ParseBlockResult GetStringTemplate(ParseContext context, IList<ParseNode> siblings, string delimiter,
+        static ParseBlockResult GetStringTemplate(ParseContext context, List<ParseNode> siblings, string delimiter,
             int index)
         {
             if (context == null)
@@ -29,8 +41,9 @@ namespace FuncScript.Core
 
             var errors = context.ErrorsList;
             var exp = context.Expression;
+            var nodeParts = new List<ParseNode>();
 
-            var templateStart = SkipSpace(context,siblings, index);
+            var templateStart = SkipSpace(context,nodeParts, index);
             if (templateStart >= exp.Length)
                 return ParseBlockResult.NoAdvance(index);
 
@@ -39,7 +52,6 @@ namespace FuncScript.Core
                 return ParseBlockResult.NoAdvance(index);
 
             var parts = new List<ExpressionBlock>();
-            var nodeParts = new List<ParseNode>();
 
             var literalStart = currentIndex;
             var buffer = new StringBuilder();
@@ -108,7 +120,7 @@ namespace FuncScript.Core
                     currentIndex = expressionResult.NextIndex;
                     parts.Add(expressionResult.ExpressionBlock);
 
-                    var afterExpressionEnd = GetToken(context, currentIndex,siblings,ParseNodeType.CloseBrance, "}");
+                    var afterExpressionEnd = GetToken(context, currentIndex,nodeParts,ParseNodeType.CloseBrance, "}");
                     if (afterExpressionEnd == currentIndex)
                     {
                         errors.Add(new SyntaxErrorData(currentIndex, 0, "'}' expected"));
@@ -172,7 +184,9 @@ namespace FuncScript.Core
             }
 
             if (parseNode != null)
-                siblings?.Add(parseNode);
+            {
+                siblings.Add(parseNode);
+            }
 
             return new ParseBlockResult(currentIndex, expression);
         }

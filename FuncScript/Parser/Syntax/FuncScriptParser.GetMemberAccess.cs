@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using FuncScript.Block;
 
 namespace FuncScript.Core
@@ -13,11 +14,23 @@ namespace FuncScript.Core
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
 
-            var dotResult = GetMemberAccess(context, siblings, ".", source, index);
+            var dotBuffer = CreateNodeBuffer(siblings);
+            var dotResult = GetMemberAccess(context, dotBuffer, ".", source, index);
             if (dotResult.HasProgress(index))
+            {
+                CommitNodeBuffer(siblings, dotBuffer);
                 return dotResult;
+            }
 
-            return GetMemberAccess(context, siblings, "?.", source, index);
+            var safeBuffer = CreateNodeBuffer(siblings);
+            var safeResult = GetMemberAccess(context, safeBuffer, "?.", source, index);
+            if (safeResult.HasProgress(index))
+            {
+                CommitNodeBuffer(siblings, safeBuffer);
+                return safeResult;
+            }
+
+            return ParseBlockResult.NoAdvance(index);
         }
 
         static ParseBlockResult GetMemberAccess(ParseContext context, IList<ParseNode> siblings, string oper,

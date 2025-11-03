@@ -18,13 +18,13 @@ namespace FuncScript.Test
             {
                 Assert.Throws((Type)expected, () =>
                 {
-                    var res = Tests.AssertSingleResult(exp);
+                    var res = BasicTests.AssertSingleResult(exp);
 
                 });
             }
             else
             {
-                var res = Tests.AssertSingleResult(exp);
+                var res = BasicTests.AssertSingleResult(exp);
                 if (errorType != null)
                 {
                     Assert.That(res,Is.TypeOf<FsError>());
@@ -96,7 +96,7 @@ namespace FuncScript.Test
         [TestCase(@"if 1=1 then ""yes"" else ""no""", "yes")]
         [TestCase(@"if 1=2 then ""yes"" else ""no""", "no")]
         [TestCase(@"if (1=2) then 10 else 20", 20)]
-        [TestCase(@"if 1=1 then if 2=2 then 1 else 2 else 3", 1)]
+        [TestCase(@"if 1=1 then (if 2=2 then 1 else 2) else 3", 1)]
 
         [TestCase(@"not(1=1)", false)] //not function
         [TestCase(@"not(3=1)", true)]
@@ -194,7 +194,7 @@ namespace FuncScript.Test
         [Test]
         public void ErrorFunctionReturnsFsErrorWithMessage()
         {
-            var result = Tests.AssertSingleResult("error(\"boom\")");
+            var result = BasicTests.AssertSingleResult("error(\"boom\")");
             Assert.That(result, Is.TypeOf<FsError>());
             Assert.That(((FsError)result).ErrorMessage, Is.EqualTo("boom"));
         }
@@ -202,7 +202,7 @@ namespace FuncScript.Test
         [Test]
         public void ErrorFunctionAllowsCustomType()
         {
-            var result = Tests.AssertSingleResult("error(\"boom\", \"CUSTOM\")");
+            var result = BasicTests.AssertSingleResult("error(\"boom\", \"CUSTOM\")");
             Assert.That(result, Is.TypeOf<FsError>());
             var fsError = (FsError)result;
             Assert.That(fsError.ErrorType, Is.EqualTo("CUSTOM"));
@@ -313,7 +313,7 @@ namespace FuncScript.Test
         {
             var exp = "format([1,2,3])";
             var expected = "[1,2,3]";
-            var res=(string)Tests.AssertSingleResultType(exp,typeof(string));
+            var res=(string)BasicTests.AssertSingleResultType(exp,typeof(string));
             res = res.Replace(" ", "").Replace("\n", "").Replace("\r", "").Replace("\t", "");
             Assert.AreEqual(expected, res);
 
@@ -338,7 +338,7 @@ namespace FuncScript.Test
 }
 ";
             object expected=5*1*2;
-            var res=Tests.AssertSingleResult(exp);
+            var res=BasicTests.AssertSingleResult(exp);
             Assert.AreEqual(expected, res);
         }
         [Test]

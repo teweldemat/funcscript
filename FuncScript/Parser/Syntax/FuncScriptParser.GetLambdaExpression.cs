@@ -15,7 +15,8 @@ namespace FuncScript.Core
             var errors = context.ErrorsList;
             var exp = context.Expression;
 
-            var currentIndex = GetIdentifierList(context, index,siblings, out var parameters, out var parametersNode);
+            var parameterNodes = new List<ParseNode>();
+            var currentIndex = GetIdentifierList(context, index, parameterNodes, out var parameters, out var parametersNode);
             if (currentIndex == index)
                 return new ValueParseResult<ExpressionFunction>(index, null, null);
 
@@ -23,7 +24,12 @@ namespace FuncScript.Core
             if (arrowIndex >= exp.Length - 1)
                 return new ValueParseResult<ExpressionFunction>(index, null, null);
 
-            var afterArrow = GetToken(context, arrowIndex,siblings,ParseNodeType.LambdaArrow, "=>");
+            var childNodes = new List<ParseNode>();
+            if (parametersNode != null)
+                childNodes.Add(parametersNode);
+
+            var arrowNodes = new List<ParseNode>();
+            var afterArrow = GetToken(context, arrowIndex,arrowNodes,ParseNodeType.LambdaArrow, "=>");
             if (afterArrow == arrowIndex)
             {
                 errors.Add(new SyntaxErrorData(arrowIndex, 0, "'=>' expected"));
@@ -32,9 +38,8 @@ namespace FuncScript.Core
 
             currentIndex = afterArrow;
 
-            var childNodes = new List<ParseNode>();
-            if (parametersNode != null)
-                childNodes.Add(parametersNode);
+            if (arrowNodes.Count > 0)
+                childNodes.AddRange(arrowNodes);
 
             var bodyResult = GetExpression(context, childNodes, currentIndex);
             if (!bodyResult.HasProgress(currentIndex) || bodyResult.ExpressionBlock == null)
@@ -48,8 +53,7 @@ namespace FuncScript.Core
             var function = new ExpressionFunction(parameters.ToArray(), bodyResult.ExpressionBlock);
 
             var parseNode = new ParseNode(ParseNodeType.LambdaExpression, index, currentIndex - index, childNodes);
-
-            siblings?.Add(parseNode);
+            siblings.Add(parseNode);
 
             return new ValueParseResult<ExpressionFunction>(currentIndex, function);
         }

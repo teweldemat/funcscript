@@ -2,7 +2,7 @@ namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        static int GetNumber(ParseContext context,IList<ParseNode> siblings, int index, out object number, out ParseNode parseNode,
+        static int GetNumber(ParseContext context,List<ParseNode> siblings, int index, out object number, out ParseNode parseNode,
             List<SyntaxErrorData> serros)
         {
             parseNode = null;
@@ -13,12 +13,14 @@ namespace FuncScript.Core
             if (index >= context.Expression.Length)
                 return index;
 
-            var currentIndex = SkipSpace(context,siblings, index);
+            var buffer = CreateNodeBuffer(siblings);
+            var nodes = buffer;
+            var currentIndex = SkipSpace(context,nodes, index);
             if (currentIndex >= context.Expression.Length)
                 return index;
 
             int i = currentIndex;
-            var i2 = GetInt(context,siblings, true, i, out var intDigits);
+            var i2 = GetInt(context,nodes, true, i, out var intDigits);
             if (i2 == i)
                 return index;
             i = i2;
@@ -29,7 +31,7 @@ namespace FuncScript.Core
             i = i2;
             if (hasDecimal)
             {
-                i = GetInt(context,siblings, false, i, out var decimalDigitss);
+                i = GetInt(context,nodes, false, i, out var decimalDigitss);
             }
 
             i2 = GetLiteralMatch(context.Expression, i, "E");
@@ -37,9 +39,8 @@ namespace FuncScript.Core
                 hasExp = true;
             i = i2;
             String expDigits = null;
-            ParseNode nodeExpDigits;
             if (hasExp)
-                i = GetInt(context,siblings, true, i, out expDigits);
+                i = GetInt(context,nodes, true, i, out expDigits);
 
             if (!hasDecimal) //if no decimal we check if there is the 'l' suffix
             {
@@ -60,6 +61,8 @@ namespace FuncScript.Core
 
                 number = dval;
                 parseNode = new ParseNode(ParseNodeType.LiteralDouble, currentIndex, i - currentIndex);
+                nodes.Add(parseNode);
+                CommitNodeBuffer(siblings, buffer);
                 return i;
             }
 
@@ -96,6 +99,8 @@ namespace FuncScript.Core
 
                 number = longVal;
                 parseNode = new ParseNode(ParseNodeType.LiteralLong, currentIndex, i - currentIndex);
+                nodes.Add(parseNode);
+                CommitNodeBuffer(siblings, buffer);
                 return i;
             }
 
@@ -103,6 +108,8 @@ namespace FuncScript.Core
             {
                 number = intVal;
                 parseNode = new ParseNode(ParseNodeType.LiteralInteger, currentIndex, i - currentIndex);
+                nodes.Add(parseNode);
+                CommitNodeBuffer(siblings, buffer);
                 return i;
             }
 
@@ -110,6 +117,8 @@ namespace FuncScript.Core
             {
                 number = longVal;
                 parseNode = new ParseNode(ParseNodeType.LiteralLong, currentIndex, i - currentIndex);
+                nodes.Add(parseNode);
+                CommitNodeBuffer(siblings, buffer);
                 return i;
             }
 

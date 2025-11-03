@@ -101,7 +101,7 @@ namespace FuncScript.Core
             }
 
             if (parseNode != null)
-                siblings?.Add(parseNode);
+                siblings.Add(parseNode);
 
             return new ParseBlockResult(currentIndex, expression);
         }

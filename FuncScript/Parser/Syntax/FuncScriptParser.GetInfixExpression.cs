@@ -13,7 +13,16 @@ namespace FuncScript.Core
             var ret= GetInfixExpressionSingleLevel(context, childNodes, s_operatorSymols.Length - 1, s_operatorSymols[^1], index);
             if (ret.HasProgress(index))
             {
-                siblings.Add(new ParseNode(ParseNodeType.InfixExpression,index,ret.NextIndex-index,childNodes));
+                if(!childNodes.Any(n=>n.NodeType==ParseNodeType.Operator))
+                {
+                    foreach (var ch in childNodes)
+                    {
+                        siblings.Add(ch);
+                    }
+                }                
+                else 
+                    siblings.Add(new ParseNode(ParseNodeType.InfixExpression,index,ret.NextIndex-index,childNodes));
+                return ret;
             }
 
             return ParseResult.NoAdvance(index);

@@ -6,7 +6,6 @@ namespace FuncScript.Core
     {
         static int GetInt(ParseContext context, IList<ParseNode> siblings,  bool allowNegative, int index, out string intVal)
         {
-            ParseNode parseNode = null;
             int i = index;
             if (allowNegative)
                 i = GetLiteralMatch(context.Expression, i, "-");
@@ -24,8 +23,6 @@ namespace FuncScript.Core
             i = i2;
 
             intVal = context.Expression.Substring(index, i - index);
-            parseNode = new ParseNode(ParseNodeType.LiteralInteger, index, index - i);
-            siblings.Add(parseNode);
             return i;
         }
     }

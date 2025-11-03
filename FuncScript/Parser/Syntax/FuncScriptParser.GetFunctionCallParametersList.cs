@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using FuncScript.Block;
-using FuncScript.Model;
 
 namespace FuncScript.Core
 {
@@ -12,52 +11,46 @@ namespace FuncScript.Core
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
-
-            var roundResult = GetFunctionCallParametersList(context, siblings, "(", ")", function, index);
-            if (roundResult.HasProgress(index))
-                return roundResult;
-
-            return GetFunctionCallParametersList(context, siblings, "[", "]", function, index);
-        }
-
-        static ParseBlockResult GetFunctionCallParametersList(ParseContext context, IList<ParseNode> siblings,
-            string openBrace, string closeBrace, ExpressionBlock function, int index)
-        {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
             if (function == null)
                 throw new ArgumentNullException(nameof(function));
 
-            var errors = context.ErrorsList;
-            var exp = context.Expression;
+            var roundResult = ParseParameters(context, siblings, function, index, "(", ")");
+            if (roundResult.HasProgress(index))
+                return roundResult;
 
-            var afterOpen = GetToken(context, index,siblings,ParseNodeType.OpenBrace, openBrace);
-            if (afterOpen == index)
+            var squareResult = ParseParameters(context, siblings, function, index, "[", "]");
+            if (squareResult.HasProgress(index))
+                return squareResult;
+
+            return ParseBlockResult.NoAdvance(index);
+        }
+
+        static ParseBlockResult ParseParameters(ParseContext context, IList<ParseNode> siblings,
+            ExpressionBlock function, int index, string openToken, string closeToken)
+        {
+            var nodeItems = new List<ParseNode>();
+            var currentIndex = GetToken(context, index, nodeItems, ParseNodeType.OpenBrace, openToken);
+            if (currentIndex == index)
                 return ParseBlockResult.NoAdvance(index);
 
-            var currentIndex = afterOpen;
-
             var parameters = new List<ExpressionBlock>();
-            var parameterNodes = new List<ParseNode>();
 
-            var parameterIndex = currentIndex;
-            var parameterResult = GetExpression(context, parameterNodes, parameterIndex);
-            if (parameterResult.HasProgress(parameterIndex) && parameterResult.ExpressionBlock != null)
+            var parameterResult = GetExpression(context, nodeItems, currentIndex);
+            if (parameterResult.HasProgress(currentIndex) && parameterResult.ExpressionBlock != null)
             {
                 parameters.Add(parameterResult.ExpressionBlock);
                 currentIndex = parameterResult.NextIndex;
 
                 while (true)
                 {
-                    var afterComma = GetToken(context, currentIndex,siblings,ParseNodeType.ListSeparator, ",");
+                    var afterComma = GetToken(context, currentIndex, nodeItems, ParseNodeType.ListSeparator, ",");
                     if (afterComma == currentIndex)
                         break;
 
-                    var nextParameterIndex = afterComma;
-                    var nextParameter = GetExpression(context, parameterNodes, nextParameterIndex);
-                    if (!nextParameter.HasProgress(nextParameterIndex) || nextParameter.ExpressionBlock == null)
+                    var nextParameter = GetExpression(context, nodeItems, afterComma);
+                    if (!nextParameter.HasProgress(afterComma) || nextParameter.ExpressionBlock == null)
                     {
-                        errors.Add(new SyntaxErrorData(nextParameterIndex, 0, "Parameter for call expected"));
+                        context.ErrorsList.Add(new SyntaxErrorData(afterComma, 0, "Parameter for call expected"));
                         return ParseBlockResult.NoAdvance(index);
                     }
 
@@ -66,14 +59,19 @@ namespace FuncScript.Core
                 }
             }
 
-            var afterClose = GetToken(context, currentIndex,siblings,ParseNodeType.CloseBrance, closeBrace);
+            var afterClose = GetToken(context, currentIndex, nodeItems, ParseNodeType.CloseBrance, closeToken);
             if (afterClose == currentIndex)
             {
-                errors.Add(new SyntaxErrorData(currentIndex, 0, $"'{closeBrace}' expected"));
+                context.ErrorsList.Add(new SyntaxErrorData(currentIndex, 0, $"'{closeToken}' expected"));
                 return ParseBlockResult.NoAdvance(index);
             }
 
             currentIndex = afterClose;
+
+            var startPos = nodeItems.Count > 0 ? nodeItems[0].Pos : index;
+            var parseNode = new ParseNode(ParseNodeType.FunctionParameterList, startPos, currentIndex - startPos,
+                nodeItems);
+            siblings.Add(parseNode);
 
             var callExpression = new FunctionCallExpression
             {
@@ -82,11 +80,6 @@ namespace FuncScript.Core
                 Pos = function.Pos,
                 Length = currentIndex - function.Pos
             };
-
-            var parseNode = new ParseNode(ParseNodeType.FunctionParameterList, index, currentIndex - index,
-                parameterNodes);
-
-            siblings?.Add(parseNode);
 
             return new ParseBlockResult(currentIndex, callExpression);
         }

@@ -706,10 +706,33 @@ namespace FuncScript
             {
                 return new[] { node };
             }
-            var first = node.Childs.First();
             var i = node.Pos;
+            static bool IsListContainer(ParseNodeType type)
+            {
+                return type == ParseNodeType.FunctionParameterList || type == ParseNodeType.IdentiferList;
+            }
+
             foreach (var ch in node.Childs)
             {
+                if (IsListContainer(node.NodeType) &&
+                    (ch.NodeType == ParseNodeType.OpenBrace || ch.NodeType == ParseNodeType.CloseBrance))
+                {
+                    if (ch.Pos > i)
+                        ret.Add(new ParseNode(node.NodeType, i, ch.Pos - i));
+                    ret.Add(new ParseNode(node.NodeType, ch.Pos, ch.Length));
+                    i = ch.Pos + ch.Length;
+                    continue;
+                }
+
+                if (node.NodeType == ParseNodeType.LambdaExpression && ch.NodeType == ParseNodeType.LambdaArrow)
+                {
+                    if (ch.Pos > i)
+                        ret.Add(new ParseNode(node.NodeType, i, ch.Pos - i));
+                    ret.Add(new ParseNode(node.NodeType, ch.Pos, ch.Length));
+                    i = ch.Pos + ch.Length;
+                    continue;
+                }
+
                 if (ch.Pos > i)
                     ret.Add(new ParseNode(node.NodeType, i, ch.Pos - i));
                 ret.AddRange(ColorParseTree(ch));

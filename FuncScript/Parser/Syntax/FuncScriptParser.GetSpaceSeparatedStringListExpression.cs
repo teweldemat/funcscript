@@ -6,7 +6,7 @@ namespace FuncScript.Core
     public partial class FuncScriptParser
     {
         static ValueParseResult<IReadOnlyList<string>> GetSpaceSeparatedStringListExpression(ParseContext context,
-            IList<ParseNode> siblings, int index)
+            List<ParseNode> siblings, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -20,16 +20,13 @@ namespace FuncScript.Core
             var nodeListItems = new List<ParseNode>();
 
             string firstItem;
-            ParseNode firstNode;
-            var i2 = GetSimpleString(context,siblings, i, out firstItem, out firstNode, errors);
+            var i2 = GetSimpleString(context,nodeListItems, i, out firstItem, errors);
             if (i2 == i)
-                i2 = GetSpaceLessString(exp, i, out firstItem, out firstNode);
+                i2 = GetSpaceLessString(context,nodeListItems, i, out firstItem);
 
             if (i2 > i)
             {
                 listItems.Add(firstItem);
-                if (firstNode != null)
-                    nodeListItems.Add(firstNode);
                 i = i2;
                 while (true)
                 {
@@ -39,16 +36,14 @@ namespace FuncScript.Core
 
                     i = i2;
 
-                    i2 = GetSimpleString(context,siblings, i, out var otherItem, out var otherNode, errors);
+                    i2 = GetSimpleString(context,nodeListItems, i, out var otherItem,  errors);
                     if (i2 == i)
-                        i2 = GetSpaceLessString(exp, i, out otherItem, out otherNode);
+                        i2 = GetSpaceLessString(context,nodeListItems, i, out otherItem);
 
                     if (i2 == i)
                         break;
 
                     listItems.Add(otherItem);
-                    if (otherNode != null)
-                        nodeListItems.Add(otherNode);
                     i = i2;
                 }
             }
@@ -57,7 +52,7 @@ namespace FuncScript.Core
                 return new ValueParseResult<IReadOnlyList<string>>(i, null, null);
 
             var parseNode = new ParseNode(ParseNodeType.List, index, i - index, nodeListItems);
-            siblings?.Add(parseNode);
+            siblings.Add(parseNode);
             return new ValueParseResult<IReadOnlyList<string>>(i, listItems.ToArray());
         }
     }

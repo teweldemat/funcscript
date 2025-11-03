@@ -2,22 +2,22 @@ namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        static int GetSpaceLessString(String exp, int index, out String text, out ParseNode parseNode)
+        static int GetSpaceLessString(ParseContext context,List<ParseNode> siblings, int index, out String text)
         {
-            parseNode = null;
             text = null;
-            if (index >= exp.Length)
+            if (index >= context.Expression.Length)
                 return index;
             var i = index;
 
-            if (i >= exp.Length || isCharWhiteSpace(exp[i]))
+            if (i >= context.Expression.Length || isCharWhiteSpace(context.Expression[i]))
                 return index;
             i++;
-            while (i < exp.Length && !isCharWhiteSpace(exp[i]))
+            while (i < context.Expression.Length && !isCharWhiteSpace(context.Expression[i]))
                 i++;
 
-            text = exp.Substring(index, i - index);
-            parseNode = new ParseNode(ParseNodeType.Identifier, index, i - index);
+            text = context.Expression.Substring(index, i - index);
+            var parseNode = new ParseNode(ParseNodeType.Identifier, index, i - index);
+            siblings.Add(parseNode);
             return i;
         }
     }

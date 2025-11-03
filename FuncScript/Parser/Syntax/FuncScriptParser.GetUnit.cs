@@ -6,14 +6,12 @@ namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        static ParseBlockResult GetUnit(ParseContext context, IList<ParseNode> siblings, int index)
+        static ParseBlockResult GetUnit(ParseContext context, List<ParseNode> siblings, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
 
             var errors = context.ErrorsList;
-            var exp = context.Expression;
-
             // String template
             var stringTemplateResult = GetStringTemplate(context, siblings, index);
             if (stringTemplateResult.HasProgress(index) && stringTemplateResult.ExpressionBlock != null)
@@ -25,7 +23,7 @@ namespace FuncScript.Core
             }
 
             // Simple string literal
-            var stringIndex = GetSimpleString(context,siblings, index, out var text, out var stringNode, errors);
+            var stringIndex = GetSimpleString(context,siblings, index, out var text,  errors);
             if (stringIndex > index)
             {
                 var block = new LiteralBlock(text)
@@ -33,8 +31,6 @@ namespace FuncScript.Core
                     Pos = index,
                     Length = stringIndex - index
                 };
-                if (stringNode != null)
-                    siblings?.Add(stringNode);
                 return new ParseBlockResult(stringIndex, block);
             }
 
@@ -47,8 +43,6 @@ namespace FuncScript.Core
                     Pos = index,
                     Length = numberIndex - index
                 };
-                if (numberNode != null)
-                    siblings?.Add(numberNode);
                 return new ParseBlockResult(numberIndex, block);
             }
 

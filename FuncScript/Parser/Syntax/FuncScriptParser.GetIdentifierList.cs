@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace FuncScript.Core
 {
     public partial class FuncScriptParser
@@ -6,15 +8,15 @@ namespace FuncScript.Core
         {
             parseNode = null;
             idenList = null;
-            var afterOpen = GetToken(context, index,siblings,ParseNodeType.OpenBrace, "(");
+            var buffer = CreateNodeBuffer(siblings);
+            var afterOpen = GetToken(context, index,buffer,ParseNodeType.OpenBrace, "(");
             if (afterOpen == index)
                 return index;
 
             var i = afterOpen;
             idenList = new List<string>();
-            var parseNodes = new List<ParseNode>();
 
-            var iden=GetIdentifier(context,siblings, i);
+            var iden=GetIdentifier(context,buffer, i);
             int i2 = iden.NextIndex;
             if (i2 > i)
             {
@@ -23,11 +25,11 @@ namespace FuncScript.Core
 
                 while (i < context.Expression.Length)
                 {
-                    var afterComma = GetToken(context, i,siblings,ParseNodeType.ListSeparator, ",");
+                    var afterComma = GetToken(context, i,buffer,ParseNodeType.ListSeparator, ",");
                     if (afterComma == i)
                         break;
 
-                    iden = GetIdentifier(context,siblings, afterComma);
+                    iden = GetIdentifier(context,buffer, afterComma);
                     i2 = iden.NextIndex;
                     if (i2 == afterComma)
                         return index;
@@ -36,10 +38,24 @@ namespace FuncScript.Core
                 }
             }
 
-            var afterClose = GetToken(context, i,siblings,ParseNodeType.CloseBrance, ")");
+            var afterClose = GetToken(context, i,buffer,ParseNodeType.CloseBrance, ")");
             if (afterClose == i)
                 return index;
-            parseNode = new ParseNode(ParseNodeType.IdentiferList, index, afterClose - index, parseNodes);
+            var parseChildren = new List<ParseNode>(buffer);
+            parseChildren.Sort((a, b) =>
+            {
+                var cmp = a.Pos.CompareTo(b.Pos);
+                if (cmp != 0)
+                    return cmp;
+                return a.Length.CompareTo(b.Length);
+            });
+
+            var openNode = parseChildren.FirstOrDefault(n => n.NodeType == ParseNodeType.OpenBrace);
+            var parseStart = openNode?.Pos ?? (parseChildren.Count > 0 ? parseChildren[0].Pos : index);
+            var parseLength = afterClose - parseStart;
+
+            parseNode = new ParseNode(ParseNodeType.IdentiferList, parseStart, parseLength, parseChildren);
+            siblings.Add(parseNode);
             return afterClose;
         }
     }

@@ -44,7 +44,7 @@ namespace FuncScript.Core
 
             var listExpression = new ListExpression { ValueExpressions = items.ToArray() };
             var parseNode = new ParseNode(ParseNodeType.List, index, currentIndex - index, nodes);
-            siblings?.Add(parseNode);
+            siblings.Add(parseNode);
 
             return new ValueParseResult<ListExpression>(currentIndex, listExpression);
         }

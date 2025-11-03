@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace FuncScript.Core
 {
@@ -13,7 +14,8 @@ namespace FuncScript.Core
                 throw new ArgumentNullException(nameof(candidates));
 
             var exp = context.Expression;
-            var currentIndex = SkipSpace(context,siblings, index);
+            var buffer = CreateNodeBuffer(siblings);
+            var currentIndex = SkipSpace(context, buffer, index);
 
             foreach (var op in candidates)
             {
@@ -23,7 +25,8 @@ namespace FuncScript.Core
 
                 var function = context.Provider.Get(op) as IFsFunction;
                 var parseNode = new ParseNode(ParseNodeType.Operator, currentIndex, nextIndex - currentIndex);
-                siblings.Add(parseNode);
+                buffer.Add(parseNode);
+                CommitNodeBuffer(siblings, buffer);
                 return new ValueParseResult<(string symbol, IFsFunction function)>(nextIndex, (op, function));
             }
 

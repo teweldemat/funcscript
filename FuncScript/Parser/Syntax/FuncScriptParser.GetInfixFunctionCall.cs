@@ -15,52 +15,59 @@ namespace FuncScript.Core
 
             var errors = context.ErrorsList;
             var exp = context.Expression;
+            var buffer = CreateNodeBuffer(siblings);
 
             var operands = new List<ExpressionBlock>();
-            var childNodes = new List<ParseNode>();
 
-            var firstOperandResult = GetCallAndMemberAccess(context, childNodes, index);
+            var firstOperandResult = GetCallAndMemberAccess(context, buffer, index);
             if (!firstOperandResult.HasProgress(index) || firstOperandResult.ExpressionBlock == null)
                 return ParseBlockResult.NoAdvance(index);
+            
 
             operands.Add(firstOperandResult.ExpressionBlock);
             var currentIndex = firstOperandResult.NextIndex;
-
-            var iden=GetIdentifier(context,siblings, currentIndex);
+            var identifierStart = currentIndex;
+            var iden=GetIdentifier(context,buffer, currentIndex);
             var afterIdentifier = iden.NextIndex;
             if (afterIdentifier == currentIndex)
+            {
+                CommitNodeBuffer(siblings,buffer);
                 return firstOperandResult;
+            }
 
             var function = context.Provider.Get(iden.IdenLower);
             if (function is not IFsFunction infixFunction)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, afterIdentifier - currentIndex, "A function expected"));
-                return ParseBlockResult.NoAdvance(index);
+                return ParseResult.NoAdvance(index);
             }
 
             if (infixFunction.CallType != CallType.Dual)
+            {
+                CommitNodeBuffer(siblings,buffer);
                 return firstOperandResult;
+            }
 
             currentIndex = afterIdentifier;
 
-            var secondOperandResult = GetCallAndMemberAccess(context, childNodes, currentIndex);
+            var secondOperandResult = GetCallAndMemberAccess(context, buffer, currentIndex);
             if (!secondOperandResult.HasProgress(currentIndex) || secondOperandResult.ExpressionBlock == null)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, 0, $"Right side operand expected for {iden.Iden}"));
-                return ParseBlockResult.NoAdvance(index);
+                return ParseResult.NoAdvance(index);
             }
 
             operands.Add(secondOperandResult.ExpressionBlock);
             currentIndex = secondOperandResult.NextIndex;
-
+            
             while (true)
             {
-                var afterChain = GetToken(context, currentIndex,siblings,ParseNodeType.ThirdOperandDelimeter, "~");
+                var afterChain = GetToken(context, currentIndex,buffer,ParseNodeType.ThirdOperandDelimeter, "~");
                 if (afterChain == currentIndex)
                     break;
 
                 currentIndex = afterChain;
-                var nextOperand = GetCallAndMemberAccess(context, childNodes, currentIndex);
+                var nextOperand = GetCallAndMemberAccess(context, buffer, currentIndex);
                 if (!nextOperand.HasProgress(currentIndex) || nextOperand.ExpressionBlock == null)
                     break;
 
@@ -69,34 +76,29 @@ namespace FuncScript.Core
             }
 
             if (operands.Count < 2)
-                return ParseBlockResult.NoAdvance(index);
+                return ParseResult.NoAdvance(index);
 
-            var firstChild = childNodes.FirstOrDefault();
-            var lastChild = childNodes.LastOrDefault();
 
-            var startPos = firstChild?.Pos ?? index;
-            var endPos = lastChild != null ? lastChild.Pos + lastChild.Length : startPos;
-            if (endPos < startPos)
-                endPos = startPos;
 
             var functionLiteral = new LiteralBlock(function)
             {
-                Pos = startPos,
-                Length = iden.NextIndex-startPos
+                Pos = identifierStart,
+                Length = afterIdentifier-identifierStart
             };
+
+            var firstNode = buffer.FirstOrDefault(n => n.NodeType != ParseNodeType.WhiteSpace);
+            var startPos = firstNode?.Pos ?? (buffer.Count > 0 ? buffer[0].Pos : index);
+            var expressionLength = Math.Max(0, currentIndex - startPos);
 
             var expression = new FunctionCallExpression
             {
                 Function = functionLiteral,
                 Parameters = operands.ToArray(),
                 Pos = startPos,
-                Length = endPos - startPos
+                Length = expressionLength
             };
-
-            var parseNode = new ParseNode(ParseNodeType.GeneralInfixExpression, startPos, endPos - startPos,
-                childNodes);
-
-            siblings?.Add(parseNode);
+            var parseNode = new ParseNode(ParseNodeType.GeneralInfixExpression, index, currentIndex-index, buffer);
+            siblings.Add(parseNode);
 
             return new ParseBlockResult(currentIndex, expression);
         }

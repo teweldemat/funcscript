@@ -7,21 +7,27 @@ namespace FuncScript.Core
     public partial class FuncScriptParser
     {
         static ValueParseResult<KvcExpression.KeyValueExpression> GetKvcItem(ParseContext context,
-            IList<ParseNode> siblings, bool nakedKvc, int index)
+            List<ParseNode> siblings, bool nakedKvc, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
 
             var exp = context.Expression;
 
-            var keyValueResult = GetKeyValuePair(context, siblings, index);
+            var keyValueBuffer = CreateNodeBuffer(siblings);
+            var keyValueResult = GetKeyValuePair(context, keyValueBuffer, index);
             if (keyValueResult.HasProgress(index))
+            {
+                CommitNodeBuffer(siblings, keyValueBuffer);
                 return new ValueParseResult<KvcExpression.KeyValueExpression>(keyValueResult.NextIndex,
                     keyValueResult.Value);
+            }
 
-            var returnResult = GetReturnDefinition(context, siblings, index);
+            var returnBuffer = CreateNodeBuffer(siblings);
+            var returnResult = GetReturnDefinition(context, returnBuffer, index);
             if (returnResult.HasProgress(index) && returnResult.ExpressionBlock != null)
             {
+                CommitNodeBuffer(siblings, returnBuffer);
                 var item = new KvcExpression.KeyValueExpression
                 {
                     Key = null,
@@ -32,10 +38,12 @@ namespace FuncScript.Core
 
             if (!nakedKvc)
             {
-                var iden = GetIdentifier(context, siblings, index);
-                var identifierIndex =iden.NextIndex ;
+                var identifierBuffer = CreateNodeBuffer(siblings);
+                var iden = GetIdentifier(context, identifierBuffer, index);
+                var identifierIndex = iden.NextIndex;
                 if (identifierIndex > index)
                 {
+                    CommitNodeBuffer(siblings, identifierBuffer);
                     var reference = new ReferenceBlock(iden.Iden, iden.IdenLower, false)
                     {
                         Pos = index,
@@ -51,9 +59,11 @@ namespace FuncScript.Core
                 }
 
                 var stringErrors = new List<SyntaxErrorData>();
-                var stringIndex = GetSimpleString(context,siblings, index, out var stringIden, out var nodeStringIden, stringErrors);
+                var stringBuffer = CreateNodeBuffer(siblings);
+                var stringIndex = GetSimpleString(context, stringBuffer, index, out var stringIden, stringErrors);
                 if (stringIndex > index)
                 {
+                    CommitNodeBuffer(siblings, stringBuffer);
                     var reference = new ReferenceBlock(stringIden, stringIden.ToLowerInvariant(), false)
                     {
                         Pos = index,

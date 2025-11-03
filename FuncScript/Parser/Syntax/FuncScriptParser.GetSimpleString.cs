@@ -4,43 +4,35 @@ namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        static int GetSimpleString(ParseContext context,IList<ParseNode> siblings, int index, out String str, out ParseNode pareNode,
+        static int GetSimpleString(ParseContext context,List<ParseNode> siblings, int index, out String str,
             List<SyntaxErrorData> serrors)
         {
-            pareNode = null;
             str = null;
 
             if (index >= context.Expression.Length)
                 return index;
 
-            var currentIndex = SkipSpace(context,siblings, index);
+            var nodes = new List<ParseNode>();
+            var currentIndex = SkipSpace(context,nodes, index);
             if (currentIndex >= context.Expression.Length)
                 return index;
 
-            var i = GetSimpleString(context,siblings, "\"", currentIndex, out str, out pareNode, serrors);
+            var i = GetSimpleString(context,nodes, "\"", currentIndex, out str, serrors);
             if (i == currentIndex)
-                i = GetSimpleString(context,siblings, "'", currentIndex, out str, out pareNode, serrors);
+                i = GetSimpleString(context,nodes, "'", currentIndex, out str, serrors);
 
             if (i == currentIndex)
             {
                 str = null;
-                pareNode = null;
                 return index;
             }
-
-            if (pareNode != null)
-            {
-                pareNode.Pos = currentIndex;
-                pareNode.Length = i - currentIndex;
-            }
-
+            siblings.AddRange(nodes);
+            
             return i;
         }
 
-        static int GetSimpleString(ParseContext context,IList<ParseNode> siblings, string delimator, int index, out String str, out ParseNode parseNode,
-            List<SyntaxErrorData> serrors)
+        static int GetSimpleString(ParseContext context,IList<ParseNode> siblings, string delimator, int index, out String str, List<SyntaxErrorData> serrors)
         {
-            parseNode = null;
             str = null;
             var i = GetLiteralMatch(context.Expression, index, delimator);
             if (i == index)
@@ -112,7 +104,7 @@ namespace FuncScript.Core
 
             i = i2;
             str = sb.ToString();
-            parseNode = new ParseNode(ParseNodeType.LiteralString, index, i - index);
+            var parseNode = new ParseNode(ParseNodeType.LiteralString, index, i - index);
             siblings.Add(parseNode);
             return i;
         }

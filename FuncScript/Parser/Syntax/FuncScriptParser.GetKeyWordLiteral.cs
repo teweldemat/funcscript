@@ -1,4 +1,4 @@
-
+using System.Collections.Generic;
 namespace FuncScript.Core
 {
     public partial class FuncScriptParser
@@ -11,21 +11,37 @@ namespace FuncScript.Core
             if (index >= context.Expression.Length)
                 return index;
 
-            var currentIndex = SkipSpace(context,siblings,  index);
+            var buffer = CreateNodeBuffer(siblings);
+            var currentIndex = SkipSpace(context, buffer, index);
             if (currentIndex >= context.Expression.Length)
                 return index;
 
             var i = GetLiteralMatch(context.Expression, currentIndex, "null");
             if (i > currentIndex)
             {
+                if (i < context.Expression.Length && IsIdentfierOtherChar(context.Expression[i]))
+                {
+                    literal = null;
+                    return index;
+                }
                 literal = null;
             }
             else if ((i = GetLiteralMatch(context.Expression, currentIndex, "true")) > currentIndex)
             {
+                if (i < context.Expression.Length && IsIdentfierOtherChar(context.Expression[i]))
+                {
+                    literal = null;
+                    return index;
+                }
                 literal = true;
             }
             else if ((i = GetLiteralMatch(context.Expression, currentIndex, "false")) > currentIndex)
             {
+                if (i < context.Expression.Length && IsIdentfierOtherChar(context.Expression[i]))
+                {
+                    literal = null;
+                    return index;
+                }
                 literal = false;
             }
             else
@@ -35,7 +51,8 @@ namespace FuncScript.Core
             }
 
             parseNode = new ParseNode(ParseNodeType.KeyWord, currentIndex, i - currentIndex);
-            siblings.Add(parseNode);
+            buffer.Add(parseNode);
+            CommitNodeBuffer(siblings, buffer);
             return i;
         }
     }

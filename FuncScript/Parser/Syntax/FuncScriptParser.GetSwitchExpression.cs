@@ -73,7 +73,7 @@ namespace FuncScript.Core
 
             var parseNode = new ParseNode(ParseNodeType.Case, index, currentIndex - index, childNodes);
 
-            siblings?.Add(parseNode);
+            siblings.Add(parseNode);
 
             return new ParseBlockResult(currentIndex, functionCall);
         }
