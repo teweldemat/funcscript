@@ -1,4 +1,4 @@
-const { FuncScriptParser } = require('./parser/funcscript-parser');
+const { FuncScriptParser } = require('./parser/funcscript-parser.cjs');
 const dataProviders = require('./core/data-provider');
 const valueModule = require('./core/value');
 const { FSDataType, getTypeName } = require('./core/fstypes');

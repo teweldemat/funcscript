@@ -3,7 +3,7 @@
   height: 100%;
   width: 100%;
   background: radial-gradient(circle at top, #1e3a8a 0%, #0f172a 45%, #020617 100%);
-  color: inherit;
+  color: #e2e8f0;
   overflow: hidden;
 }
 
@@ -12,78 +12,159 @@
   flex-direction: column;
   min-width: 0;
   height: 100%;
+  min-height: 0;
 }
 
 .panel-left {
   border-right: 1px solid rgba(148, 163, 184, 0.25);
-  background: rgba(15, 23, 42, 0.72);
+  background: rgba(15, 23, 42, 0.8);
   backdrop-filter: blur(6px);
 }
 
 .panel-right {
   flex: 1;
-  background: rgba(8, 47, 73, 0.6);
-  border-left: 1px solid rgba(15, 118, 110, 0.2);
+  background: rgba(15, 23, 42, 0.5);
 }
 
 .panel-heading {
   padding: 16px 20px;
   font-size: 1.125rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: #94a3b8;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
 }
 
 .panel-body {
   flex: 1;
-  padding: 24px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+}
+
+.panel-body-left {
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel-body-right {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.canvas-wrapper {
+  flex: 1;
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(2, 6, 23, 0.8);
+  min-height: 240px;
+  min-width: 0;
+}
+
+.preview-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.canvas-notice {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  font-size: 1.1rem;
-  line-height: 1.6;
+  background: rgba(2, 6, 23, 0.75);
+  font-size: 1rem;
+  color: rgba(226, 232, 240, 0.85);
+  padding: 24px;
+}
+
+.preview-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: rgba(226, 232, 240, 0.8);
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.input-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.expression-input {
+  min-height: 140px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(2, 6, 23, 0.6);
   color: #e2e8f0;
-  min-height: 0;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', 'Menlo', monospace;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  resize: vertical;
 }
 
-.panel-body-right {
-  padding: 32px;
+.expression-input:focus {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
 }
 
-.svg-wrapper {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
+.expression-input-large {
+  min-height: 220px;
 }
 
-.svg-frame {
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  max-width: 100%;
-  max-height: 100%;
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.55);
-  border-radius: 24px;
-  overflow: hidden;
+.status {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid transparent;
 }
 
-.svg-frame-tall {
-  aspect-ratio: 3 / 5;
+.status-error {
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.12);
+  color: rgb(248, 113, 113);
 }
 
-.svg-frame:not(.svg-frame-tall) {
-  aspect-ratio: 5 / 3;
+.status-warning {
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.12);
+  color: rgb(251, 191, 36);
 }
 
-.responsive-svg {
-  width: 100%;
-  height: 100%;
-  display: block;
+.status-info {
+  border-color: rgba(125, 211, 252, 0.4);
+  background: rgba(125, 211, 252, 0.12);
+  color: rgb(125, 211, 252);
+  list-style: disc;
+  padding-left: 28px;
+}
+
+.status-success {
+  border-color: rgba(74, 222, 128, 0.4);
+  background: rgba(74, 222, 128, 0.12);
+  color: rgb(74, 222, 128);
 }
 
 .splitter {
@@ -115,4 +196,26 @@
 
 .splitter-dragging::after {
   background: rgba(226, 232, 240, 0.6);
+}
+
+@media (max-width: 960px) {
+  .app {
+    flex-direction: column;
+  }
+
+  .panel-left,
+  .panel-right {
+    width: 100% !important;
+  }
+
+  .splitter {
+    height: 12px;
+    width: 100%;
+    cursor: row-resize;
+    background: linear-gradient(90deg, rgba(148, 163, 184, 0.45), rgba(148, 163, 184, 0.1));
+  }
+
+  .splitter::after {
+    inset: 2px 18px;
+  }
 }
