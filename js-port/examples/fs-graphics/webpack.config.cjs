@@ -32,6 +32,10 @@ module.exports = {
         exclude: /node_modules/
       },
       {
+        test: /\.fx$/i,
+        type: 'asset/source'
+      },
+      {
         test: /\.css$/i,
         use: ['style-loader', 'css-loader']
       }
@@ -46,6 +50,6 @@ module.exports = {
   devServer: {
     historyApiFallback: true,
     hot: true,
-    port: 5174
+    port: 5184
   }
 };
