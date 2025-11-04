@@ -1,23 +1,22 @@
 {
-  "$schema": "https://json.schemastore.org/tsconfig",
-  "extends": "./tsconfig.node.json",
   "compilerOptions": {
     "target": "ESNext",
     "useDefineForClassFields": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "allowJs": false,
-    "esModuleInterop": true,
-    "isolatedModules": true,
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "esModuleInterop": false,
     "allowSyntheticDefaultImports": true,
     "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "skipLibCheck": true,
-    "types": ["vite/client"],
-    "typeRoots": ["./node_modules/@types", "./node_modules"],
-    "baseUrl": "."
+    "types": ["vite/client"]
   },
-  "include": ["src"]
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
 }

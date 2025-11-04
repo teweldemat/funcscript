@@ -1,0 +1,118 @@
+.app {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  background: radial-gradient(circle at top, #1e3a8a 0%, #0f172a 45%, #020617 100%);
+  color: inherit;
+  overflow: hidden;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+
+.panel-left {
+  border-right: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.panel-right {
+  flex: 1;
+  background: rgba(8, 47, 73, 0.6);
+  border-left: 1px solid rgba(15, 118, 110, 0.2);
+}
+
+.panel-heading {
+  padding: 16px 20px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.panel-body {
+  flex: 1;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #e2e8f0;
+  min-height: 0;
+}
+
+.panel-body-right {
+  padding: 32px;
+}
+
+.svg-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.svg-frame {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  max-width: 100%;
+  max-height: 100%;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.55);
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.svg-frame-tall {
+  aspect-ratio: 3 / 5;
+}
+
+.svg-frame:not(.svg-frame-tall) {
+  aspect-ratio: 5 / 3;
+}
+
+.responsive-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.splitter {
+  width: 8px;
+  cursor: col-resize;
+  background: linear-gradient(180deg, rgba(148, 163, 184, 0.45), rgba(148, 163, 184, 0.1));
+  position: relative;
+  transition: background 120ms ease;
+  touch-action: none;
+}
+
+.splitter::after {
+  content: '';
+  position: absolute;
+  inset: 18px 2px;
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.3);
+}
+
+.splitter:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+.splitter:hover,
+.splitter-dragging {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.85), rgba(59, 130, 246, 0.3));
+}
+
+.splitter-dragging::after {
+  background: rgba(226, 232, 240, 0.6);
+}

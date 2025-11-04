@@ -19,13 +19,15 @@ namespace FuncScript.Core
             var childNodes = new List<ParseNode>();
             var currentIndex = index;
             
-            var i2 = GetKeyWord(context, childNodes, index, "if");
+            const string keyword = "if";
+            var i2 = GetKeyWord(context, childNodes, index, keyword);
             if (i2==index)
                 return ParseBlockResult.NoAdvance(index);
-            var functionBlock = new ReferenceBlock(exp.Substring(index, i2 - index))
+            var keywordStart = Math.Max(index, i2 - keyword.Length);
+            var functionBlock = new ReferenceBlock(exp.Substring(keywordStart, i2 - keywordStart))
             {
-                Pos = index,
-                Length = i2 - index
+                Pos = keywordStart,
+                Length = i2 - keywordStart
             };
             currentIndex = i2;
             

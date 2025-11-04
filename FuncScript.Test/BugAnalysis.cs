@@ -71,6 +71,6 @@ public class BugAnalysis
     return if true then 2 else 1;
 }";
         var res = Engine.Evaluate(exp);
-        Assert.That(res,Is.EqualTo(2));
+        Assert.That(res, Is.EqualTo(2));
     }
 }

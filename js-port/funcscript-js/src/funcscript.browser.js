@@ -133,3 +133,4 @@ exports.KeyValueCollection = KeyValueCollection;
 exports.SimpleKeyValueCollection = SimpleKeyValueCollection;
 exports.FsError = FsError;
 exports.buildBuiltinMap = buildBrowserBuiltinMap;
+Object.defineProperty(exports, "__esModule", { value: true });
