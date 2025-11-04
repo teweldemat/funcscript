@@ -1,4 +1,5 @@
 import {
+  ChangeEvent,
   KeyboardEvent,
   TouchEvent as ReactTouchEvent,
   useCallback,
@@ -23,6 +24,7 @@ import {
 import type { PreparedGraphics, PreparedPrimitive, PreparedTransform, ViewExtent } from './graphics';
 import './App.css';
 import { FuncScriptEditor } from '@tewelde/funcscript-editor';
+import examples from './examples';
 
 const MIN_LEFT_WIDTH = 260;
 const MIN_RIGHT_WIDTH = 320;
@@ -227,6 +229,8 @@ const App = (): JSX.Element => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const providerRef = useRef(prepareProvider());
 
+  const initialExample = examples.length > 0 ? examples[0] : null;
+
   const [leftWidth, setLeftWidth] = useState(() => {
     if (typeof window === 'undefined') {
       return 420;
@@ -234,11 +238,20 @@ const App = (): JSX.Element => {
     return Math.round(window.innerWidth * DEFAULT_RATIO) || 420;
   });
   const [dragging, setDragging] = useState(false);
-  const [viewExpression, setViewExpression] = useState(defaultViewExpression);
-  const [graphicsExpression, setGraphicsExpression] = useState(defaultGraphicsExpression);
+  const [viewExpression, setViewExpression] = useState(
+    initialExample ? initialExample.view : defaultViewExpression
+  );
+  const [graphicsExpression, setGraphicsExpression] = useState(
+    initialExample ? initialExample.graphics : defaultGraphicsExpression
+  );
   const [renderWarnings, setRenderWarnings] = useState<string[]>([]);
   const [canvasSize, setCanvasSize] = useState<{ cssWidth: number; cssHeight: number; dpr: number }>(
     () => ({ cssWidth: 0, cssHeight: 0, dpr: 1 })
+  );
+  const [time, setTime] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [selectedExampleId, setSelectedExampleId] = useState<string>(
+    initialExample ? initialExample.id : 'custom'
   );
 
   const applyWidthFromClientX = useCallback(
@@ -315,6 +328,30 @@ const App = (): JSX.Element => {
     }
   }, [applyWidthFromClientX]);
 
+  const handleExampleSelect = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
+    setSelectedExampleId(event.target.value);
+  }, []);
+
+  const handleViewExpressionChange = useCallback(
+    (value: string) => {
+      setViewExpression(value);
+      if (selectedExampleId !== 'custom') {
+        setSelectedExampleId('custom');
+      }
+    },
+    [selectedExampleId]
+  );
+
+  const handleGraphicsExpressionChange = useCallback(
+    (value: string) => {
+      setGraphicsExpression(value);
+      if (selectedExampleId !== 'custom') {
+        setSelectedExampleId('custom');
+      }
+    },
+    [selectedExampleId]
+  );
+
   const handleSplitterKeyDown = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
     const container = containerRef.current;
     const containerWidth = container ? container.getBoundingClientRect().width : window.innerWidth;
@@ -353,14 +390,15 @@ const App = (): JSX.Element => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-  const viewEvaluation = useMemo<EvaluationResult>(() => evaluateExpression(providerRef.current, viewExpression), [
-    viewExpression
-  ]);
+  const viewEvaluation = useMemo<EvaluationResult>(() => {
+    providerRef.current.set('t', time);
+    return evaluateExpression(providerRef.current, viewExpression);
+  }, [viewExpression, time]);
 
-  const graphicsEvaluation = useMemo<EvaluationResult>(
-    () => evaluateExpression(providerRef.current, graphicsExpression),
-    [graphicsExpression]
-  );
+  const graphicsEvaluation = useMemo<EvaluationResult>(() => {
+    providerRef.current.set('t', time);
+    return evaluateExpression(providerRef.current, graphicsExpression);
+  }, [graphicsExpression, time]);
 
   const viewInterpretation = useMemo(() => interpretView(viewEvaluation.value), [viewEvaluation.value]);
 
@@ -378,6 +416,9 @@ const App = (): JSX.Element => {
     extent: viewInterpretation.extent
   });
   const rafRef = useRef<number | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const lastTimestampRef = useRef<number | null>(null);
+  const playingRef = useRef(false);
 
   const requestFrame = useCallback((force?: boolean) => {
     if (rafRef.current !== null) {
@@ -420,6 +461,74 @@ const App = (): JSX.Element => {
     setRenderWarnings(warnings);
   }, [setRenderWarnings]);
 
+  const animationLoop = useCallback(
+    function animationLoop(timestamp: number) {
+      if (!playingRef.current) {
+        animationFrameRef.current = null;
+        return;
+      }
+      if (lastTimestampRef.current === null) {
+        lastTimestampRef.current = timestamp;
+      }
+      const deltaSeconds = (timestamp - lastTimestampRef.current) / 1000;
+      lastTimestampRef.current = timestamp;
+      setTime((previous) => previous + deltaSeconds);
+      animationFrameRef.current = window.requestAnimationFrame(animationLoop);
+    },
+    []
+  );
+
+  const stopAnimation = useCallback(() => {
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    lastTimestampRef.current = null;
+  }, []);
+
+  const handlePlay = useCallback(() => {
+    if (playingRef.current) {
+      return;
+    }
+    playingRef.current = true;
+    setIsPlaying(true);
+    lastTimestampRef.current = null;
+    animationFrameRef.current = window.requestAnimationFrame(animationLoop);
+  }, [animationLoop]);
+
+  const handlePause = useCallback(() => {
+    if (!playingRef.current) {
+      return;
+    }
+    playingRef.current = false;
+    setIsPlaying(false);
+    stopAnimation();
+  }, [stopAnimation]);
+
+  const handleReset = useCallback(() => {
+    playingRef.current = false;
+    setIsPlaying(false);
+    stopAnimation();
+    setTime(0);
+    drawImmediate();
+  }, [stopAnimation, drawImmediate]);
+
+  useEffect(() => {
+    if (selectedExampleId === 'custom') {
+      return;
+    }
+    const example = examples.find((entry) => entry.id === selectedExampleId);
+    if (!example) {
+      return;
+    }
+    playingRef.current = false;
+    setIsPlaying(false);
+    stopAnimation();
+    setTime(0);
+    setViewExpression(example.view);
+    setGraphicsExpression(example.graphics);
+  }, [selectedExampleId, stopAnimation]);
+
   useEffect(() => {
     drawStateRef.current = {
       preparedGraphics,
@@ -436,6 +545,10 @@ const App = (): JSX.Element => {
       cancelAnimationFrame(rafRef.current);
     }
   }, []);
+
+  useEffect(() => () => {
+    stopAnimation();
+  }, [stopAnimation]);
 
   useEffect(() => {
     const wrapper = canvasWrapperRef.current;
@@ -512,6 +625,52 @@ const App = (): JSX.Element => {
       <section className="panel panel-left" style={{ width: `${leftWidth}px` }}>
         <header className="panel-heading">Preview</header>
         <div className="panel-body panel-body-left">
+          <div className="panel-header-controls">
+            <div className="panel-meta">
+              <span>Primitives: {totalPrimitives}</span>
+              <span>
+                Canvas: {Math.round(canvasSize.cssWidth)}px × {Math.round(canvasSize.cssHeight)}px @ {canvasSize.dpr.toFixed(2)}x
+              </span>
+              <span>
+                View span:{' '}
+                {viewInterpretation.extent
+                  ? `${(viewInterpretation.extent.maxX - viewInterpretation.extent.minX).toFixed(2)} × ${(viewInterpretation.extent.maxY - viewInterpretation.extent.minY).toFixed(2)}`
+                  : '—'}
+              </span>
+            </div>
+            <div className="animation-controls">
+              <span className="time-display">t = {time.toFixed(2)}s</span>
+              <div className="animation-buttons">
+                <button
+                  type="button"
+                  className="control-button"
+                  onClick={handlePlay}
+                  disabled={isPlaying}
+                  aria-label="Play"
+                >
+                  ▶
+                </button>
+                <button
+                  type="button"
+                  className="control-button"
+                  onClick={handlePause}
+                  disabled={!isPlaying}
+                  aria-label="Pause"
+                >
+                  ⏸
+                </button>
+                <button
+                  type="button"
+                  className="control-button"
+                  onClick={handleReset}
+                  aria-label="Reset"
+                >
+                  ⟲
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div ref={canvasWrapperRef} className="canvas-wrapper">
             <canvas ref={canvasRef} className="preview-canvas" />
             {!canvasReady ? (
@@ -519,18 +678,6 @@ const App = (): JSX.Element => {
                 <p>Awaiting view extent and primitive output.</p>
               </div>
             ) : null}
-          </div>
-          <div className="preview-meta">
-            <div>Primitives: {totalPrimitives}</div>
-            <div>
-              Canvas: {Math.round(canvasSize.cssWidth)}px × {Math.round(canvasSize.cssHeight)}px @ {canvasSize.dpr.toFixed(2)}x
-            </div>
-            <div>
-              View span:{' '}
-              {viewInterpretation.extent
-                ? `${(viewInterpretation.extent.maxX - viewInterpretation.extent.minX).toFixed(2)} × ${(viewInterpretation.extent.maxY - viewInterpretation.extent.minY).toFixed(2)}`
-                : '—'}
-            </div>
           </div>
         </div>
       </section>
@@ -549,6 +696,25 @@ const App = (): JSX.Element => {
       <section className="panel panel-right">
         <header className="panel-heading">Expressions</header>
         <div className="panel-body panel-body-right">
+          <div className="example-picker">
+            <label htmlFor="example-select" className="input-label">
+              Example
+            </label>
+            <select
+              id="example-select"
+              className="example-select"
+              value={selectedExampleId}
+              onChange={handleExampleSelect}
+            >
+              <option value="custom">Custom</option>
+              {examples.map((example) => (
+                <option key={example.id} value={example.id}>
+                  {example.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="form-section">
             <label className="input-label" htmlFor="view-expression-editor">
               View extent expression
@@ -556,7 +722,7 @@ const App = (): JSX.Element => {
             <div className="editor-container">
               <FuncScriptEditor
                 value={viewExpression}
-                onChange={setViewExpression}
+                onChange={handleViewExpressionChange}
                 minHeight={180}
               />
             </div>
@@ -574,7 +740,7 @@ const App = (): JSX.Element => {
             <div className="editor-container editor-container-large">
               <FuncScriptEditor
                 value={graphicsExpression}
-                onChange={setGraphicsExpression}
+                onChange={handleGraphicsExpressionChange}
                 minHeight={240}
               />
             </div>

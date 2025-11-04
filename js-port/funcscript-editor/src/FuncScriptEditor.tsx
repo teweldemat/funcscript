@@ -102,6 +102,24 @@ const isWhitespaceNode = (node: RawParseNode) => {
   return nodeType.length > 0 && nodeType.includes('whitespace');
 };
 
+const skipLeadingLineBreaks = (
+  doc: EditorState['doc'],
+  start: number,
+  limit: number
+) => {
+  let cursor = start;
+  const safeLimit = Math.min(limit, doc.length);
+  while (cursor < safeLimit) {
+    const ch = doc.sliceString(cursor, cursor + 1);
+    if (ch === '\n' || ch === '\r') {
+      cursor += 1;
+      continue;
+    }
+    break;
+  }
+  return cursor;
+};
+
 const collectFoldRanges = (root: RawParseNode, doc: EditorState['doc']): FoldRange[] => {
   if (doc.length === 0) {
     return [];
@@ -136,12 +154,24 @@ const collectFoldRanges = (root: RawParseNode, doc: EditorState['doc']): FoldRan
             startPos = clampedEnd;
           }
           endPos = Math.max(startPos, clampedEnd);
+        } else {
+          const adjustedStart = skipLeadingLineBreaks(doc, startPos, end);
+          if (adjustedStart !== startPos) {
+            startPos = Math.min(adjustedStart, doc.length - 1);
+            if (startPos > endPos) {
+              startPos = Math.max(0, Math.min(endPos, doc.length - 1));
+            }
+          }
         }
 
         const startLine = doc.lineAt(startPos);
         const endLine = doc.lineAt(Math.max(startPos, endPos));
 
         if (startLine.number < endLine.number) {
+          const lineSpan = endLine.number - startLine.number + 1;
+          if (lineSpan <= 2) {
+            continue;
+          }
           const from = isWhitespace ? startLine.from : startLine.to;
           const to = endLine.from;
           if (to > from) {
