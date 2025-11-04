@@ -362,7 +362,6 @@ function getInfixFunctionCall(context, siblings, index) {
 
   operands.push(firstOperandResult.ExpressionBlock);
   let currentIndex = firstOperandResult.NextIndex;
-  const identifierStart = currentIndex;
 
   const iden = getIdentifier(context, buffer, currentIndex, KEYWORDS);
   const afterIdentifier = iden.NextIndex;
@@ -415,8 +414,8 @@ function getInfixFunctionCall(context, siblings, index) {
   }
 
   const fnLiteral = new LiteralBlock(fnTyped);
-  fnLiteral.Pos = identifierStart;
-  fnLiteral.Length = afterIdentifier - identifierStart;
+  fnLiteral.Pos = iden.StartIndex;
+  fnLiteral.Length = iden.Length;
 
   const firstNode = buffer.find((n) => n.NodeType !== ParseNodeType.WhiteSpace);
   const startPos = firstNode ? firstNode.Pos : (buffer.length > 0 ? buffer[0].Pos : index);
@@ -475,12 +474,13 @@ function getCallAndMemberAccess(context, siblings, index) {
 
     const selectorChildren = [];
     const selectorResult = getKvcExpression(context, selectorChildren, false, currentIndex);
-    if (selectorResult.hasProgress(currentIndex) && selectorResult.Value) {
+    if (selectorResult.hasProgress(currentIndex) && selectorResult.ExpressionBlock) {
       const selector = new SelectorExpression();
       selector.Source = expression;
-      selector.Selector = selectorResult.Value;
-      selector.Pos = currentIndex;
-      selector.Length = selectorResult.NextIndex - currentIndex;
+      selector.Selector = selectorResult.ExpressionBlock;
+      const selectorStart = typeof expression.Pos === 'number' ? expression.Pos : currentIndex;
+      selector.Pos = selectorStart;
+      selector.Length = selectorResult.NextIndex - selectorStart;
       expression = selector;
       currentIndex = selectorResult.NextIndex;
       for (const node of selectorChildren) {
@@ -658,7 +658,7 @@ function getKvcExpression(context, siblings, nakedMode, index) {
   if (!nakedMode) {
     const afterOpen = getToken(context, currentIndex, nodeItems, ParseNodeType.OpenBrace, '{');
     if (afterOpen === currentIndex) {
-      return new ValueParseResult(index, null);
+      return ParseResult.noAdvance(index);
     }
     currentIndex = afterOpen;
   }
@@ -679,7 +679,7 @@ function getKvcExpression(context, siblings, nakedMode, index) {
     if (itemResult.Value.Key == null) {
       if (returnExpression) {
         errors.push(new SyntaxErrorData(currentIndex, nodeItems.length, 'Duplicate return statement'));
-        return new ValueParseResult(index, null);
+        return ParseResult.noAdvance(index);
       }
       returnExpression = itemResult.Value.ValueExpression;
     } else {
@@ -698,18 +698,18 @@ function getKvcExpression(context, siblings, nakedMode, index) {
     const afterClose = getToken(context, currentIndex, nodeItems, ParseNodeType.CloseBrance, '}');
     if (afterClose === currentIndex) {
       errors.push(new SyntaxErrorData(currentIndex, 0, "'}' expected"));
-      return new ValueParseResult(index, null);
+      return ParseResult.noAdvance(index);
     }
     currentIndex = afterClose;
   } else if (keyValues.length === 0 && !returnExpression) {
-    return new ValueParseResult(index, null);
+    return ParseResult.noAdvance(index);
   }
 
   const kvc = new KvcExpression();
   const validationError = kvc.SetKeyValues(keyValues, returnExpression);
   if (validationError) {
     errors.push(new SyntaxErrorData(index, currentIndex - index, validationError));
-    return new ValueParseResult(index, null);
+    return ParseResult.noAdvance(index);
   }
 
   const parseNode = new ParseNode(
@@ -719,7 +719,7 @@ function getKvcExpression(context, siblings, nakedMode, index) {
     nodeItems
   );
   siblings.push(parseNode);
-  return new ValueParseResult(currentIndex, kvc);
+  return new ParseBlockResult(currentIndex, kvc);
 }
 
 // Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetKvcItem.cs :: GetKvcItem
@@ -751,9 +751,7 @@ function getKvcItem(context, siblings, nakedKvc, index) {
     const identifierIndex = iden.NextIndex;
     if (identifierIndex > index) {
       commitNodeBuffer(siblings, identifierBuffer);
-      const reference = new ReferenceBlock(iden.Iden);
-      reference.Pos = index;
-      reference.Length = identifierIndex - index;
+      const reference = new ReferenceBlock(iden.Iden, iden.StartIndex, iden.Length);
       const item = new KeyValueExpression();
       item.Key = iden.Iden;
       item.KeyLower = iden.IdenLower;
@@ -764,17 +762,15 @@ function getKvcItem(context, siblings, nakedKvc, index) {
     const stringErrors = [];
     const stringBuffer = createNodeBuffer(siblings);
     const stringResult = getSimpleString(context, stringBuffer, index, stringErrors);
-    if (stringResult.nextIndex > index) {
+    if (stringResult.NextIndex > index) {
       commitNodeBuffer(siblings, stringBuffer);
-      const key = stringResult.text;
-      const reference = new ReferenceBlock(key);
-      reference.Pos = index;
-      reference.Length = stringResult.nextIndex - index;
+      const key = stringResult.Value;
+      const reference = new ReferenceBlock(key, stringResult.StartIndex, stringResult.Length);
       const item = new KeyValueExpression();
       item.Key = key;
       item.KeyLower = key ? key.toLowerCase() : null;
       item.ValueExpression = reference;
-      return new ValueParseResult(stringResult.nextIndex, item);
+      return new ValueParseResult(stringResult.NextIndex, item);
     }
   }
 
@@ -794,7 +790,7 @@ function getKeyValuePair(context, siblings, index) {
   let currentIndex = index;
   const nameResult = getSimpleString(context, childNodes, currentIndex, keyErrors);
   let name = null;
-  if (nameResult.nextIndex === currentIndex) {
+  if (nameResult.NextIndex === currentIndex) {
     const iden = getIdentifier(context, childNodes, currentIndex, KEYWORDS);
     currentIndex = iden.NextIndex;
     if (currentIndex === index) {
@@ -802,8 +798,8 @@ function getKeyValuePair(context, siblings, index) {
     }
     name = iden.Iden;
   } else {
-    currentIndex = nameResult.nextIndex;
-    name = nameResult.text;
+    currentIndex = nameResult.NextIndex;
+    name = nameResult.Value;
   }
 
   const afterColon = getToken(context, currentIndex, childNodes, ParseNodeType.Colon, ':');
@@ -880,7 +876,7 @@ function getListExpression(context, siblings, index) {
   let currentIndex = index;
   const afterOpen = getToken(context, currentIndex, nodes, ParseNodeType.OpenBrace, '[');
   if (afterOpen === currentIndex) {
-    return new ValueParseResult(index, null);
+    return ParseResult.noAdvance(index);
   }
 
   const listStart = nodes.length > 0 ? nodes[0].Pos : currentIndex;
@@ -914,15 +910,17 @@ function getListExpression(context, siblings, index) {
   const afterClose = getToken(context, currentIndex, nodes, ParseNodeType.CloseBrance, ']');
   if (afterClose === currentIndex) {
     context.ErrorsList.push(new SyntaxErrorData(currentIndex, 0, "']' expected"));
-    return new ValueParseResult(index, null);
+    return ParseResult.noAdvance(index);
   }
 
   currentIndex = afterClose;
   const list = new ListExpression();
   list.ValueExpressions = items;
+  list.Pos = listStart;
+  list.Length = currentIndex - listStart;
   const parseNode = new ParseNode(ParseNodeType.List, listStart, currentIndex - listStart, nodes);
   siblings.push(parseNode);
-  return new ValueParseResult(currentIndex, list);
+  return new ParseBlockResult(currentIndex, list);
 }
 
 // Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetSpaceSeparatedListExpression.cs :: GetSpaceSeparatedListExpression
@@ -974,12 +972,12 @@ function getSpaceSeparatedStringListExpression(context, siblings, index) {
   let currentIndex = index;
 
   const first = getSimpleString(context, nodeItems, currentIndex, context.ErrorsList);
-  if (first.nextIndex === currentIndex) {
+  if (first.NextIndex === currentIndex) {
     return new ValueParseResult(index, null);
   }
 
-  listItems.push(first.text);
-  currentIndex = first.nextIndex;
+  listItems.push(first.Value);
+  currentIndex = first.NextIndex;
 
   while (true) {
     const afterSpace = getWhitespaceToken(context.Expression, siblings, currentIndex);
@@ -989,11 +987,11 @@ function getSpaceSeparatedStringListExpression(context, siblings, index) {
     currentIndex = afterSpace;
 
     const next = getSimpleString(context, nodeItems, currentIndex, context.ErrorsList);
-    if (next.nextIndex === currentIndex) {
+    if (next.NextIndex === currentIndex) {
       break;
     }
-    listItems.push(next.text);
-    currentIndex = next.nextIndex;
+    listItems.push(next.Value);
+    currentIndex = next.NextIndex;
   }
 
   const parseNode = new ParseNode(ParseNodeType.List, index, currentIndex - index, nodeItems);
@@ -1701,125 +1699,73 @@ function getUnit(context, siblings, index) {
 
   attempt = tryParse(() => getStringTemplate(context, siblings, index));
   if (attempt) {
-    const block = attempt.ExpressionBlock;
-    block.Pos = index;
-    block.Length = attempt.NextIndex - index;
-    return new ParseBlockResult(attempt.NextIndex, block);
+    return attempt;
   }
 
   const stringResult = getSimpleString(context, siblings, index, errors);
-  if (stringResult.nextIndex > index) {
-    const block = new LiteralBlock(stringResult.text);
-    block.Pos = index;
-    block.Length = stringResult.nextIndex - index;
-    return new ParseBlockResult(stringResult.nextIndex, block);
+  if (stringResult.NextIndex > index) {
+    const block = new LiteralBlock(stringResult.Value, stringResult.StartIndex, stringResult.Length);
+    return new ParseBlockResult(stringResult.NextIndex, block);
   }
 
-  let numberErrors = errors.length;
-  let siblingSnapshot = siblings.length;
   const numberResult = getNumber(context, siblings, index, errors);
-  if (numberResult.nextIndex > index) {
-    const block = new LiteralBlock(numberResult.number);
-    block.Pos = index;
-    block.Length = numberResult.nextIndex - index;
-    return new ParseBlockResult(numberResult.nextIndex, block);
+  if (numberResult.NextIndex > index) {
+    const block = new LiteralBlock(numberResult.Value, numberResult.StartIndex, numberResult.Length);
+    return new ParseBlockResult(numberResult.NextIndex, block);
   }
-  errors.length = numberErrors;
-  siblings.length = siblingSnapshot;
 
-  numberErrors = errors.length;
-  siblingSnapshot = siblings.length;
   const listResult = getListExpression(context, siblings, index);
-  if (listResult.hasProgress(index) && listResult.Value) {
-    const listExpression = listResult.Value;
-    listExpression.Pos = index;
-    listExpression.Length = listResult.NextIndex - index;
-    return new ParseBlockResult(listResult.NextIndex, listExpression);
+  if (listResult.hasProgress(index) && listResult.ExpressionBlock) {
+    return listResult;
   }
-  errors.length = numberErrors;
-  siblings.length = siblingSnapshot;
 
-  numberErrors = errors.length;
-  siblingSnapshot = siblings.length;
   const kvcResult = getKvcExpression(context, siblings, false, index);
-  if (kvcResult.hasProgress(index) && kvcResult.Value) {
-    const kvcExpression = kvcResult.Value;
-    kvcExpression.Pos = index;
-    kvcExpression.Length = kvcResult.NextIndex - index;
-    return new ParseBlockResult(kvcResult.NextIndex, kvcExpression);
+  if (kvcResult.hasProgress(index) && kvcResult.ExpressionBlock) {
+    return kvcResult;
   }
-  errors.length = numberErrors;
-  siblings.length = siblingSnapshot;
 
   attempt = tryParse(() => getIfThenElseExpression(context, siblings, index));
   if (attempt) {
-    const block = attempt.ExpressionBlock;
-    block.Pos = index;
-    block.Length = attempt.NextIndex - index;
-    return new ParseBlockResult(attempt.NextIndex, block);
+    return attempt;
   }
 
   attempt = tryParse(() => getCaseExpression(context, siblings, index));
   if (attempt) {
-    const block = attempt.ExpressionBlock;
-    block.Pos = index;
-    block.Length = attempt.NextIndex - index;
-    return new ParseBlockResult(attempt.NextIndex, block);
+    return attempt;
   }
 
   attempt = tryParse(() => getSwitchExpression(context, siblings, index));
   if (attempt) {
-    const block = attempt.ExpressionBlock;
-    block.Pos = index;
-    block.Length = attempt.NextIndex - index;
-    return new ParseBlockResult(attempt.NextIndex, block);
+    return attempt;
   }
 
-  const lambdaErrors = errors.length;
-  const lambdaSiblings = siblings.length;
   const lambdaResult = getLambdaExpression(context, siblings, index);
   if (lambdaResult.hasProgress && lambdaResult.hasProgress(index) && lambdaResult.Value) {
-    const block = new LiteralBlock(lambdaResult.Value);
-    block.Pos = index;
-    block.Length = lambdaResult.NextIndex - index;
+    const block = new LiteralBlock(lambdaResult.Value, index, lambdaResult.NextIndex - index);
     return new ParseBlockResult(lambdaResult.NextIndex, block);
   }
-  errors.length = lambdaErrors;
-  siblings.length = lambdaSiblings;
 
-  const keywordErrors = errors.length;
-  const keywordSiblings = siblings.length;
   const keywordLiteral = getKeyWordLiteral(context, siblings, index);
   if (keywordLiteral.nextIndex > index) {
-    const block = new LiteralBlock(keywordLiteral.literal);
-    block.Pos = index;
-    block.Length = keywordLiteral.nextIndex - index;
+    const literalPos = keywordLiteral.parseNode ? keywordLiteral.parseNode.Pos : index;
+    const literalLength = keywordLiteral.parseNode ? keywordLiteral.parseNode.Length : keywordLiteral.nextIndex - literalPos;
+    const block = new LiteralBlock(keywordLiteral.literal, literalPos, literalLength);
     return new ParseBlockResult(keywordLiteral.nextIndex, block);
   }
-  errors.length = keywordErrors;
-  siblings.length = keywordSiblings;
 
   const iden = getIdentifier(context, siblings, index, KEYWORDS);
   if (iden.NextIndex > index) {
-    const reference = new ReferenceBlock(iden.Iden);
-    reference.Pos = index;
-    reference.Length = iden.NextIndex - index;
+    const reference = new ReferenceBlock(iden.Iden, iden.StartIndex, iden.Length);
     return new ParseBlockResult(iden.NextIndex, reference);
   }
 
   attempt = tryParse(() => getExpInParenthesis(context, siblings, index));
   if (attempt) {
-    const block = attempt.ExpressionBlock;
-    block.Pos = index;
-    block.Length = attempt.NextIndex - index;
     return attempt;
   }
 
   attempt = tryParse(() => getPrefixOperator(context, siblings, index));
   if (attempt) {
-    const block = attempt.ExpressionBlock;
-    block.Pos = index;
-    block.Length = attempt.NextIndex - index;
     return attempt;
   }
 
@@ -1832,9 +1778,9 @@ function getRootExpression(context, index) {
   const kvcErrors = [];
   const kvcContext = context.createChild(context.Expression, kvcErrors);
   const kvcResult = getKvcExpression(kvcContext, nodes, true, index);
-  if (kvcResult.hasProgress(index) && kvcResult.Value) {
+  if (kvcResult.hasProgress(index) && kvcResult.ExpressionBlock) {
     context.ErrorsList.push(...kvcErrors);
-    const kvcExpression = kvcResult.Value;
+    const kvcExpression = kvcResult.ExpressionBlock;
     if (!kvcExpression.Length) {
       kvcExpression.Pos = index;
       kvcExpression.Length = kvcResult.NextIndex - index;

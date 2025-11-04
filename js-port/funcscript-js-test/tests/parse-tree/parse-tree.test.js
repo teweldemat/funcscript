@@ -404,13 +404,13 @@ describe('ParseTreeTests', () => {
     expect(block.Length).to.equal(expression.length);
     expect(block.Parameters).to.have.lengthOf(2);
 
-    expect(block.Function.Pos).to.equal(1 + part1.length);
-    expect(block.Function.Length).to.equal(1 + part2.length);
+    expect(block.Function.Pos).to.equal(1 + part1.length + 1);
+    expect(block.Function.Length).to.equal(part2.length);
 
     expect(block.Parameters[0].Pos).to.equal(0);
     expect(block.Parameters[0].Length).to.equal(1 + part1.length);
-    expect(block.Parameters[1].Pos).to.equal(1 + part1.length + 1 + part2.length);
-    expect(block.Parameters[1].Length).to.equal(1 + part3.length);
+    expect(block.Parameters[1].Pos).to.equal(1 + part1.length + 1 + part2.length + 1);
+    expect(block.Parameters[1].Length).to.equal(part3.length);
   });
 
   it('GeneralInfixFunctionLiteralCapturesIdentifierSpan', () => {

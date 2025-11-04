@@ -190,7 +190,7 @@ function getSimpleStringWithDelimiter(context, siblings, delimiter, index, error
   const expression = context.Expression;
   let i = getLiteralMatch(expression, index, delimiter);
   if (i === index) {
-    return { nextIndex: index, text: null, parseNode: null };
+    return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
   }
 
   let text = '';
@@ -249,34 +249,40 @@ function getSimpleStringWithDelimiter(context, siblings, delimiter, index, error
   const afterClose = getLiteralMatch(expression, i, delimiter);
   if (afterClose === i) {
     errors.push(new SyntaxErrorData(i, 0, `'${delimiter}' expected`));
-    return { nextIndex: index, text: null, parseNode: null };
+    return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
   }
 
   i = afterClose;
   const parseNode = new ParseNode(ParseNodeType.LiteralString, index, i - index);
   siblings.push(parseNode);
-  return { nextIndex: i, text, parseNode };
+  return {
+    NextIndex: i,
+    Value: text,
+    StartIndex: parseNode.Pos,
+    Length: parseNode.Length,
+    ParseNode: parseNode
+  };
 }
 
 // Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetSimpleString.cs :: GetSimpleString
 function getSimpleString(context, siblings, index, errors) {
   if (index >= context.Expression.length) {
-    return { nextIndex: index, text: null, parseNode: null };
+    return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
   }
 
   const buffer = createNodeBuffer(siblings);
   const currentIndex = skipSpace(context, buffer, index);
   if (currentIndex >= context.Expression.length) {
-    return { nextIndex: index, text: null, parseNode: null };
+    return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
   }
 
   let result = getSimpleStringWithDelimiter(context, buffer, '"', currentIndex, errors);
-  if (result.nextIndex === currentIndex) {
+  if (result.NextIndex === currentIndex) {
     result = getSimpleStringWithDelimiter(context, buffer, '\'', currentIndex, errors);
   }
 
-  if (result.nextIndex === currentIndex) {
-    return { nextIndex: index, text: null, parseNode: null };
+  if (result.NextIndex === currentIndex) {
+    return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
   }
 
   commitNodeBuffer(siblings, buffer);
@@ -333,17 +339,17 @@ function getIdentifier(context, siblings, index, keywords) {
   };
 
   if (index >= context.Expression.length) {
-    return finish(new IdenResult(index, null, null));
+    return finish(new IdenResult(index, null, null, index, 0));
   }
 
   const buffer = createNodeBuffer(siblings);
   const currentIndex = skipSpace(context, buffer, index);
   if (currentIndex >= context.Expression.length) {
-    return finish(new IdenResult(index, null, null));
+    return finish(new IdenResult(index, null, null, index, 0));
   }
 
   if (!isIdentifierFirstChar(context.Expression[currentIndex])) {
-    return finish(new IdenResult(index, null, null));
+    return finish(new IdenResult(index, null, null, index, 0));
   }
 
   let i = currentIndex + 1;
@@ -354,12 +360,12 @@ function getIdentifier(context, siblings, index, keywords) {
   const iden = context.Expression.substring(currentIndex, i);
   const idenLower = iden.toLowerCase();
   if (keywords && keywords.has(idenLower)) {
-    return finish(new IdenResult(index, null, null));
+    return finish(new IdenResult(index, null, null, index, 0));
   }
 
   buffer.push(new ParseNode(ParseNodeType.Identifier, currentIndex, i - currentIndex));
   commitNodeBuffer(siblings, buffer);
-  return finish(new IdenResult(i, iden, idenLower));
+  return finish(new IdenResult(i, iden, idenLower, currentIndex, i - currentIndex));
 }
 
 // Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetKeyWord.cs :: GetKeyWord
@@ -446,23 +452,20 @@ function getInt(context, allowNegative, index) {
 
 // Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetNumber.cs :: GetNumber
 function getNumber(context, siblings, index, errors) {
-  let number = null;
-  let parseNode = null;
-
   if (index >= context.Expression.length) {
-    return { nextIndex: index, number, parseNode };
+    return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
   }
 
   const buffer = createNodeBuffer(siblings);
   const nodes = buffer;
-  let currentIndex = skipSpace(context, nodes, index);
+  const currentIndex = skipSpace(context, nodes, index);
   if (currentIndex >= context.Expression.length) {
-    return { nextIndex: index, number, parseNode };
+    return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
   }
 
   const intPart = getInt(context, true, currentIndex);
   if (intPart.nextIndex === currentIndex || !intPart.digits) {
-    return { nextIndex: index, number, parseNode };
+    return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
   }
 
   let i = intPart.nextIndex;
@@ -507,26 +510,31 @@ function getNumber(context, siblings, index, errors) {
     const parsed = Number(text);
     if (!Number.isFinite(parsed)) {
       errors.push(new SyntaxErrorData(currentIndex, i - currentIndex, `${text} couldn't be parsed as floating point`));
-      return { nextIndex: index, number: null, parseNode: null };
+      return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
     }
-    number = parsed;
-    parseNode = new ParseNode(ParseNodeType.LiteralDouble, currentIndex, i - currentIndex);
+    const parseNode = new ParseNode(ParseNodeType.LiteralDouble, currentIndex, i - currentIndex);
     nodes.push(parseNode);
     commitNodeBuffer(siblings, buffer);
-    return { nextIndex: i, number, parseNode };
+    return {
+      NextIndex: i,
+      Value: parsed,
+      StartIndex: parseNode.Pos,
+      Length: parseNode.Length,
+      ParseNode: parseNode
+    };
   }
 
   if (hasExp) {
     const exponentValue = parseInt(expDigits || '', 10);
     if (!Number.isInteger(exponentValue) || exponentValue < 0) {
       errors.push(new SyntaxErrorData(currentIndex, expDigits ? expDigits.length : 0, `Invalid exponentional ${expDigits}`));
-      return { nextIndex: index, number: null, parseNode: null };
+      return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
     }
 
     const maxLongDigits = '9223372036854775807';
     if (maxLongDigits.length + 1 < intDigits.length + exponentValue) {
       errors.push(new SyntaxErrorData(currentIndex, expDigits ? expDigits.length : 0, `Exponential ${expDigits} is out of range`));
-      return { nextIndex: index, number: null, parseNode: null };
+      return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
     }
 
     intDigits = intDigits + '0'.repeat(exponentValue);
@@ -539,7 +547,7 @@ function getNumber(context, siblings, index, errors) {
     if (hasLong) {
       errors.push(new SyntaxErrorData(currentIndex, intDigits.length, `${intDigits} couldn't be parsed to 64bit integer`));
     }
-    return { nextIndex: index, number: null, parseNode: null };
+    return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
   }
 
   const MAX_INT = 2147483647n;
@@ -549,27 +557,34 @@ function getNumber(context, siblings, index, errors) {
   const MAX_SAFE = BigInt(Number.MAX_SAFE_INTEGER);
 
   let nodeType;
+  let value;
   if (hasLong) {
     if (bigValue > MAX_LONG || bigValue < MIN_LONG) {
       errors.push(new SyntaxErrorData(currentIndex, intDigits.length, `${intDigits} couldn't be parsed to 64bit integer`));
-      return { nextIndex: index, number: null, parseNode: null };
+      return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
     }
-    number = bigValue;
+    value = bigValue;
     nodeType = ParseNodeType.LiteralLong;
   } else if (bigValue <= MAX_INT && bigValue >= MIN_INT && bigValue <= MAX_SAFE && bigValue >= -MAX_SAFE) {
-    number = Number(bigValue);
+    value = Number(bigValue);
     nodeType = ParseNodeType.LiteralInteger;
   } else if (bigValue <= MAX_LONG && bigValue >= MIN_LONG) {
-    number = bigValue;
+    value = bigValue;
     nodeType = ParseNodeType.LiteralLong;
   } else {
-    return { nextIndex: index, number: null, parseNode: null };
+    return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
   }
 
-  parseNode = new ParseNode(nodeType, currentIndex, i - currentIndex);
+  const parseNode = new ParseNode(nodeType, currentIndex, i - currentIndex);
   nodes.push(parseNode);
   commitNodeBuffer(siblings, buffer);
-  return { nextIndex: i, number, parseNode };
+  return {
+    NextIndex: i,
+    Value: value,
+    StartIndex: parseNode.Pos,
+    Length: parseNode.Length,
+    ParseNode: parseNode
+  };
 }
 
 module.exports = {

@@ -55,19 +55,20 @@ class ParseBlockResultWithNode extends ParseBlockResult {
 
 // Mirrors FuncScript/Parser/FuncScriptParser.Models.cs :: FuncScriptParser.ValueParseResult`1
 class ValueParseResult extends ParseResult {
-  constructor(nextIndex, value, expressionBlock) {
+  constructor(nextIndex, value) {
     super(nextIndex);
     this.Value = value;
-    this.ExpressionBlock = expressionBlock || null;
   }
 }
 
 // Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetIdentifier.cs :: FuncScriptParser.IdenResult
 class IdenResult {
-  constructor(nextIndex, iden, idenLower) {
+  constructor(nextIndex, iden, idenLower, startIndex, length) {
     this.NextIndex = nextIndex;
     this.Iden = iden;
     this.IdenLower = idenLower;
+    this.StartIndex = startIndex;
+    this.Length = length;
   }
 }
 

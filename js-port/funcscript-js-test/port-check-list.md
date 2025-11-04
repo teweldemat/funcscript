@@ -12,6 +12,7 @@
 | FuncScript.Test/GetLiteralMatchTests.cs | tests/parser/get-literal-match.test.js | ✅ Ported | Lexical helper coverage (stress scaled for JS). |
 | FuncScript.Test/FuncScriptParser2.cs | tests/parser/funcscript-parser2.test.js | ✅ Ported | Parser focus tests. |
 | FuncScript.Test/BugAnalysis.cs | tests/runtime/bug-analysis.test.js | ✅ Ported | Regression/performance smoke checks. |
+| FuncScript.Test/FuzzCodeLocation.cs | tests/parse-tree/fuzz-code-location.test.js | ✅ Ported | Span and code-location coverage for expression blocks. |
 | FuncScript.Test/FsToDotNet.cs | – | Not Applicable | Used to integrate runtime with .net code. |
 | FuncScript.Test/DotNetExperiment.cs | – | Not Applicable | .Net framework specific
 | FuncScript.Test/TestCommons.cs | tests/helpers | ✅ Covered | Helper utilities mirrored in JS harness. |

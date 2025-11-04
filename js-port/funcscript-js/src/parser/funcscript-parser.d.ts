@@ -79,16 +79,23 @@ export class ParseBlockResultWithNode extends ParseBlockResult {
 }
 
 export class ValueParseResult<T = unknown> extends ParseResult {
-  constructor(nextIndex: number, value: T, expressionBlock?: unknown);
+  constructor(nextIndex: number, value: T);
   readonly Value: T;
-  readonly ExpressionBlock: unknown;
 }
 
 export class IdenResult {
-  constructor(nextIndex: number, identifier: string | null, identifierLower: string | null);
+  constructor(
+    nextIndex: number,
+    identifier: string | null,
+    identifierLower: string | null,
+    startIndex: number,
+    length: number
+  );
   readonly NextIndex: number;
   readonly Iden: string | null;
   readonly IdenLower: string | null;
+  readonly StartIndex: number;
+  readonly Length: number;
 }
 
 export interface ParseOutcome {
@@ -131,11 +138,11 @@ export const getInfixFunctionCall: (...args: any[]) => ParseBlockResult;
 export const getOperator: (...args: any[]) => ValueParseResult<any>;
 export const getCallAndMemberAccess: (...args: any[]) => ParseBlockResult;
 export const getFunctionCallParametersList: (...args: any[]) => ParseBlockResult;
-export const getKvcExpression: (...args: any[]) => ValueParseResult<any>;
+export const getKvcExpression: (...args: any[]) => ParseBlockResult;
 export const getKvcItem: (...args: any[]) => ValueParseResult<any>;
 export const getKeyValuePair: (...args: any[]) => ValueParseResult<any>;
 export const getReturnDefinition: (...args: any[]) => ParseBlockResult;
-export const getListExpression: (...args: any[]) => ValueParseResult<any>;
+export const getListExpression: (...args: any[]) => ParseBlockResult;
 export const getSpaceSeparatedListExpression: (...args: any[]) => ValueParseResult<any>;
 export const getSpaceSeparatedStringListExpression: (...args: any[]) => ValueParseResult<readonly string[]>;
 export const getFSTemplate: (...args: any[]) => ParseBlockResult;
