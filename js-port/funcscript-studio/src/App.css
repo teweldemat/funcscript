@@ -28,44 +28,39 @@
   letter-spacing: -0.01em;
 }
 
+.app-title {
+  flex: 0 0 auto;
+}
+
 .formula-controls {
   display: flex;
-  align-items: flex-end;
-  gap: 1rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.formula-select-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  flex: 1 1 220px;
-  max-width: 360px;
-  min-width: 200px;
-}
-
-.formula-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #64748b;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: nowrap;
 }
 
 .formula-select {
-  width: 100%;
-  background-color: #ffffff;
+  width: 220px;
+  min-width: 200px;
   border-radius: 10px;
-  border-color: #cbd5f5;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-  padding: 0.55rem 0.85rem;
-  background-image: linear-gradient(180deg, rgba(248, 250, 252, 0.8), #ffffff);
+  border: none;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.3);
+  padding: 0.65rem 2.5rem 0.65rem 1.6rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f2937;
+  background-image: linear-gradient(180deg, rgba(248, 250, 252, 0.9), #ffffff), url('data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%231d4ed8' d='M6 8 0 0h12z'/%3E%3C/svg%3E');
+  background-repeat: repeat, no-repeat;
+  background-position: 0 0, right 1.1rem center;
+  background-size: auto, 12px 8px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
 }
 
 .formula-select:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
 }
 
 .save-button {
@@ -102,6 +97,42 @@
 .save-icon svg {
   width: 100%;
   height: 100%;
+}
+
+.header-icon-button {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: none;
+  background: rgba(37, 99, 235, 0.15);
+  color: #1d4ed8;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.header-icon-button:hover:not(:disabled) {
+  background: rgba(37, 99, 235, 0.25);
+}
+
+.header-icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  background: rgba(148, 163, 184, 0.2);
+  color: #475569;
+}
+
+.header-icon-button.danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #b91c1c;
+}
+
+.header-icon-button.danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.3);
+  color: #991b1b;
 }
 
 .tester-wrapper {

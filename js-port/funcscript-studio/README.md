@@ -25,14 +25,14 @@ The development server runs on [http://localhost:5173](http://localhost:5173) by
 
 ## Formulas
 
-Use the header controls to load any saved formula or save the current expression. Saved formulas
-are persisted to `window.localStorage` under the key `funscript-studio:formulas`.
+Use the header controls to create, rename, delete, or save formulas. Saved formulas are persisted
+to `window.localStorage` under the key `funscript-studio:formulas`.
 
 ## Test Cases
 
 The Test Cases panel (to the right of the editor) lets you capture variable sets for the active
 formula. Use **New** to capture the tester’s current variables as a fresh case, **Duplicate** to fork
-the selected case, and **Delete** when you no longer need it. Selecting a case immediately hydrates
+the selected case, **Rename** to adjust its label, and **Delete** when you no longer need it. Selecting a case immediately hydrates
 the playground, and any edits you make in the tester’s variable editor are applied back to that case
 in real time. Data is stored alongside each formula inside the same
 `funscript-studio:formulas` `localStorage` entry.

@@ -50,6 +50,12 @@ describe('KvcTests', () => {
     expect(toPlain(result)).to.deep.equal({ b: 5, c: 8 });
   });
 
+  it('adds key-value collections with +', () => {
+    const result = evaluate('{a:5}+{b:6}', provider);
+    expect(typeOf(result)).to.equal(FSDataType.KeyValueCollection);
+    expect(toPlain(result)).to.deep.equal({ a: 5, b: 6 });
+  });
+
   it('KeyWord mixup still returns values', () => {
     const result = evaluate('{ null1:5; y:null1;}', provider);
     expect(toPlain(result)).to.deep.equal({ null1: 5, y: 5 });

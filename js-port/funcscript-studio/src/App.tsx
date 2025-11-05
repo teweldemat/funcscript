@@ -60,18 +60,18 @@ const createTestCasesSignature = (cases: StoredTestCase[] | undefined): string =
 
 const sortTestCases = (cases: StoredTestCase[]): StoredTestCase[] =>
   [...cases].sort((a, b) => {
-    const dateCompare = b.updatedAt.localeCompare(a.updatedAt);
-    if (dateCompare !== 0) {
-      return dateCompare;
+    const nameCompare = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    if (nameCompare !== 0) {
+      return nameCompare;
     }
     return a.id.localeCompare(b.id);
   });
 
 const sortFormulas = (formulas: StoredFormula[]): StoredFormula[] =>
   [...formulas].sort((a, b) => {
-    const dateCompare = b.updatedAt.localeCompare(a.updatedAt);
-    if (dateCompare !== 0) {
-      return dateCompare;
+    const nameCompare = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    if (nameCompare !== 0) {
+      return nameCompare;
     }
     return a.id.localeCompare(b.id);
   });
@@ -208,7 +208,29 @@ const App = (): JSX.Element => {
 
   const testCaseCount = savedTestCases.length;
 
-  const persistedTestCasesSignature = useMemo(
+    const getUniqueFormulaName = useCallback(
+    (desired: string, excludeId?: string) => {
+      const base = desired.trim();
+      if (!base) {
+        return '';
+      }
+      const existing = new Set(
+        savedFormulas
+          .filter((formula) => formula.id !== excludeId)
+          .map((formula) => formula.name.toLowerCase())
+      );
+      let candidate = base;
+      let suffix = 2;
+      while (existing.has(candidate.toLowerCase())) {
+        candidate = `${base} (${suffix})`;
+        suffix += 1;
+      }
+      return candidate;
+    },
+    [savedFormulas]
+  );
+
+const persistedTestCasesSignature = useMemo(
     () => createTestCasesSignature(selectedFormula?.testCases ?? []),
     [selectedFormula]
   );
@@ -269,53 +291,31 @@ const App = (): JSX.Element => {
   );
 
   const handleSaveFormula = useCallback(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const defaultName = selectedFormula?.name ?? '';
-    const proposedName = window.prompt('Save formula as…', defaultName || 'New Formula');
-    if (!proposedName) {
-      return;
-    }
-    const trimmedName = proposedName.trim();
-    if (!trimmedName) {
-      return;
-    }
-    const timestamp = new Date().toISOString();
     const sortedCases = sortTestCases(savedTestCases);
-    let resultingSelectionId = selectedFormulaId;
-    const wasNewFormula = selectedFormulaId === '';
 
-    setSavedFormulas((previous) => {
-      const existingIndex = previous.findIndex(
-        (formula) => formula.name.toLowerCase() === trimmedName.toLowerCase()
-      );
-      if (existingIndex >= 0) {
-        const updated = [...previous];
-        const original = updated[existingIndex];
-        const updatedEntry: StoredFormula = {
-          ...original,
-          name: trimmedName,
-          expression,
-          updatedAt: timestamp,
-          testCases: sortedCases
-        };
-        updated[existingIndex] = updatedEntry;
-        resultingSelectionId = updatedEntry.id;
-        return sortFormulas(updated);
+    if (selectedFormulaId === '') {
+      if (typeof window === 'undefined') {
+        return;
       }
+      const defaultName = getUniqueFormulaName('New Formula');
+      const proposed = window.prompt('Name for the new formula', defaultName);
+      if (proposed === null) {
+        return;
+      }
+      const trimmed = proposed.trim();
+      if (!trimmed) {
+        return;
+      }
+      const name = getUniqueFormulaName(trimmed);
+      const timestamp = new Date().toISOString();
       const newEntry: StoredFormula = {
         id: createFormulaId(),
-        name: trimmedName,
+        name,
         expression,
         updatedAt: timestamp,
         testCases: sortedCases
       };
-      resultingSelectionId = newEntry.id;
-      return sortFormulas([...previous, newEntry]);
-    });
-
-    if (wasNewFormula) {
+      setSavedFormulas((previous) => sortFormulas([...previous, newEntry]));
       setSelectedFormulaId('');
       setExpression('');
       setSavedTestCases([]);
@@ -323,10 +323,96 @@ const App = (): JSX.Element => {
       latestTesterVariablesRef.current = [];
       setTesterVariablesPayload([]);
       initialTestCasesSignatureRef.current = '[]';
-    } else {
-      setSelectedFormulaId(resultingSelectionId);
+      return;
     }
-  }, [expression, savedTestCases, selectedFormula, selectedFormulaId]);
+
+    const timestamp = new Date().toISOString();
+    setSavedFormulas((previous) => {
+      const index = previous.findIndex((formula) => formula.id === selectedFormulaId);
+      if (index < 0) {
+        return previous;
+      }
+      const updated = [...previous];
+      updated[index] = {
+        ...previous[index],
+        expression,
+        updatedAt: timestamp,
+        testCases: sortedCases
+      };
+      return sortFormulas(updated);
+    });
+    setSavedTestCases(sortedCases);
+    initialTestCasesSignatureRef.current = createTestCasesSignature(sortedCases);
+  }, [expression, savedTestCases, selectedFormulaId, getUniqueFormulaName]);
+  const handleRenameFormula = useCallback(() => {
+    if (!selectedFormula || typeof window === 'undefined') {
+      return;
+    }
+    const proposed = window.prompt('Rename formula', selectedFormula.name);
+    if (proposed === null) {
+      return;
+    }
+    const trimmed = proposed.trim();
+    if (!trimmed) {
+      return;
+    }
+    const name = getUniqueFormulaName(trimmed, selectedFormula.id);
+    if (!name || name === selectedFormula.name) {
+      return;
+    }
+    const timestamp = new Date().toISOString();
+    const targetId = selectedFormula.id;
+    setSavedFormulas((previous) => {
+      const index = previous.findIndex((formula) => formula.id === targetId);
+      if (index < 0) {
+        return previous;
+      }
+      const updated = [...previous];
+      updated[index] = {
+        ...previous[index],
+        name,
+        updatedAt: timestamp
+      };
+      return sortFormulas(updated);
+    });
+    setSelectedFormulaId(targetId);
+  }, [selectedFormula, getUniqueFormulaName]);
+
+  const handleDeleteFormula = useCallback(() => {
+    if (!selectedFormula || typeof window === 'undefined') {
+      return;
+    }
+    const confirmed = window.confirm(`Delete the formula "${selectedFormula.name}"?`);
+    if (!confirmed) {
+      return;
+    }
+    const remaining = sortFormulas(
+      savedFormulas.filter((formula) => formula.id !== selectedFormula.id)
+    );
+    setSavedFormulas(remaining);
+    if (remaining.length === 0) {
+      setSelectedFormulaId('');
+      setExpression('');
+      setSavedTestCases([]);
+      setSelectedTestCaseId('');
+      latestTesterVariablesRef.current = [];
+      setTesterVariablesPayload([]);
+      initialTestCasesSignatureRef.current = '[]';
+      return;
+    }
+    const nextFormula = remaining[0];
+    setSelectedFormulaId(nextFormula.id);
+    setExpression(nextFormula.expression);
+    const normalizedCases = sortTestCases(nextFormula.testCases);
+    setSavedTestCases(normalizedCases);
+    const firstCase = normalizedCases[0];
+    setSelectedTestCaseId(firstCase?.id ?? '');
+    const baseVariables = cloneVariables(firstCase?.variables ?? []);
+    latestTesterVariablesRef.current = baseVariables;
+    setTesterVariablesPayload(baseVariables.length > 0 ? baseVariables : []);
+    initialTestCasesSignatureRef.current = createTestCasesSignature(normalizedCases);
+  }, [selectedFormula, savedFormulas]);
+
 
   const handleVariablesChange = useCallback(
     (next: FuncScriptTesterVariableInput[]) => {
@@ -510,28 +596,28 @@ const handleDeleteTestCase = useCallback(() => {
   return (
     <div className="app-root">
       <header className="app-header">
-        <h1>FuncScript Tester</h1>
+        <h1 className="app-title">FuncScript Tester</h1>
         <div className="formula-controls">
-          <label className="formula-select-group" aria-label="Load saved formula">
-            <span className="formula-label">Load</span>
-            <select
-              className="formula-select"
-              value={selectedFormulaId}
-              onChange={handleSelectFormula}
-            >
-              <option value="">New Formula</option>
-              {savedFormulas.map((formula) => (
-                <option key={formula.id} value={formula.id}>
-                  {formula.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <select
+            className="formula-select"
+            value={selectedFormulaId}
+            onChange={handleSelectFormula}
+            aria-label="Select formula"
+          >
+            <option value="">New Formula</option>
+            {savedFormulas.map((formula) => (
+              <option key={formula.id} value={formula.id}>
+                {formula.name}
+              </option>
+            ))}
+          </select>
           <button
             type="button"
             className="save-button"
             onClick={handleSaveFormula}
             disabled={!isDirty}
+            title="Save formula"
+            aria-label="Save formula"
           >
             <span className="save-icon" aria-hidden="true">
               <svg viewBox="0 0 20 20" focusable="false" role="img">
@@ -542,6 +628,26 @@ const handleDeleteTestCase = useCallback(() => {
               </svg>
             </span>
             <span>Save</span>
+          </button>
+          <button
+            type="button"
+            className="header-icon-button"
+            onClick={handleRenameFormula}
+            disabled={!selectedFormulaId}
+            title="Rename formula"
+            aria-label="Rename formula"
+          >
+            ✎
+          </button>
+          <button
+            type="button"
+            className="header-icon-button danger"
+            onClick={handleDeleteFormula}
+            disabled={!selectedFormulaId}
+            title="Delete formula"
+            aria-label="Delete formula"
+          >
+            🗑
           </button>
         </div>
       </header>

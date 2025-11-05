@@ -1036,21 +1036,88 @@ const variablesListBaseStyle: CSSProperties = {
   background: '#fff'
 };
 
+const formatValuePreview = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return String(value);
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.replace(/\n/g, ' ');
+    return trimmed.length > 40 ? `${trimmed.slice(0, 40)}…` : trimmed;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (typeof value === 'bigint') {
+    return `${value.toString()}n`;
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (Array.isArray(value)) {
+    const mapped = value.slice(0, 2).map(formatValuePreview).join(', ');
+    return value.length > 2 ? `[${mapped}, …]` : `[${mapped}]`;
+  }
+  try {
+    const json = JSON.stringify(value);
+    if (!json) {
+      return Object.prototype.toString.call(value);
+    }
+    return json.length > 40 ? `${json.slice(0, 40)}…` : json;
+  } catch {
+    return String(value);
+  }
+};
+
+const previewExpression = (expression: string): string => {
+  if (!expression) {
+    return '';
+  }
+  const firstLine = expression.split(/\r?\n/, 1)[0].trim();
+  if (firstLine.length <= 60) {
+    return firstLine;
+  }
+  return `${firstLine.slice(0, 57)}…`;
+};
+
 const listItemStyle: CSSProperties = {
   border: '1px solid transparent',
   borderRadius: 4,
   padding: '0.5rem',
-  textAlign: 'left',
   width: '100%',
   background: 'transparent',
   cursor: 'pointer',
-  color: '#0f172a'
+  color: '#0f172a',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'flex-start',
+  gap: '0.3rem'
 };
 
 const selectedListItemStyle: CSSProperties = {
   ...listItemStyle,
   borderColor: '#0969da',
   background: '#dbe9ff'
+};
+
+const expressionPreviewStyle: CSSProperties = {
+  fontSize: '0.78rem',
+  color: '#475569',
+  fontFamily: 'monospace',
+  maxWidth: '100%',
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis'
+};
+
+const valueLineStyle: CSSProperties = {
+  fontSize: '0.78rem',
+  color: '#2563eb',
+  display: 'flex',
+  gap: '0.35rem',
+  alignItems: 'center',
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis'
 };
 
 const unsetTokenStyle: CSSProperties = {
@@ -1060,7 +1127,8 @@ const unsetTokenStyle: CSSProperties = {
 
 const errorTextStyle: CSSProperties = {
   color: '#d1242f',
-  marginTop: '0.25rem',
+  fontSize: '0.78rem',
+  fontWeight: 600,
   whiteSpace: 'pre-wrap'
 };
 
