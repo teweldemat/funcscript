@@ -120,10 +120,10 @@ make docs-serve
 make docs-build
 ```
 
-Add new pages inside `docs/`, update the navigation tree in `mkdocs.yml`, and follow the
-[documentation style guide](docs/authoring/style-guide.md) when writing content. The
-`Documentation` GitHub Actions workflow (`.github/workflows/docs.yml`) builds the site and
-publishes it to GitHub Pages whenever `main` receives documentation changes.
+The published manual currently covers the language overview, practical examples, and a reference hub
+for functions and types. Add new pages inside `docs/`, update the navigation tree in `mkdocs.yml`,
+and the `Documentation` GitHub Actions workflow (`.github/workflows/docs.yml`) will build and deploy
+the site to GitHub Pages whenever `main` receives documentation changes.
 
 ## Maintainers
 - Tewelde Ma. Tegegne (<teweldemat@gmail.com>)

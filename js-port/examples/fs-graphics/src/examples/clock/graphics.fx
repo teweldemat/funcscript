@@ -17,7 +17,7 @@
     }
   });
   
-  ticks:series(0,12) map (i) => ({
+  ticks:range(0,12) map (i) => ({
     type: 'circle',
     data: {
       center: [0, 7.5],

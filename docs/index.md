@@ -1,27 +1,46 @@
-# FuncScript Manual
+# Language Overview
 
-Welcome to the FuncScript language manual. This guide explains how to write, evaluate, and extend
-FuncScript programs across .NET and JavaScript runtimes.
+FuncScript is a JSON-first expression language. It treats vanilla JSON as valid input and layers on
+an expression system so you can compute new values without changing the familiar syntax. This
+chapter shows how FuncScript extends JSON into a programmable superset and sets the stage for the
+rest of the manual.
 
-## What You'll Find Here
-- **Getting Started** – install the tooling, run your first scripts, and learn how evaluation works.
-- **Language Guide** – learn the syntax, data types, expression model, and control constructs that
-  power FuncScript.
-- **Reference** – consult the formal grammar outline and the standard library index when you need
-  precise details.
-- **Authoring Guidelines** – tips for writing approachable documentation and sample code for the
-  community.
+## JSON, Upgraded
+Think of FuncScript as "JSON with superpowers." Every valid JSON document already parses:
 
-> The manual is under active construction. If you spot gaps or want to contribute, see the
-> [Authoring Guidelines](authoring/style-guide.md) for house style and contribution tips.
+```funcscript
+{ a: 3; b: 4 }
+```
 
-## Quick Links
-- [Getting started](getting-started.md)
-- [Language overview](language/overview.md)
-- [Expressions and evaluation](language/expressions.md)
-- [Standard library reference](reference/builtins.md)
+From there you can upgrade individual values into expressions while keeping the same braces and
+punctuation:
 
-## About FuncScript
-FuncScript is an embeddable, expression-oriented language designed for business rules and data
-transformations. It favors declarative blocks, deterministic functions, and a batteries-included
-standard library so that teams can describe rich calculations without shipping bespoke binaries.
+```funcscript
+{ a: 3; b: 5 + 6 }
+```
+
+Evaluation preserves the JSON shape but resolves expressions to concrete data:
+
+```funcscript
+{ a: 3; b: 11 }
+```
+
+Bindings behave like document fields and automatically become in-scope symbols, which makes reuse
+feel natural for anyone fluent in JSON-shaped configuration:
+
+```funcscript
+{ principal: 2000; rate: 0.07; growth: principal * (1 + rate) }
+```
+
+That snippet resolves to `{ principal: 2000; rate: 0.07; growth: 2140 }`. You are still shaping JSON,
+but now it reacts to the inputs around it.
+
+## Execution Model
+Scripts always collapse to a single JSON-compatible value—numbers, strings, booleans, arrays, and
+object-like records. FuncScript keeps execution pure: there is no mutation or hidden state. The host
+application injects input data, FuncScript composes transformations, and the result can flow straight
+back into JSON pipelines, APIs, or templating systems.
+
+## Where to Next
+- Explore hands-on [Examples](examples.md) of FuncScript in action.
+- Consult the [Built-in Symbols](reference/built-in-symbols.md) and [Types](reference/types.md) reference for details.

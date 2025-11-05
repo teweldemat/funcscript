@@ -45,7 +45,7 @@ describe('AdvancedSyntax', () => {
     ['reduce([4,5,6],(x,s)=>s+x)', 15],
     ['reduce([4,5,6],(x,s)=>s+x,-2)', 13],
     ['[4,5,6] reduce (x,s)=>s+x ~ -2', 13],
-    ['(series(0,4) reduce (x,s)=>s+x ~ 0)', 6],
+    ['(range(0,4) reduce (x,s)=>s+x ~ 0)', 6],
     ['x?![1,2,3] first(x)=>x*x', null]
   ];
   generalInfixCases.forEach(([expr, expected]) => {

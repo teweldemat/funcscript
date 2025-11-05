@@ -453,40 +453,4 @@ namespace FuncScript.Functions.Math
 
         public string ParName(int index) => string.Empty;
     }
-
-    [ProviderCollection("math")]
-    public class PiFunction : IFsFunction
-    {
-        public int MaxParsCount => 0;
-        public CallType CallType => CallType.Prefix;
-        public string Symbol => "Pi";
-        public int Precedence => 0;
-
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
-        {
-            if (pars.Count != 0)
-                throw new TypeMismatchError($"{Symbol}: This function does not accept parameters.");
-            return System.Math.PI;
-        }
-
-        public string ParName(int index) => string.Empty;
-    }
-
-    [ProviderCollection("math")]
-    public class EFunction : IFsFunction
-    {
-        public int MaxParsCount => 0;
-        public CallType CallType => CallType.Prefix;
-        public string Symbol => "E";
-        public int Precedence => 0;
-
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
-        {
-            if (pars.Count != 0)
-                throw new TypeMismatchError($"{Symbol}: This function does not accept parameters.");
-            return System.Math.E;
-        }
-
-        public string ParName(int index) => string.Empty;
-    }
 }

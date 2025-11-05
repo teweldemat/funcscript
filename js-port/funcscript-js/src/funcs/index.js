@@ -59,7 +59,7 @@ const { AnyMatchFunction } = require('./list/any-match-function');
 const { ContainsFunction } = require('./list/contains-function');
 const { SortListFunction } = require('./list/sort-list-function');
 const { LengthFunction } = require('./list/length-function');
-const { SeriesFunction } = require('./list/series-function');
+const { RangeFunction } = require('./list/range-function');
 const { TakeFunction } = require('./list/take-function');
 const { SkipFunction } = require('./list/skip-function');
 const { FindFirstFunction } = require('./list/find-first-function');
@@ -146,7 +146,7 @@ module.exports = function buildBuiltinMap() {
     { fn: new ContainsFunction(), names: ['contains'] },
     { fn: new SortListFunction(), names: ['sort'] },
     { fn: new LengthFunction(), names: ['length'] },
-    { fn: new SeriesFunction(), names: ['series'] },
+    { fn: new RangeFunction(), names: ['range', 'series'] },
     { fn: new TakeFunction(), names: ['take'] },
     { fn: new SkipFunction(), names: ['skip'] },
     { fn: new FindFirstFunction(), names: ['first'] },

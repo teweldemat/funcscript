@@ -3,10 +3,10 @@ const { ArrayFsList } = require('../../model/fs-list');
 const helpers = require('../helpers');
 const { FSDataType } = require('../../core/fstypes');
 
-class SeriesFunction extends BaseFunction {
+class RangeFunction extends BaseFunction {
   constructor() {
     super();
-    this.symbol = 'Series';
+    this.symbol = 'Range';
     this.callType = CallType.Prefix;
   }
 
@@ -41,5 +41,5 @@ class SeriesFunction extends BaseFunction {
 }
 
 module.exports = {
-  SeriesFunction
+  RangeFunction
 };

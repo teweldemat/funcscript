@@ -12,7 +12,7 @@ namespace FuncScript
     public class DefaultFsDataProvider : IFsDataProvider
     {
         static readonly Dictionary<string, IFsFunction> s_funcByName = new Dictionary<string, IFsFunction>();
-        static readonly Dictionary<string, Dictionary<string, IFsFunction>> s_providerCollections = new Dictionary<string, Dictionary<string, IFsFunction>>(StringComparer.OrdinalIgnoreCase);
+        static readonly Dictionary<string, Dictionary<string, object>> s_providerCollections = new Dictionary<string, Dictionary<string, object>>(StringComparer.OrdinalIgnoreCase);
         static DefaultFsDataProvider()
         {
             LoadFromAssembly(Assembly.GetExecutingAssembly()); //always load builtin functions. May be we don't need this
@@ -68,6 +68,8 @@ namespace FuncScript
                         }
                     }
                 }
+
+                RegisterConstantsDefinedOnType(t);
             }
         }
         Dictionary<string, object> _data;
@@ -116,7 +118,7 @@ namespace FuncScript
             return null;
         }
 
-        static void RegisterProviderCollections(ProviderCollectionAttribute attribute, IList<string> names, IFsFunction function)
+        static void RegisterProviderCollections(ProviderCollectionAttribute attribute, IList<string> names, object member)
         {
             foreach (var collectionName in attribute.CollectionNames)
             {
@@ -126,7 +128,7 @@ namespace FuncScript
                 var normalizedCollection = collectionName.ToLowerInvariant();
                 if (!s_providerCollections.TryGetValue(normalizedCollection, out var members))
                 {
-                    members = new Dictionary<string, IFsFunction>(StringComparer.OrdinalIgnoreCase);
+                    members = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
                     s_providerCollections[normalizedCollection] = members;
                 }
 
@@ -138,12 +140,69 @@ namespace FuncScript
                     if (string.IsNullOrWhiteSpace(name))
                         continue;
 
-                    if (!members.TryAdd(name, function))
+                    if (!members.TryAdd(name, member))
                     {
-                        if (!ReferenceEquals(members[name], function))
+                        if (!ReferenceEquals(members[name], member))
                             throw new Exception($"{name} already defined in provider collection '{collectionName}'");
                     }
                 }
+            }
+        }
+
+        static void RegisterCollectionMember(string collectionName, string memberName, object value)
+        {
+            if (string.IsNullOrWhiteSpace(collectionName) || string.IsNullOrWhiteSpace(memberName))
+                return;
+
+            var normalizedCollection = collectionName.ToLowerInvariant();
+            if (!s_providerCollections.TryGetValue(normalizedCollection, out var members))
+            {
+                members = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                s_providerCollections[normalizedCollection] = members;
+            }
+
+            if (!members.TryAdd(memberName, value))
+            {
+                var existing = members[memberName];
+                if (!ReferenceEquals(existing, value) && !(existing?.Equals(value) ?? value is null))
+                    throw new Exception($"{memberName} already defined in provider collection '{collectionName}'");
+            }
+        }
+
+        static void RegisterConstantsDefinedOnType(Type type)
+        {
+            var collectionAttributes = type.GetCustomAttributes<FsConstantAttribute>()?.ToArray();
+            if (collectionAttributes == null || collectionAttributes.Length == 0)
+                return;
+
+            var collectionNames = collectionAttributes
+                .Select(attr => attr.Name)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (collectionNames.Length == 0)
+                return;
+
+            const BindingFlags flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
+            foreach (var member in type.GetMembers(flags))
+            {
+                var constantAttribute = member.GetCustomAttribute<FsConstantAttribute>();
+                if (constantAttribute == null)
+                    continue;
+
+                if (string.IsNullOrWhiteSpace(constantAttribute.Name))
+                    continue;
+
+                object value = member switch
+                {
+                    FieldInfo fieldInfo => fieldInfo.GetValue(null),
+                    PropertyInfo propertyInfo when propertyInfo.GetMethod != null && propertyInfo.GetMethod.IsStatic => propertyInfo.GetValue(null),
+                    _ => throw new InvalidOperationException($"Member '{member.Name}' on '{type.FullName}' must be a static field or property to use FsConstantAttribute.")
+                };
+
+                foreach (var collectionName in collectionNames)
+                    RegisterCollectionMember(collectionName, constantAttribute.Name, value);
             }
         }
     }

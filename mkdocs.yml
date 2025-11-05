@@ -4,17 +4,12 @@ site_url: ''
 repo_url: https://github.com/teweldemat/funcscript-1
 repo_name: teweldemat/funcscript-1
 nav:
-  - Welcome: index.md
-  - Getting Started: getting-started.md
-  - Language Guide:
-      - Overview: language/overview.md
-      - Expressions & Evaluation: language/expressions.md
-      - Type System: language/types.md
+  - Language Overview: index.md
+  - Examples: examples.md
   - Reference:
-      - Syntax Reference: reference/syntax.md
-      - Standard Library: reference/builtins.md
-  - Authoring:
-      - Style Guide: authoring/style-guide.md
+      - Built-in Symbols: reference/built-in-symbols.md
+      - Types: reference/types.md
+  - Syntax: syntax.md
 theme:
   name: material
   features:

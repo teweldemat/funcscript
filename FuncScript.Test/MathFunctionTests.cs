@@ -23,9 +23,12 @@ namespace FuncScript.Test
 
             var sinFromCollection = mathCollection.Get("sin");
             var cosFromCollection = mathCollection.Get("cos");
+            var piFromCollection = mathCollection.Get("pi");
 
             Assert.That(sinFromCollection, Is.SameAs(provider.Get("sin")), "math.sin should point to the same instance as the global sin function");
             Assert.That(cosFromCollection, Is.SameAs(provider.Get("cos")), "math.cos should point to the same instance as the global cos function");
+            Assert.That(piFromCollection, Is.TypeOf<double>());
+            Assert.That((double)piFromCollection, Is.EqualTo(System.Math.PI).Within(1e-10));
         }
 
         [TestCase("math.sin(0)", 0.0)]
@@ -33,7 +36,7 @@ namespace FuncScript.Test
         [TestCase("math.tan(0)", 0.0)]
         [TestCase("math.sqrt(9)", 3.0)]
         [TestCase("math.exp(0)", 1.0)]
-        [TestCase("math.log(math.e())", 1.0)]
+        [TestCase("math.log(math.e)", 1.0)]
         [TestCase("math.log(8,2)", 3.0)]
         [TestCase("math.log10(1000)", 3.0)]
         [TestCase("math.abs(-5.0)", 5.0)]
@@ -96,11 +99,11 @@ namespace FuncScript.Test
         }
 
         [Test]
-        public void RandomPiAndEFunctions()
+        public void RandomPiAndEValues()
         {
             var random = Engine.Evaluate("math.random()");
-            var pi = Engine.Evaluate("math.pi()");
-            var e = Engine.Evaluate("math.e()");
+            var pi = Engine.Evaluate("math.pi");
+            var e = Engine.Evaluate("math.e");
 
             Assert.That(random, Is.TypeOf<double>());
             Assert.That((double)random, Is.InRange(0.0, 1.0));

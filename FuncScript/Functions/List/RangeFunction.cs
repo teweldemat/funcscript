@@ -3,13 +3,14 @@ using FuncScript.Model;
 
 namespace FuncScript.Functions.List
 {
-    public class SeriesFunction : IFsFunction
+    [FunctionAlias("Series")]
+    public class RangeFunction : IFsFunction
     {
         public int MaxParsCount => 2;
 
         public CallType CallType => CallType.Prefix;
 
-        public string Symbol => "Series";
+        public string Symbol => "Range";
 
         public int Precedence => 0;
 

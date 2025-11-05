@@ -319,9 +319,9 @@ namespace FuncScript.Test
 
         }
         [Test]
-        public void TestSeriesFunction()
+        public void TestRangeFunction()
         {
-            var res = FuncScriptRuntime.Evaluate("series(1,5)");
+            var res = FuncScriptRuntime.Evaluate("range(1,5)");
             var expected = new ArrayFsList(new object[] { 1, 2, 3, 4, 5 });
             Assert.AreEqual(expected, res);
         }
