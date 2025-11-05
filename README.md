@@ -106,6 +106,25 @@ dotnet test FuncScript.sln
 ## Contributing
 Issues and pull requests are welcome. If you plan substantial language or runtime changes, open an issue first so we can align on approach.
 
+## Documentation
+The language manual lives under `docs/` and is powered by [MkDocs Material](https://squidfunk.github.io/mkdocs-material/).
+
+```bash
+# install MkDocs dependencies into .venv-docs/
+make docs-install
+
+# preview changes locally with live reload
+make docs-serve
+
+# build the static site into ./site/
+make docs-build
+```
+
+Add new pages inside `docs/`, update the navigation tree in `mkdocs.yml`, and follow the
+[documentation style guide](docs/authoring/style-guide.md) when writing content. The
+`Documentation` GitHub Actions workflow (`.github/workflows/docs.yml`) builds the site and
+publishes it to GitHub Pages whenever `main` receives documentation changes.
+
 ## Maintainers
 - Tewelde Ma. Tegegne (<teweldemat@gmail.com>)
 

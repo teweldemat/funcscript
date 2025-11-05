@@ -1,0 +1,40 @@
+site_name: FuncScript Manual
+site_description: Official manual for the FuncScript language
+site_url: ''
+repo_url: https://github.com/teweldemat/funcscript-1
+repo_name: teweldemat/funcscript-1
+nav:
+  - Welcome: index.md
+  - Getting Started: getting-started.md
+  - Language Guide:
+      - Overview: language/overview.md
+      - Expressions & Evaluation: language/expressions.md
+      - Type System: language/types.md
+  - Reference:
+      - Syntax Reference: reference/syntax.md
+      - Standard Library: reference/builtins.md
+  - Authoring:
+      - Style Guide: authoring/style-guide.md
+theme:
+  name: material
+  features:
+    - navigation.top
+    - navigation.sections
+    - navigation.instant
+    - content.code.annotate
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: blue
+markdown_extensions:
+  - admonition
+  - attr_list
+  - codehilite
+  - def_list
+  - md_in_html
+  - toc:
+      permalink: true
+      toc_depth: 3
+plugins:
+  - search
