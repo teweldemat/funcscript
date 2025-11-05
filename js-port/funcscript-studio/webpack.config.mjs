@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename);
 
 export default (_env, argv) => {
   const isProduction = argv.mode === 'production';
+  const publicPath = process.env.PUBLIC_PATH ?? '/';
 
   return {
     entry: path.resolve(__dirname, 'src/main.tsx'),
@@ -16,7 +17,7 @@ export default (_env, argv) => {
       filename: isProduction ? 'assets/[name].[contenthash].js' : 'assets/[name].js',
       chunkFilename: isProduction ? 'assets/[name].[contenthash].js' : 'assets/[name].js',
       assetModuleFilename: 'assets/[hash][ext][query]',
-      publicPath: '/',
+      publicPath,
       clean: true,
     },
     resolve: {

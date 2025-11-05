@@ -123,7 +123,9 @@ make docs-build
 The published manual currently covers the language overview, practical examples, and a reference hub
 for functions and types. Add new pages inside `docs/`, update the navigation tree in `mkdocs.yml`,
 and the `Documentation` GitHub Actions workflow (`.github/workflows/docs.yml`) will build and deploy
-the site to GitHub Pages whenever `main` receives documentation changes.
+the site to GitHub Pages whenever `main` receives documentation changes. The deployment also bundles
+the web demos so they are reachable at `web/funcscript-studio/` and `web/fs-graphics/` beneath the
+published site root.
 
 ## Maintainers
 - Tewelde Ma. Tegegne (<teweldemat@gmail.com>)

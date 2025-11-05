@@ -1,12 +1,14 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
+const publicPath = process.env.PUBLIC_PATH || '/';
+
 module.exports = {
   entry: path.resolve(__dirname, 'src/main.tsx'),
   output: {
     filename: 'assets/[name].[contenthash].js',
     path: path.resolve(__dirname, 'dist'),
-    publicPath: '/',
+    publicPath,
     clean: true
   },
   resolve: {

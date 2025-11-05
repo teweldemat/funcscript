@@ -45,8 +45,43 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r docs/requirements.txt
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            js-port/examples/fs-graphics/package-lock.json
+            js-port/funcscript-studio/package-lock.json
+
+      - name: Install dependencies for fs-graphics
+        working-directory: js-port/examples/fs-graphics
+        run: npm ci
+
+      - name: Build fs-graphics demo
+        working-directory: js-port/examples/fs-graphics
+        env:
+          PUBLIC_PATH: ./
+        run: npm run build
+
+      - name: Install dependencies for funcscript-studio
+        working-directory: js-port/funcscript-studio
+        run: npm ci
+
+      - name: Build funcscript-studio demo
+        working-directory: js-port/funcscript-studio
+        env:
+          PUBLIC_PATH: ./
+        run: npm run build
+
       - name: Build documentation site
         run: mkdocs build --strict
+
+      - name: Bundle web demos into site artifact
+        run: |
+          mkdir -p site/web/fs-graphics site/web/funcscript-studio
+          cp -a js-port/examples/fs-graphics/dist/. site/web/fs-graphics/
+          cp -a js-port/funcscript-studio/dist/. site/web/funcscript-studio/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
