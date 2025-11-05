@@ -10,7 +10,7 @@ import {
 } from 'react';
 import FuncScriptEditor, {
   type FuncScriptEditorProps,
-  type FuncScriptParseNode,
+  type FuncScriptExpressionBlock,
   VSCODE_FONT_STACK
 } from './FuncScriptEditor.js';
 import {
@@ -223,94 +223,93 @@ type ExpressionPreviewData = {
   selectionText: string | null;
 };
 
-const NON_EDITABLE_NODE_TYPES = new Set<string>([
-  'FunctionParameterList',
-  'FunctionParameter',
-  'FunctionParameters',
-  'LambdaParameterList',
-  'LambdaParameters',
-  'ArgumentList',
-  'Arguments',
-  'IdentifierList',
-  'StatementList',
-  'Block',
-  'Operator',
-  'Key',
-  'KeyValuePair'
-]);
-
-const isEditableTypeName = (typeName: string) => {
-  if (!typeName) {
-    return false;
-  }
-  if (NON_EDITABLE_NODE_TYPES.has(typeName)) {
-    return false;
-  }
-  if (typeName.includes('Parameter')) {
-    return false;
-  }
-  if (typeName.includes('Argument')) {
-    return false;
-  }
-  if (typeName.endsWith('List') && !typeName.endsWith('ExpressionList')) {
-    return false;
-  }
-  if (typeName.endsWith('Block') || typeName.endsWith('Body')) {
-    return false;
-  }
-  return true;
-};
-
-const getNodeTypeName = (node: FuncScriptParseNode) => {
-  if (typeof node.NodeType === 'string' && node.NodeType.length > 0) {
-    return node.NodeType;
-  }
-  if (typeof node.nodeType === 'string' && node.nodeType.length > 0) {
-    return node.nodeType;
-  }
-  if (typeof node.Type === 'string' && node.Type.length > 0) {
-    return node.Type;
-  }
-  if (typeof node.type === 'string' && node.type.length > 0) {
-    return node.type;
-  }
-  return 'Unknown';
-};
-
 const clampRange = (start: number, end: number, length: number) => {
   const safeStart = Math.max(0, Math.min(start, length));
   const safeEnd = Math.max(safeStart, Math.min(end, length));
   return safeEnd > safeStart ? { start: safeStart, end: safeEnd } : null;
 };
 
-const toNodeRange = (node: FuncScriptParseNode, docLength: number) => {
-  const pos =
-    typeof node.Pos === 'number' ? node.Pos : typeof node.pos === 'number' ? node.pos : null;
-  const len =
-    typeof node.Length === 'number'
-      ? node.Length
-      : typeof node.length === 'number'
-      ? node.length
-      : null;
-  if (pos === null || len === null) {
+const NON_EDITABLE_EXPRESSION_TYPES = new Set<string>([
+  'ExpressionBlock',
+  'NullExpressionBlock',
+  'ExpressionFunction'
+]);
+
+const ALWAYS_EDITABLE_TYPES = new Set<string>([
+  'LiteralBlock',
+  'ReferenceBlock',
+  'FunctionCallExpression',
+  'ListExpression',
+  'KvcExpression',
+  'SelectorExpression'
+]);
+
+const isEditableTypeName = (typeName: string, childCount: number) => {
+  if (!typeName) {
+    return false;
+  }
+  if (ALWAYS_EDITABLE_TYPES.has(typeName)) {
+    return true;
+  }
+  if (NON_EDITABLE_EXPRESSION_TYPES.has(typeName)) {
+    return false;
+  }
+  if (typeName.endsWith('Expression') || typeName.endsWith('Block')) {
+    return true;
+  }
+  return childCount === 0;
+};
+
+const getNodeTypeName = (node: FuncScriptExpressionBlock) => {
+  if (!node || typeof node !== 'object') {
+    return 'Unknown';
+  }
+  const ctorName = node.constructor && typeof node.constructor.name === 'string' ? node.constructor.name : null;
+  if (ctorName && ctorName.length > 0) {
+    return ctorName;
+  }
+  return 'Unknown';
+};
+
+const toNodeRange = (node: FuncScriptExpressionBlock, docLength: number) => {
+  if (!node || typeof node !== 'object') {
     return null;
   }
-  return clampRange(pos, pos + len, docLength);
+  const posValue = (node as { Pos?: number; pos?: number }).Pos ?? (node as { Pos?: number; pos?: number }).pos ?? null;
+  const lengthValue =
+    (node as { Length?: number; length?: number }).Length ??
+    (node as { Length?: number; length?: number }).length ??
+    null;
+  if (typeof posValue === 'number' && typeof lengthValue === 'number' && lengthValue > 0) {
+    return clampRange(posValue, posValue + lengthValue, docLength);
+  }
+  return null;
 };
 
-const getChildNodes = (node: FuncScriptParseNode): FuncScriptParseNode[] => {
-  const value = node.Childs ?? node.childs ?? node.Children ?? node.children;
-  return Array.isArray(value) ? (value as FuncScriptParseNode[]) : [];
+const getChildNodes = (node: FuncScriptExpressionBlock): FuncScriptExpressionBlock[] => {
+  if (!node || typeof node !== 'object') {
+    return [];
+  }
+  try {
+    const getter = (node as { getChilds?: () => unknown }).getChilds;
+    const children = typeof getter === 'function' ? getter.call(node) : [];
+    return Array.isArray(children) ? (children as FuncScriptExpressionBlock[]) : [];
+  } catch {
+    return [];
+  }
 };
 
-const buildParseTree = (root: FuncScriptParseNode | null, docText: string): ParseTreeNode | null => {
+const buildExpressionTree = (
+  root: FuncScriptExpressionBlock,
+  docText: string
+): ParseTreeNode | null => {
   if (!root) {
     return null;
   }
 
   const docLength = docText.length;
 
-  const collapseSingleChild = (node: FuncScriptParseNode, path: number[]) => {
+  const collapseSingleChild = (node: FuncScriptExpressionBlock, path: number[]) => {
     let currentNode = node;
     const collapsedPath = [...path];
     while (true) {
@@ -324,7 +323,7 @@ const buildParseTree = (root: FuncScriptParseNode | null, docText: string): Pars
     return { node: currentNode, path: collapsedPath };
   };
 
-  const collectDisplayChildren = (node: FuncScriptParseNode, path: number[]): ParseTreeNode[] => {
+  const collectDisplayChildren = (node: FuncScriptExpressionBlock, path: number[]): ParseTreeNode[] => {
     const rawChildren = getChildNodes(node);
     const displayChildren: ParseTreeNode[] = [];
     for (let index = 0; index < rawChildren.length; index += 1) {
@@ -337,18 +336,28 @@ const buildParseTree = (root: FuncScriptParseNode | null, docText: string): Pars
     return displayChildren;
   };
 
-  const walk = (node: FuncScriptParseNode, path: number[]): ParseTreeNode => {
-    const range = toNodeRange(node, docLength);
+  const walk = (node: FuncScriptExpressionBlock, path: number[]): ParseTreeNode => {
+    const children = collectDisplayChildren(node, path);
+    let range = toNodeRange(node, docLength);
+    if (!range) {
+      const childRanges = children
+        .map((child) => child.range)
+        .filter((value): value is { start: number; end: number } => Boolean(value));
+      if (childRanges.length > 0) {
+        const start = Math.min(...childRanges.map((childRange) => childRange.start));
+        const end = Math.max(...childRanges.map((childRange) => childRange.end));
+        range = clampRange(start, end, docLength);
+      }
+    }
     const expression = range ? docText.slice(range.start, range.end) : '';
     const typeName = getNodeTypeName(node);
-    const children = collectDisplayChildren(node, path);
     const id = path.length === 0 ? 'root' : path.join('-');
     return {
       id,
       typeName,
       range,
       expression,
-      isEditable: Boolean(range) && isEditableTypeName(typeName),
+      isEditable: Boolean(range) && isEditableTypeName(typeName, children.length),
       children
     };
   };
@@ -1190,7 +1199,7 @@ const formatTypedValue = (typedValue: TypedValue): string => {
   }
 };
 
-export type FuncScriptTesterProps = Omit<FuncScriptEditorProps, 'onParseNodeChange' | 'readOnly'> & {
+export type FuncScriptTesterProps = Omit<FuncScriptEditorProps, 'onParseModelChange' | 'readOnly'> & {
   saveKey?: string;
 };
 
@@ -1217,7 +1226,7 @@ const FuncScriptTester = ({
     initialPersistedState?.showTesting ?? false
   );
 
-  const [currentParseNode, setCurrentParseNode] = useState<FuncScriptParseNode | null>(null);
+  const [currentExpressionBlock, setCurrentExpressionBlock] = useState<FuncScriptExpressionBlock>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [hoveredPreviewRange, setHoveredPreviewRange] = useState<{ start: number; end: number } | null>(
@@ -1307,9 +1316,12 @@ const FuncScriptTester = ({
     [onError]
   );
 
-  const handleParseNodeChange = useCallback((node: FuncScriptParseNode | null) => {
-    setCurrentParseNode(node);
-  }, []);
+  const handleParseModelChange = useCallback(
+    (model: { parseNode: unknown; expressionBlock: FuncScriptExpressionBlock }) => {
+      setCurrentExpressionBlock(model.expressionBlock);
+    },
+    []
+  );
 
   const evaluateExpression = useCallback((expression: string): {
     typedValue: TypedValue | null;
@@ -1470,7 +1482,7 @@ const FuncScriptTester = ({
     }
   }, [evaluateExpression, value]);
 
-  const parseTree = useMemo(() => buildParseTree(currentParseNode, value), [currentParseNode, value]);
+  const parseTree = useMemo(() => buildExpressionTree(currentExpressionBlock, value), [currentExpressionBlock, value]);
   const parseNodeMap = useMemo(() => createParseNodeIndex(parseTree), [parseTree]);
   const firstEditableNode = useMemo(() => findFirstEditableNode(parseTree), [parseTree]);
   const selectedNode = selectedNodeId ? parseNodeMap.get(selectedNodeId) ?? null : null;
@@ -2620,7 +2632,7 @@ const FuncScriptTester = ({
                 onChange={onChange}
                 onSegmentsChange={onSegmentsChange}
                 onError={handleEditorError}
-                onParseNodeChange={handleParseNodeChange}
+                onParseModelChange={handleParseModelChange}
                 minHeight={minHeight ?? 280}
                 style={{ ...testerEditorStyle, ...(style ?? {}) }}
               />

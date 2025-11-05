@@ -712,6 +712,11 @@ function getKvcExpression(context, siblings, nakedMode, index) {
     return ParseResult.noAdvance(index);
   }
 
+  if (typeof kvc === 'object') {
+    kvc.Pos = index;
+    kvc.Length = currentIndex - index;
+  }
+
   const parseNode = new ParseNode(
     ParseNodeType.KeyValueCollection,
     index,

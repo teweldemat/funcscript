@@ -24,7 +24,9 @@ export const VSCODE_FONT_STACK =
 type HighlightCallbacks = {
   getSegmentsCallback: () => ((segments: ColoredSegment[]) => void) | undefined;
   getErrorCallback: () => ((message: string | null) => void) | undefined;
-  getParseNodeCallback: () => ((node: RawParseNode | null) => void) | undefined;
+  getParseModelCallback: () =>
+    | ((model: { parseNode: RawParseNode | null; expressionBlock: FuncScriptExpressionBlock | null }) => void)
+    | undefined;
 };
 
 type RawParseNode = {
@@ -44,6 +46,15 @@ type RawParseNode = {
 
 export type FuncScriptParseNode = RawParseNode;
 
+export type FuncScriptExpressionBlock = {
+  Pos?: number;
+  pos?: number;
+  Length?: number;
+  length?: number;
+  getChilds?: () => FuncScriptExpressionBlock[];
+  constructor?: { name?: string };
+} | null;
+
 type FoldRange = {
   lineStart: number;
   from: number;
@@ -55,6 +66,7 @@ type FuncScriptAnalysis = {
   segments: ColoredSegment[];
   foldRanges: FoldRange[];
   parseNode: RawParseNode | null;
+  expressionBlock: FuncScriptExpressionBlock;
 };
 
 const defaultContainerStyle: CSSProperties = {
@@ -219,20 +231,26 @@ const createFuncScriptExtensions = (
   provider: DefaultFsDataProvider,
   callbacks: HighlightCallbacks
 ) => {
-  const { getSegmentsCallback, getErrorCallback, getParseNodeCallback } = callbacks;
+  const { getSegmentsCallback, getErrorCallback, getParseModelCallback } = callbacks;
 
   const analyze = (state: EditorState): FuncScriptAnalysis => {
     const expression = state.doc.toString();
     let parseNode: RawParseNode | null = null;
     let errorMessage: string | null = null;
+    let expressionBlock: FuncScriptExpressionBlock = null;
 
     if (expression.trim().length > 0) {
       try {
         const result = FuncScriptParser.parse(provider, expression);
         parseNode = (result?.parseNode as RawParseNode) ?? null;
+        expressionBlock = (result?.block as FuncScriptExpressionBlock) ?? null;
       } catch (error) {
         errorMessage = error instanceof Error ? error.message : String(error);
       }
+    }
+
+    if (!errorMessage && expression.trim().length > 0 && !parseNode && !expressionBlock) {
+      errorMessage = 'Expression could not be parsed.';
     }
 
     const segments = computeColoredSegments(expression, parseNode);
@@ -261,9 +279,9 @@ const createFuncScriptExtensions = (
     if (errorCallback) {
       errorCallback(errorMessage);
     }
-    const parseNodeCallback = getParseNodeCallback();
-    if (parseNodeCallback) {
-      parseNodeCallback(parseNode);
+    const parseModelCallback = getParseModelCallback();
+    if (parseModelCallback) {
+      parseModelCallback({ parseNode, expressionBlock });
     }
 
     const foldRanges = parseNode ? collectFoldRanges(parseNode, state.doc) : [];
@@ -272,7 +290,8 @@ const createFuncScriptExtensions = (
       decorations: Decoration.set(decorations, true),
       segments,
       foldRanges,
-      parseNode
+      parseNode,
+      expressionBlock
     };
   };
 
@@ -282,10 +301,10 @@ const createFuncScriptExtensions = (
     },
     update(value, tr) {
       if (!tr.docChanged) {
-        return value;
-      }
-      return analyze(tr.state);
+      return value;
     }
+    return analyze(tr.state);
+  }
   });
 
   const highlightPlugin = ViewPlugin.fromClass(
@@ -337,7 +356,10 @@ export type FuncScriptEditorProps = {
   onChange: (value: string) => void;
   onSegmentsChange?: (segments: ColoredSegment[]) => void;
   onError?: (message: string | null) => void;
-  onParseNodeChange?: (node: FuncScriptParseNode | null) => void;
+  onParseModelChange?: (model: {
+    parseNode: FuncScriptParseNode | null;
+    expressionBlock: FuncScriptExpressionBlock;
+  }) => void;
   minHeight?: number;
   style?: CSSProperties;
   readOnly?: boolean;
@@ -348,7 +370,7 @@ const FuncScriptEditor = ({
   onChange,
   onSegmentsChange,
   onError,
-  onParseNodeChange,
+  onParseModelChange,
   minHeight = 260,
   style,
   readOnly = false
@@ -360,7 +382,7 @@ const FuncScriptEditor = ({
 
   const segmentsCallbackRef = useRef(onSegmentsChange);
   const errorCallbackRef = useRef(onError);
-  const parseNodeCallbackRef = useRef(onParseNodeChange);
+  const parseModelCallbackRef = useRef(onParseModelChange);
 
   useEffect(() => {
     segmentsCallbackRef.current = onSegmentsChange;
@@ -371,8 +393,8 @@ const FuncScriptEditor = ({
   }, [onError]);
 
   useEffect(() => {
-    parseNodeCallbackRef.current = onParseNodeChange;
-  }, [onParseNodeChange]);
+    parseModelCallbackRef.current = onParseModelChange;
+  }, [onParseModelChange]);
 
   const containerStyle = useMemo(
     () => ({
@@ -394,7 +416,7 @@ const FuncScriptEditor = ({
     const funcscriptExtensions = createFuncScriptExtensions(provider, {
       getSegmentsCallback: () => segmentsCallbackRef.current,
       getErrorCallback: () => errorCallbackRef.current,
-      getParseNodeCallback: () => parseNodeCallbackRef.current
+      getParseModelCallback: () => parseModelCallbackRef.current
     });
 
     const state = EditorState.create({
