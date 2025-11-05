@@ -31,9 +31,11 @@ are persisted to `window.localStorage` under the key `funscript-studio:formulas`
 ## Test Cases
 
 The Test Cases panel (to the right of the editor) lets you capture variable sets for the active
-formula. Load a saved case to hydrate the tester, update it after tweaking the variables, or store
-additional scenarios with **Save As**. Test cases are kept alongside each formula inside the same
-`funscript-studio:formulas` entry in `localStorage`.
+formula. Use **New** to capture the tester’s current variables as a fresh case, **Duplicate** to fork
+the selected case, and **Delete** when you no longer need it. Selecting a case immediately hydrates
+the playground, and any edits you make in the tester’s variable editor are applied back to that case
+in real time. Data is stored alongside each formula inside the same
+`funscript-studio:formulas` `localStorage` entry.
 
 ## Variable Sets
 

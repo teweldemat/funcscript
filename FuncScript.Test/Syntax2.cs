@@ -174,5 +174,15 @@ namespace FuncScript.Test
         {
             Assert.AreEqual(expected, FuncScriptRuntime.Evaluate(exp));
         }
+        
+        [Test]
+        [TestCase("[1]+[2]", new object[]{1,2})]
+        public void ListAddition(string exp, object expected)
+        {
+            Assert.AreEqual(expected, FuncScriptRuntime.Evaluate(exp));
+        }
+        
+        
+
     }
 }

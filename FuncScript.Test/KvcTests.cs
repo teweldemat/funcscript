@@ -440,6 +440,15 @@ d";
             var expected = new ObjectKvc(new { null1 = 5, y = 5 });
             Assert.AreEqual(FuncScriptRuntime.FormatToJson(expected),  FuncScriptRuntime.FormatToJson(res));
         }
+        
+        [Test]
+        public void KvcAddition()
+        {
+            var exp = "{a:5}+{b:6}";
+            var res = FuncScriptRuntime.Evaluate( exp);
+            var expected = new ObjectKvc(new { a = 5, b = 6 });
+            Assert.AreEqual(FuncScriptRuntime.FormatToJson(expected),  FuncScriptRuntime.FormatToJson(res));
+        }
     }
 
 }

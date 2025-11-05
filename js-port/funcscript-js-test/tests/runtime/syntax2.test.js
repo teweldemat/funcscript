@@ -8,6 +8,7 @@ const {
   typeOf,
   FSDataType
 } = require('@tewelde/funcscript');
+const { toPlain } = require('../helpers/runtime');
 
 // Mirrors FuncScript.Test/Syntax2.cs.
 describe('Syntax2', () => {
@@ -155,4 +156,18 @@ describe('Syntax2', () => {
       });
     }
   });
+  describe('ListAddition', () => {
+    const cases = [
+      { expression: '[1]+[2]', expected: [1,2] },
+    ];
+
+    for (const { expression, expected } of cases) {
+      it(expression, () => {
+        const result = evaluate(expression, builtinProvider());
+        expect(typeOf(result)).to.equal(FSDataType.List);
+        expect(toPlain(result)).to.deep.equal(expected);
+      });
+    }
+  });
+
 });

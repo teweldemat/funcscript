@@ -18,13 +18,6 @@ type StoredFormula = {
 };
 
 const FORMULA_STORAGE_KEY = 'funscript-studio:formulas';
-const DEFAULT_FORMULA_NAME = 'Net Income Example';
-const DEFAULT_FORMULA = 'gross * (1 - taxRate)';
-const DEFAULT_VARIABLES: FuncScriptTesterVariableInput[] = [
-  { name: 'gross', expression: '5200' },
-  { name: 'taxRate', expression: '0.12' }
-];
-
 const createStableId = (prefix: string) => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     try {
@@ -51,13 +44,37 @@ const cloneVariables = (variables: FuncScriptTesterVariableInput[]): FuncScriptT
 const createVariablesSignature = (variables: FuncScriptTesterVariableInput[] | undefined): string =>
   JSON.stringify(sanitizeVariables(Array.isArray(variables) ? variables : []));
 
-const EMPTY_VARIABLES_SIGNATURE = '[]';
+const createTestCasesSignature = (cases: StoredTestCase[] | undefined): string => {
+  if (!cases || cases.length === 0) {
+    return '[]';
+  }
+  const normalized = cases
+    .map((testCase) => ({
+      id: testCase.id,
+      name: testCase.name,
+      variables: sanitizeVariables(testCase.variables)
+    }))
+    .sort((left, right) => left.id.localeCompare(right.id));
+  return JSON.stringify(normalized);
+};
 
 const sortTestCases = (cases: StoredTestCase[]): StoredTestCase[] =>
-  [...cases].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  [...cases].sort((a, b) => {
+    const dateCompare = b.updatedAt.localeCompare(a.updatedAt);
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+    return a.id.localeCompare(b.id);
+  });
 
 const sortFormulas = (formulas: StoredFormula[]): StoredFormula[] =>
-  [...formulas].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  [...formulas].sort((a, b) => {
+    const dateCompare = b.updatedAt.localeCompare(a.updatedAt);
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+    return a.id.localeCompare(b.id);
+  });
 
 const normalizeTestCases = (input: unknown): StoredTestCase[] => {
   if (!Array.isArray(input)) {
@@ -138,103 +155,41 @@ const persistSavedFormulas = (formulas: StoredFormula[]) => {
 const App = (): JSX.Element => {
   const initialFormulasRef = useRef<StoredFormula[] | null>(null);
   if (initialFormulasRef.current === null) {
-    const stored = loadSavedFormulas();
-    if (stored.length === 0) {
-      const timestamp = new Date().toISOString();
-      initialFormulasRef.current = [
-        {
-          id: createFormulaId(),
-          name: DEFAULT_FORMULA_NAME,
-          expression: DEFAULT_FORMULA,
-          updatedAt: timestamp,
-          testCases: [
-            {
-              id: createTestCaseId(),
-              name: 'Baseline',
-              variables: cloneVariables(DEFAULT_VARIABLES),
-              updatedAt: timestamp
-            }
-          ]
-        }
-      ];
-    } else {
-      initialFormulasRef.current = stored;
-    }
+    initialFormulasRef.current = loadSavedFormulas();
   }
 
-  const initialFormulas = initialFormulasRef.current ?? [];
-  const initialFormula = initialFormulas[0] ?? {
-    id: createFormulaId(),
-    name: DEFAULT_FORMULA_NAME,
-    expression: DEFAULT_FORMULA,
-    updatedAt: new Date().toISOString(),
-    testCases: [
-      {
-        id: createTestCaseId(),
-        name: 'Baseline',
-        variables: cloneVariables(DEFAULT_VARIABLES),
-        updatedAt: new Date().toISOString()
-      }
-    ]
-  };
-  const initialTestCases = initialFormula.testCases.length
-    ? initialFormula.testCases
-    : [
-        {
-          id: createTestCaseId(),
-          name: 'Baseline',
-          variables: cloneVariables(DEFAULT_VARIABLES),
-          updatedAt: new Date().toISOString()
-        }
-      ];
-  const initialTestCase = initialTestCases[0];
-
+  const initialFormulas = useMemo(() => initialFormulasRef.current ?? [], []);
   const [savedFormulas, setSavedFormulas] = useState<StoredFormula[]>(initialFormulas);
-  const [selectedFormulaId, setSelectedFormulaId] = useState<string>(initialFormula.id);
-  const [expression, setExpression] = useState<string>(initialFormula.expression);
-  const [savedTestCases, setSavedTestCases] = useState<StoredTestCase[]>(initialTestCases);
-  const [selectedTestCaseId, setSelectedTestCaseId] = useState<string>(initialTestCase?.id ?? '');
-  const [currentVariables, setCurrentVariables] = useState<FuncScriptTesterVariableInput[]>(
-    cloneVariables(initialTestCase?.variables ?? DEFAULT_VARIABLES)
-  );
+  const [selectedFormulaId, setSelectedFormulaId] = useState<string>('');
+  const [expression, setExpression] = useState<string>('');
+  const [savedTestCases, setSavedTestCases] = useState<StoredTestCase[]>([]);
+  const [selectedTestCaseId, setSelectedTestCaseId] = useState<string>('');
+  const [testerVariablesPayload, setTesterVariablesPayload] = useState<
+    FuncScriptTesterVariableInput[] | undefined
+  >(undefined);
+  const latestTesterVariablesRef = useRef<FuncScriptTesterVariableInput[]>([]);
+  const initialTestCasesSignatureRef = useRef('[]');
+
+  useEffect(() => {
+    if (initialFormulas.length === 0) {
+      return;
+    }
+    const first = initialFormulas[0];
+    setSelectedFormulaId(first.id);
+    setExpression(first.expression);
+    const normalizedCases = sortTestCases(first.testCases.length ? first.testCases : []);
+    setSavedTestCases(normalizedCases);
+    const firstCase = normalizedCases[0];
+    setSelectedTestCaseId(firstCase?.id ?? '');
+    const baseVariables = cloneVariables(firstCase?.variables ?? []);
+    latestTesterVariablesRef.current = baseVariables;
+    setTesterVariablesPayload(baseVariables.length > 0 ? baseVariables : []);
+    initialTestCasesSignatureRef.current = createTestCasesSignature(normalizedCases);
+  }, [initialFormulas]);
 
   useEffect(() => {
     persistSavedFormulas(savedFormulas);
   }, [savedFormulas]);
-
-  useEffect(() => {
-    if (!selectedFormulaId) {
-      return;
-    }
-    setSavedFormulas((prev) => {
-      const index = prev.findIndex((formula) => formula.id === selectedFormulaId);
-      if (index < 0) {
-        return prev;
-      }
-      const formula = prev[index];
-      const existing = JSON.stringify(
-        formula.testCases.map((testCase) => ({
-          name: testCase.name,
-          variables: sanitizeVariables(testCase.variables)
-        }))
-      );
-      const nextSignature = JSON.stringify(
-        savedTestCases.map((testCase) => ({
-          name: testCase.name,
-          variables: sanitizeVariables(testCase.variables)
-        }))
-      );
-      if (existing === nextSignature) {
-        return prev;
-      }
-      const updated = [...prev];
-      updated[index] = {
-        ...formula,
-        testCases: sortTestCases(savedTestCases)
-      };
-      return updated;
-    });
-  }, [savedTestCases, selectedFormulaId]);
 
   const selectedFormula = useMemo(
     () => savedFormulas.find((formula) => formula.id === selectedFormulaId) ?? null,
@@ -246,29 +201,38 @@ const App = (): JSX.Element => {
     [savedTestCases, selectedTestCaseId]
   );
 
-  const currentVariablesSignature = useMemo(
-    () => createVariablesSignature(currentVariables),
-    [currentVariables]
+  const stagedTestCasesSignature = useMemo(
+    () => createTestCasesSignature(savedTestCases),
+    [savedTestCases]
   );
 
-  const selectedTestCaseSignature = useMemo(
-    () => createVariablesSignature(selectedTestCase?.variables ?? []),
-    [selectedTestCase]
+  const testCaseCount = savedTestCases.length;
+
+  const persistedTestCasesSignature = useMemo(
+    () => createTestCasesSignature(selectedFormula?.testCases ?? []),
+    [selectedFormula]
   );
+
+  const initialTestCasesSignature = initialTestCasesSignatureRef.current;
 
   const isDirty = useMemo(() => {
     if (!selectedFormula) {
-      return expression.trim().length > 0;
+      return (
+        expression.trim().length > 0 ||
+        stagedTestCasesSignature !== initialTestCasesSignature
+      );
     }
-    return expression !== selectedFormula.expression;
-  }, [expression, selectedFormula]);
-
-  const isTestCaseDirty = useMemo(() => {
-    if (!selectedTestCase) {
-      return currentVariablesSignature !== EMPTY_VARIABLES_SIGNATURE;
-    }
-    return currentVariablesSignature !== selectedTestCaseSignature;
-  }, [selectedTestCase, currentVariablesSignature, selectedTestCaseSignature]);
+    return (
+      expression !== selectedFormula.expression ||
+      stagedTestCasesSignature !== persistedTestCasesSignature
+    );
+  }, [
+    expression,
+    selectedFormula,
+    stagedTestCasesSignature,
+    persistedTestCasesSignature,
+    initialTestCasesSignature
+  ]);
 
   const handleExpressionChange = useCallback((next: string) => {
     setExpression(next);
@@ -278,6 +242,13 @@ const App = (): JSX.Element => {
     (event: ChangeEvent<HTMLSelectElement>) => {
       const nextId = event.target.value;
       if (!nextId) {
+        setSelectedFormulaId('');
+        setExpression('');
+        setSavedTestCases([]);
+        setSelectedTestCaseId('');
+        latestTesterVariablesRef.current = [];
+        setTesterVariablesPayload([]);
+        initialTestCasesSignatureRef.current = '[]';
         return;
       }
       const match = savedFormulas.find((formula) => formula.id === nextId);
@@ -290,9 +261,9 @@ const App = (): JSX.Element => {
       setSavedTestCases(nextTestCases);
       const nextSelected = nextTestCases[0];
       setSelectedTestCaseId(nextSelected?.id ?? '');
-      setCurrentVariables(
-        cloneVariables(nextSelected?.variables ?? (nextTestCases.length ? [] : DEFAULT_VARIABLES))
-      );
+      const baseVariables = cloneVariables(nextSelected?.variables ?? []);
+      latestTesterVariablesRef.current = baseVariables;
+      setTesterVariablesPayload(baseVariables.length > 0 ? baseVariables : []);
     },
     [savedFormulas]
   );
@@ -313,6 +284,7 @@ const App = (): JSX.Element => {
     const timestamp = new Date().toISOString();
     const sortedCases = sortTestCases(savedTestCases);
     let resultingSelectionId = selectedFormulaId;
+    const wasNewFormula = selectedFormulaId === '';
 
     setSavedFormulas((previous) => {
       const existingIndex = previous.findIndex(
@@ -343,76 +315,172 @@ const App = (): JSX.Element => {
       return sortFormulas([...previous, newEntry]);
     });
 
-    setSelectedFormulaId(resultingSelectionId);
+    if (wasNewFormula) {
+      setSelectedFormulaId('');
+      setExpression('');
+      setSavedTestCases([]);
+      setSelectedTestCaseId('');
+      latestTesterVariablesRef.current = [];
+      setTesterVariablesPayload([]);
+      initialTestCasesSignatureRef.current = '[]';
+    } else {
+      setSelectedFormulaId(resultingSelectionId);
+    }
   }, [expression, savedTestCases, selectedFormula, selectedFormulaId]);
 
-  const handleVariablesChange = useCallback((next: FuncScriptTesterVariableInput[]) => {
-    const sanitized = sanitizeVariables(next);
-    const nextSignature = createVariablesSignature(sanitized);
-    setCurrentVariables((prev) =>
-      createVariablesSignature(prev) === nextSignature ? prev : sanitized
-    );
-  }, []);
+  const handleVariablesChange = useCallback(
+    (next: FuncScriptTesterVariableInput[]) => {
+      const sanitized = sanitizeVariables(next);
+      const signature = createVariablesSignature(sanitized);
+      latestTesterVariablesRef.current = sanitized;
 
-  const handleSelectTestCase = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
-    const nextId = event.target.value;
-    setSelectedTestCaseId(nextId);
-  }, []);
+      if (selectedTestCaseId) {
+        setSavedTestCases((previous) => {
+          const index = previous.findIndex((testCase) => testCase.id === selectedTestCaseId);
+          if (index < 0) {
+            return previous;
+          }
+          const currentSignature = createVariablesSignature(previous[index].variables);
+          if (currentSignature === signature) {
+            return previous;
+          }
+          const updated = [...previous];
+          updated[index] = {
+            ...previous[index],
+            variables: sanitized
+          };
+          return updated;
+        });
+      }
+    },
+    [selectedTestCaseId]
+  );
 
-  const handleApplyTestCase = useCallback(() => {
-    if (!selectedTestCase) {
+  const handleSelectTestCase = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      const nextId = event.target.value;
+      setSelectedTestCaseId(nextId);
+      const match = savedTestCases.find((testCase) => testCase.id === nextId);
+      const baseVariables = cloneVariables(match?.variables ?? []);
+      latestTesterVariablesRef.current = baseVariables;
+      setTesterVariablesPayload(baseVariables.length > 0 ? baseVariables : []);
+    },
+    [savedTestCases]
+  );
+
+  const getUniqueTestCaseName = useCallback(
+    (desired: string, excludeId?: string) => {
+      const base = desired.trim();
+      if (!base) {
+        return '';
+      }
+      const existing = new Set(
+        savedTestCases
+          .filter((testCase) => testCase.id !== excludeId)
+          .map((testCase) => testCase.name.toLowerCase())
+      );
+      let candidate = base;
+      let suffix = 2;
+      while (existing.has(candidate.toLowerCase())) {
+        candidate = `${base} (${suffix})`;
+        suffix += 1;
+      }
+      return candidate;
+    },
+    [savedTestCases]
+  );
+
+  
+  const handleCreateTestCase = useCallback(() => {
+    if (typeof window === 'undefined') {
       return;
     }
-    setCurrentVariables(cloneVariables(selectedTestCase.variables));
-  }, [selectedTestCase]);
+    const defaultName = getUniqueTestCaseName('New Test Case');
+    const proposed = window.prompt('Name for the new test case', defaultName);
+    if (proposed === null) {
+      return;
+    }
+    const trimmed = proposed.trim();
+    if (!trimmed) {
+      return;
+    }
+    const name = getUniqueTestCaseName(trimmed);
+    const timestamp = new Date().toISOString();
+    const variables = cloneVariables(latestTesterVariablesRef.current);
+    const newTestCase: StoredTestCase = {
+      id: createTestCaseId(),
+      name,
+      variables,
+      updatedAt: timestamp
+    };
+    setSavedTestCases((previous) => sortTestCases([...previous, newTestCase]));
+    setSelectedTestCaseId(newTestCase.id);
+    setTesterVariablesPayload(variables.length > 0 ? variables : []);
+  }, [getUniqueTestCaseName]);
 
-  const handleOverwriteTestCase = useCallback(() => {
-    if (!selectedTestCase) {
+  const handleDuplicateTestCase = useCallback(() => {
+    if (!selectedTestCase || typeof window === 'undefined') {
+      return;
+    }
+    const defaultName = getUniqueTestCaseName(`${selectedTestCase.name} Copy`);
+    const proposed = window.prompt('Name for the duplicated test case', defaultName);
+    if (proposed === null) {
+      return;
+    }
+    const trimmed = proposed.trim();
+    if (!trimmed) {
+      return;
+    }
+    const name = getUniqueTestCaseName(trimmed);
+    const timestamp = new Date().toISOString();
+    const variables = cloneVariables(latestTesterVariablesRef.current);
+    const duplicated: StoredTestCase = {
+      id: createTestCaseId(),
+      name,
+      variables,
+      updatedAt: timestamp
+    };
+    setSavedTestCases((previous) => sortTestCases([...previous, duplicated]));
+    setSelectedTestCaseId(duplicated.id);
+    setTesterVariablesPayload(variables.length > 0 ? variables : []);
+  }, [selectedTestCase, getUniqueTestCaseName]);
+
+const handleRenameTestCase = useCallback(() => {
+    if (!selectedTestCase || typeof window === 'undefined') {
+      return;
+    }
+    const proposed = window.prompt('Rename test case', selectedTestCase.name);
+    if (proposed === null) {
+      return;
+    }
+    const trimmed = proposed.trim();
+    if (!trimmed) {
+      return;
+    }
+    const name = getUniqueTestCaseName(trimmed, selectedTestCase.id);
+    if (name === selectedTestCase.name) {
       return;
     }
     const timestamp = new Date().toISOString();
-    const nextVariables = cloneVariables(currentVariables);
+    const targetId = selectedTestCase.id;
     setSavedTestCases((previous) => {
-      const index = previous.findIndex((testCase) => testCase.id === selectedTestCase.id);
+      const index = previous.findIndex((testCase) => testCase.id === targetId);
       if (index < 0) {
         return previous;
       }
       const updated = [...previous];
       updated[index] = {
         ...previous[index],
-        variables: nextVariables,
+        name,
         updatedAt: timestamp
       };
       return sortTestCases(updated);
     });
-  }, [currentVariables, selectedTestCase]);
+    setSelectedTestCaseId(targetId);
+  }, [selectedTestCase, getUniqueTestCaseName]);
 
-  const handleSaveTestCase = useCallback(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const defaultName = selectedTestCase?.name ? `${selectedTestCase.name} Copy` : 'New Test Case';
-    const proposedName = window.prompt('Save test case as…', defaultName);
-    if (!proposedName) {
-      return;
-    }
-    const trimmedName = proposedName.trim();
-    if (!trimmedName) {
-      return;
-    }
-    const timestamp = new Date().toISOString();
-    const newTestCase: StoredTestCase = {
-      id: createTestCaseId(),
-      name: trimmedName,
-      variables: cloneVariables(currentVariables),
-      updatedAt: timestamp
-    };
-    setSavedTestCases((previous) => sortTestCases([...previous, newTestCase]));
-    setSelectedTestCaseId(newTestCase.id);
-  }, [currentVariables, selectedTestCase]);
-
-  const handleDeleteTestCase = useCallback(() => {
-    if (!selectedTestCase) {
+const handleDeleteTestCase = useCallback(() => {
+    if (!selectedTestCase || testCaseCount <= 1) {
       return;
     }
     if (typeof window !== 'undefined') {
@@ -425,10 +493,14 @@ const App = (): JSX.Element => {
       const remaining = previous.filter((testCase) => testCase.id !== selectedTestCase.id);
       const sorted = sortTestCases(remaining);
       const nextSelected = sorted[0]?.id ?? '';
-      setSelectedTestCaseId((current) => (current === selectedTestCase.id ? nextSelected : current));
+      setSelectedTestCaseId(nextSelected);
+      const nextMatch = sorted.find((testCase) => testCase.id === nextSelected);
+      const baseVariables = cloneVariables(nextMatch?.variables ?? []);
+      latestTesterVariablesRef.current = baseVariables;
+      setTesterVariablesPayload(baseVariables.length > 0 ? baseVariables : []);
       return sorted;
     });
-  }, [selectedTestCase]);
+  }, [selectedTestCase, testCaseCount]);
 
   const testerSaveKey = useMemo(
     () => `funscript-studio:tester:${selectedFormulaId || 'default'}`,
@@ -447,6 +519,7 @@ const App = (): JSX.Element => {
               value={selectedFormulaId}
               onChange={handleSelectFormula}
             >
+              <option value="">New Formula</option>
               {savedFormulas.map((formula) => (
                 <option key={formula.id} value={formula.id}>
                   {formula.name}
@@ -478,7 +551,7 @@ const App = (): JSX.Element => {
             value={expression}
             onChange={handleExpressionChange}
             saveKey={testerSaveKey}
-            variables={currentVariables}
+            variables={testerVariablesPayload}
             onVariablesChange={handleVariablesChange}
           />
         </div>
@@ -495,7 +568,6 @@ const App = (): JSX.Element => {
                 value={selectedTestCaseId}
                 onChange={handleSelectTestCase}
               >
-                <option value="">Unsaved variables</option>
                 {savedTestCases.map((testCase) => (
                   <option key={testCase.id} value={testCase.id}>
                     {testCase.name}
@@ -507,55 +579,43 @@ const App = (): JSX.Element => {
               <button
                 type="button"
                 className="ghost-button"
-                onClick={handleApplyTestCase}
-                disabled={!selectedTestCase}
+                onClick={handleCreateTestCase}
+                title="New test case"
+                aria-label="New test case"
               >
-                Load
+                ＋
               </button>
               <button
                 type="button"
                 className="ghost-button"
-                onClick={handleOverwriteTestCase}
-                disabled={!selectedTestCase || !isTestCaseDirty}
+                onClick={handleDuplicateTestCase}
+                disabled={!selectedTestCase}
+                title="Duplicate test case"
+                aria-label="Duplicate test case"
               >
-                Update
+                ⧉
               </button>
-              <button type="button" className="ghost-button" onClick={handleSaveTestCase}>
-                Save As
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={handleRenameTestCase}
+                disabled={!selectedTestCase}
+                title="Rename test case"
+                aria-label="Rename test case"
+              >
+                ✎
               </button>
               <button
                 type="button"
                 className="ghost-button danger"
                 onClick={handleDeleteTestCase}
-                disabled={!selectedTestCase}
+                disabled={!selectedTestCase || testCaseCount <= 1}
+                title="Delete test case"
+                aria-label="Delete test case"
               >
-                Delete
+                🗑
               </button>
             </div>
-            <div className="testcase-status">
-              {selectedTestCase ? (
-                <span className={isTestCaseDirty ? 'status-badge warning' : 'status-badge success'}>
-                  {isTestCaseDirty ? 'Modified' : 'In sync'}
-                </span>
-              ) : (
-                <span className="status-badge neutral">Unsaved variables</span>
-              )}
-            </div>
-          </div>
-          <div className="testcase-panel__body">
-            <h3>Current Variables</h3>
-            {currentVariables.length === 0 ? (
-              <p className="empty-hint">Variables will appear after the editor references them.</p>
-            ) : (
-              <ul className="variable-list">
-                {currentVariables.map((variable, index) => (
-                  <li key={`${variable.name || 'var'}-${index}`}>
-                    <div className="variable-name">{variable.name || <em>Unnamed</em>}</div>
-                    <code className="variable-expression">{variable.expression || '∅'}</code>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
         </aside>
       </div>

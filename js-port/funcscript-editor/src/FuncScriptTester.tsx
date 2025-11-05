@@ -1043,7 +1043,8 @@ const listItemStyle: CSSProperties = {
   textAlign: 'left',
   width: '100%',
   background: 'transparent',
-  cursor: 'pointer'
+  cursor: 'pointer',
+  color: '#0f172a'
 };
 
 const selectedListItemStyle: CSSProperties = {
