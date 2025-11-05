@@ -33,7 +33,7 @@ var result = FuncScript.Engine.Evaluate(new KvcProvider(context, globals), expre
 Console.WriteLine(FuncScript.Engine.ToJson(result));
 ```
 
-For more details see the [embedded samples](../FuncScript.Example/Program.cs) and the
+For more details, explore the sample project under `FuncScript.Example/` in the repository and the
 [language overview](language/overview.md).
 
 ## Next Steps
