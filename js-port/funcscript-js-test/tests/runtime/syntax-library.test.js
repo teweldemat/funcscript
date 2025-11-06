@@ -76,6 +76,8 @@ describe('SyntaxLibrary', () => {
       { expression: 'if 1=2 then "yes" else "no"', expected: 'no' },
       { expression: 'if (1=2) then 10 else 20', expected: 20 },
       { expression: 'if 1=1 then (if 2=2 then 1 else 2) else 3', expected: 1 },
+      { expression: '{return if true then 3 else 5 }', expected: 3 },
+      { expression: ' if true then 2 else 3', expected: 2 },
       { expression: 'not(1=1)', expected: false },
       { expression: 'not(3=1)', expected: true },
       { expression: 'not(null)', errorType: FsError.ERROR_TYPE_MISMATCH },

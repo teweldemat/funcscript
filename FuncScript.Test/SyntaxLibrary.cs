@@ -97,6 +97,11 @@ namespace FuncScript.Test
         [TestCase(@"if 1=2 then ""yes"" else ""no""", "no")]
         [TestCase(@"if (1=2) then 10 else 20", 20)]
         [TestCase(@"if 1=1 then (if 2=2 then 1 else 2) else 3", 1)]
+        [TestCase(@"{return if true then 3 else 5 }", 3)]
+        [TestCase(@"if 1=2 then 3 else if 1=1 then 4 else 6", 4)]
+        [TestCase(@"if 1=2 then 3 else if 1=2 then 4 else 6", 6)]
+        [TestCase(@"if 1=1 then 3 else if 1=2 then 4 else 6", 3)]
+        [TestCase(@" if true then 2 else 3", 2)]
 
         [TestCase(@"not(1=1)", false)] //not function
         [TestCase(@"not(3=1)", true)]

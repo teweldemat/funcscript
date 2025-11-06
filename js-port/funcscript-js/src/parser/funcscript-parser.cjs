@@ -849,6 +849,7 @@ function getReturnDefinition(context, siblings, index) {
   }
 
   let currentIndex = keywordResult;
+  currentIndex = skipSpace(context, childNodes, currentIndex);
   const valueResult = getExpression(context, childNodes, currentIndex);
   if (!valueResult.hasProgress(currentIndex) || !valueResult.ExpressionBlock) {
     context.ErrorsList.push(new SyntaxErrorData(currentIndex, 0, 'return expression expected'));
@@ -1057,10 +1058,16 @@ function getIfThenElseExpression(context, siblings, index) {
     return ParseResult.noAdvance(index);
   }
 
-  const functionName = context.Expression.substring(index, keywordIndex);
+  const functionSegment = context.Expression.substring(index, keywordIndex);
+  const functionName = functionSegment.trim();
+  if (!functionName) {
+    return ParseResult.noAdvance(index);
+  }
+
+  const functionStart = keywordIndex - functionName.length;
   const functionBlock = new ReferenceBlock(functionName);
-  functionBlock.Pos = index;
-  functionBlock.Length = keywordIndex - index;
+  functionBlock.Pos = functionStart;
+  functionBlock.Length = functionName.length;
 
   let currentIndex = keywordIndex;
   const condition = getExpression(context, childNodes, currentIndex);
