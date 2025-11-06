@@ -2,6 +2,7 @@ import {
   DefaultFsDataProvider,
   Engine,
   FSDataType,
+  FsDataProvider,
   FsError,
   FsList,
   KeyValueCollection,
@@ -247,7 +248,7 @@ const ensurePoints = (value: unknown): Array<[number, number]> | null => {
 };
 
 export const evaluateExpression = (
-  provider: DefaultFsDataProvider,
+  provider: FsDataProvider,
   expression: string
 ): EvaluationResult => {
   const trimmed = expression.trim();

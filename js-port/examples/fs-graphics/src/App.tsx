@@ -24,6 +24,18 @@ import {
 import type { PreparedGraphics, PreparedPrimitive, ViewExtent } from './graphics';
 import './App.css';
 import { FuncScriptEditor } from '@tewelde/funcscript-editor';
+import {
+  Engine,
+  FSDataType,
+  FsError,
+  KeyValueCollection,
+  ensureTyped,
+  makeValue,
+  typedNull,
+  type DefaultFsDataProvider,
+  type FsDataProvider,
+  type TypedValue
+} from '@tewelde/funcscript/browser';
 import examples, { type CustomTabDefinition } from './examples';
 
 const MIN_LEFT_WIDTH = 260;
@@ -200,6 +212,258 @@ const CancelIcon = () => (
     />
   </svg>
 );
+
+type WorkspaceFolderDefinition = {
+  folder: CustomFolderState;
+  tabs: CustomTabState[];
+};
+
+class WorkspaceFolderProvider extends KeyValueCollection {
+  private readonly manager: WorkspaceEvaluationManager;
+  private readonly folderId: string;
+
+  constructor(manager: WorkspaceEvaluationManager, folderId: string, parent: FsDataProvider | null) {
+    super(parent ?? null);
+    this.manager = manager;
+    this.folderId = folderId;
+  }
+
+  private findTab(name: string): CustomTabState | null {
+    return this.manager.findFolderTabByName(this.folderId, name.toLowerCase());
+  }
+
+  public override get(name: string): TypedValue | null {
+    const tab = this.findTab(name);
+    if (tab) {
+      const evaluation = this.manager.evaluateTab(tab, this);
+      return evaluation.typed ?? typedNull();
+    }
+    return super.get(name);
+  }
+
+  public override isDefined(name: string): boolean {
+    if (this.findTab(name)) {
+      return true;
+    }
+    return super.isDefined(name);
+  }
+
+  public override getAll(): Array<[string, TypedValue]> {
+    const entries: Array<[string, TypedValue]> = [];
+    const tabs = this.manager.getFolderTabs(this.folderId);
+    for (const tab of tabs) {
+      const evaluation = this.manager.evaluateTab(tab, this);
+      entries.push([tab.name, evaluation.typed ?? typedNull()]);
+    }
+    return entries;
+  }
+}
+
+class WorkspaceEnvironmentProvider extends Engine.FsDataProvider {
+  private readonly manager: WorkspaceEvaluationManager;
+  private readonly namedValues = new Map<string, TypedValue>();
+
+  constructor(manager: WorkspaceEvaluationManager) {
+    super(manager.getBaseProvider());
+    this.manager = manager;
+  }
+
+  public setNamedValue(name: string, value: TypedValue | null) {
+    const lower = name.toLowerCase();
+    if (value) {
+      this.namedValues.set(lower, ensureTyped(value));
+    } else {
+      this.namedValues.delete(lower);
+    }
+  }
+
+  private getFolderProvider(name: string): WorkspaceFolderProvider | null {
+    const folderId = this.manager.findFolderIdByName(name.toLowerCase());
+    if (!folderId) {
+      return null;
+    }
+    return this.manager.getFolderProvider(folderId);
+  }
+
+  public override get(name: string): TypedValue | null {
+    const lower = name.toLowerCase();
+    if (lower === 't') {
+      return this.manager.getTimeValue();
+    }
+    if (this.namedValues.has(lower)) {
+      return this.namedValues.get(lower) ?? null;
+    }
+    const rootTab = this.manager.findRootTabByName(lower);
+    if (rootTab) {
+      const evaluation = this.manager.evaluateTab(rootTab, this);
+      return evaluation.typed ?? typedNull();
+    }
+    const folderProvider = this.getFolderProvider(lower);
+    if (folderProvider) {
+      return ensureTyped(folderProvider);
+    }
+    return super.get(name);
+  }
+
+  public override isDefined(name: string): boolean {
+    const lower = name.toLowerCase();
+    if (lower === 't') {
+      return true;
+    }
+    if (this.namedValues.has(lower)) {
+      return true;
+    }
+    if (this.manager.findRootTabByName(lower)) {
+      return true;
+    }
+    if (this.manager.findFolderIdByName(lower)) {
+      return true;
+    }
+    return super.isDefined(name);
+  }
+}
+
+class WorkspaceEvaluationManager {
+  private readonly baseProvider: DefaultFsDataProvider;
+  private readonly timeValue: TypedValue;
+  private readonly rootTabs: CustomTabState[];
+  private readonly rootTabByName = new Map<string, CustomTabState>();
+  private readonly folderDefinitions = new Map<string, WorkspaceFolderDefinition>();
+  private readonly folderNameByLower = new Map<string, string>();
+  private readonly folderTabMaps = new Map<string, Map<string, CustomTabState>>();
+  private readonly evaluations = new Map<string, EvaluationResult>();
+  private readonly evaluating = new Set<string>();
+  private readonly folderProviders = new Map<string, WorkspaceFolderProvider>();
+  private environmentProvider: WorkspaceEnvironmentProvider | null = null;
+
+  constructor(
+    baseProvider: DefaultFsDataProvider,
+    tabs: CustomTabState[],
+    folders: CustomFolderState[],
+    time: number
+  ) {
+    this.baseProvider = baseProvider;
+    this.timeValue = ensureTyped(time);
+    for (const folder of folders) {
+      const entry: WorkspaceFolderDefinition = { folder, tabs: [] };
+      this.folderDefinitions.set(folder.id, entry);
+      this.folderNameByLower.set(folder.name.toLowerCase(), folder.id);
+      this.folderTabMaps.set(folder.id, new Map());
+    }
+
+    const rootAccumulator: CustomTabState[] = [];
+    for (const tab of tabs) {
+      if (tab.folderId && this.folderDefinitions.has(tab.folderId)) {
+        const definition = this.folderDefinitions.get(tab.folderId)!;
+        definition.tabs.push(tab);
+        const nameMap = this.folderTabMaps.get(tab.folderId)!;
+        nameMap.set(tab.name.toLowerCase(), tab);
+      } else {
+        rootAccumulator.push(tab);
+        this.rootTabByName.set(tab.name.toLowerCase(), tab);
+      }
+    }
+
+    this.rootTabs = rootAccumulator;
+    for (const definition of this.folderDefinitions.values()) {
+      definition.tabs.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    }
+    this.rootTabs.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  }
+
+  public getBaseProvider() {
+    return this.baseProvider;
+  }
+
+  public getTimeValue() {
+    return this.timeValue;
+  }
+
+  public getEnvironmentProvider(): WorkspaceEnvironmentProvider {
+    if (!this.environmentProvider) {
+      this.environmentProvider = new WorkspaceEnvironmentProvider(this);
+    }
+    return this.environmentProvider;
+  }
+
+  public findRootTabByName(lower: string): CustomTabState | null {
+    return this.rootTabByName.get(lower) ?? null;
+  }
+
+  public findFolderIdByName(lower: string): string | null {
+    return this.folderNameByLower.get(lower) ?? null;
+  }
+
+  public getFolderProvider(folderId: string): WorkspaceFolderProvider {
+    const existing = this.folderProviders.get(folderId);
+    if (existing) {
+      return existing;
+    }
+    const parent = this.getEnvironmentProvider();
+    const provider = new WorkspaceFolderProvider(this, folderId, parent);
+    this.folderProviders.set(folderId, provider);
+    return provider;
+  }
+
+  public getFolderTabs(folderId: string): CustomTabState[] {
+    const definition = this.folderDefinitions.get(folderId);
+    return definition ? definition.tabs : [];
+  }
+
+  public hasFolder(folderId: string): boolean {
+    return this.folderDefinitions.has(folderId);
+  }
+
+  public findFolderTabByName(folderId: string, lower: string): CustomTabState | null {
+    const map = this.folderTabMaps.get(folderId);
+    if (!map) {
+      return null;
+    }
+    return map.get(lower) ?? null;
+  }
+
+  public evaluateTab(tab: CustomTabState, provider: FsDataProvider): EvaluationResult {
+    const cached = this.evaluations.get(tab.id);
+    if (cached) {
+      return cached;
+    }
+    if (this.evaluating.has(tab.id)) {
+      const message = 'Circular reference detected while evaluating expression.';
+      const typedError = makeValue(FSDataType.Error, new FsError(FsError.ERROR_DEFAULT, message));
+      const result: EvaluationResult = {
+        value: null,
+        typed: typedError,
+        error: message
+      };
+      this.evaluations.set(tab.id, result);
+      return result;
+    }
+
+    this.evaluating.add(tab.id);
+    const result = evaluateExpression(provider, tab.expression);
+    this.evaluating.delete(tab.id);
+
+    let typed: TypedValue | null = result.typed;
+    if (!typed) {
+      if (result.error) {
+        typed = makeValue(FSDataType.Error, new FsError(FsError.ERROR_DEFAULT, result.error));
+      } else {
+        typed = typedNull();
+      }
+    }
+    const normalized: EvaluationResult = {
+      value: result.value,
+      typed,
+      error: result.error
+    };
+    this.evaluations.set(tab.id, normalized);
+    return normalized;
+  }
+
+  public getEvaluations(): Map<string, EvaluationResult> {
+    return this.evaluations;
+  }
+}
 
 const createCustomTabsFromDefinitions = (definitions?: CustomTabDefinition[]): CustomTabState[] => {
   if (!definitions || definitions.length === 0) {
@@ -791,19 +1055,29 @@ const App = (): JSX.Element => {
       for (const tab of customTabs) {
         existingNames.add(tab.name.toLowerCase());
       }
+      if (!folderId) {
+        for (const folder of customFolders) {
+          existingNames.add(folder.name.toLowerCase());
+        }
+      }
       const defaultName = buildDefaultTabName(existingNames);
       setTabDraftFolderId(folderId);
       setTabNameDraft(defaultName);
       setTabNameDraftError(null);
       draftCommittedRef.current = false;
     },
-    [customTabs, tabNameDraft]
+    [customFolders, customTabs, tabNameDraft]
   );
 
   const handleAddFolderClick = useCallback(() => {
     const existingNames = new Set<string>();
     for (const folder of customFolders) {
       existingNames.add(folder.name.toLowerCase());
+    }
+    for (const tab of customTabs) {
+      if (!tab.folderId) {
+        existingNames.add(tab.name.toLowerCase());
+      }
     }
     const defaultName = buildDefaultFolderName(existingNames);
     const newFolder: CustomFolderState = {
@@ -812,7 +1086,7 @@ const App = (): JSX.Element => {
     };
     setCustomFolders((current) => [...current, newFolder]);
     setSelectedExampleId((current) => (current === 'custom' ? current : 'custom'));
-  }, [customFolders, setCustomFolders, setSelectedExampleId]);
+  }, [customFolders, customTabs, setCustomFolders, setSelectedExampleId]);
 
   const cancelRename = useCallback(() => {
     setRenameTarget(null);
@@ -883,6 +1157,14 @@ const App = (): JSX.Element => {
           setRenameError('That name is already in use.');
           return false;
         }
+        if (currentTab.folderId === null) {
+          for (const folder of customFolders) {
+            if (folder.name.toLowerCase() === lower) {
+              setRenameError('That name is already in use.');
+              return false;
+            }
+          }
+        }
         setCustomTabs((current) =>
           current.map((tab) => (tab.id === renameTarget.id ? { ...tab, name: trimmed } : tab))
         );
@@ -904,6 +1186,12 @@ const App = (): JSX.Element => {
         for (const folder of customFolders) {
           if (folder.id !== renameTarget.id && folder.name.toLowerCase() === lower) {
             setRenameError('That name is already in use.');
+            return false;
+          }
+        }
+        for (const tab of customTabs) {
+          if (tab.folderId === null && tab.name.toLowerCase() === lower) {
+            setRenameError('That name is already used by a file.');
             return false;
           }
         }
@@ -1036,6 +1324,11 @@ const App = (): JSX.Element => {
       for (const tab of customTabs) {
         existingNames.add(tab.name.toLowerCase());
       }
+      if (tabDraftFolderId === null) {
+        for (const folder of customFolders) {
+          existingNames.add(folder.name.toLowerCase());
+        }
+      }
       if (existingNames.has(lowerName)) {
         setTabNameDraftError('That name is already in use.');
         return false;
@@ -1056,7 +1349,7 @@ const App = (): JSX.Element => {
       draftCommittedRef.current = true;
       return true;
     },
-    [customTabs, tabDraftFolderId, tabNameDraft]
+    [customFolders, customTabs, tabDraftFolderId, tabNameDraft]
   );
 
   const handleTabNameDraftChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
@@ -1199,31 +1492,34 @@ const App = (): JSX.Element => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   const evaluationState = useMemo(() => {
-    const provider = prepareProvider();
-    provider.set('t', time);
+    const baseProvider = prepareProvider();
+    const manager = new WorkspaceEvaluationManager(baseProvider, customTabs, customFolders, time);
+    const environmentProvider = manager.getEnvironmentProvider();
 
     const evaluationMap = new Map<string, EvaluationResult>();
 
     for (const tab of customTabs) {
-      const result = evaluateExpression(provider, tab.expression);
+      const providerForTab = tab.folderId && manager.hasFolder(tab.folderId)
+        ? manager.getFolderProvider(tab.folderId)
+        : environmentProvider;
+      const result = manager.evaluateTab(tab, providerForTab);
       evaluationMap.set(tab.id, result);
-      if (result.typed) {
-        provider.set(tab.name, result.typed);
-      }
     }
 
-    const viewResult = evaluateExpression(provider, viewExpression);
+    const viewResult = evaluateExpression(environmentProvider, viewExpression);
     if (viewResult.typed) {
-      provider.set('view', viewResult.typed);
+      environmentProvider.setNamedValue('view', viewResult.typed);
+    } else {
+      environmentProvider.setNamedValue('view', null);
     }
-    const graphicsResult = evaluateExpression(provider, graphicsExpression);
+    const graphicsResult = evaluateExpression(environmentProvider, graphicsExpression);
 
     return {
       customEvaluations: evaluationMap,
       viewEvaluation: viewResult,
       graphicsEvaluation: graphicsResult
     };
-  }, [customTabs, graphicsExpression, time, viewExpression]);
+  }, [customFolders, customTabs, graphicsExpression, time, viewExpression]);
 
   const customTabEvaluations = evaluationState.customEvaluations;
   const viewEvaluation = evaluationState.viewEvaluation;
@@ -1242,11 +1538,17 @@ const App = (): JSX.Element => {
         map.set(tab.folderId, [tab]);
       }
     }
+    for (const entry of map.values()) {
+      entry.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    }
     return map;
   }, [customTabs]);
 
   const rootCustomTabs = useMemo(
-    () => customTabs.filter((tab) => tab.folderId === null),
+    () =>
+      customTabs
+        .filter((tab) => tab.folderId === null)
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
     [customTabs]
   );
 
