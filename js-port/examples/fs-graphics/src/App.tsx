@@ -37,6 +37,7 @@ import {
   type TypedValue
 } from '@tewelde/funcscript/browser';
 import examples, { type CustomTabDefinition } from './examples';
+import { ExpressionTree } from './ExpressionTree';
 
 const MIN_LEFT_WIDTH = 260;
 const MIN_RIGHT_WIDTH = 320;
@@ -46,17 +47,19 @@ const GRID_COLOR = 'rgba(148, 163, 184, 0.2)';
 const MAIN_TAB_ID = 'main';
 const VIEW_TAB_ID = 'view';
 
-type CustomTabState = {
+export type CustomTabState = {
   id: string;
   name: string;
   expression: string;
   folderId: string | null;
 };
 
-type CustomFolderState = {
+export type CustomFolderState = {
   id: string;
   name: string;
 };
+
+export type RenameTarget = { type: 'tab' | 'folder'; id: string };
 
 type PrimitiveReference = {
   name: string;
@@ -179,39 +182,6 @@ const buildDefaultFolderName = (existingNames: Set<string>) => {
   }
   return candidate;
 };
-
-const RenameIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-    <path
-      d="M4 13.5V16h2.5L15.08 7.42 12.58 4.92 4 13.5Zm11.71-7.79a1 1 0 0 0 0-1.42l-2-2a1 1 0 0 0-1.42 0l-1.29 1.3 3.5 3.5 1.21-1.38Z"
-      fill="currentColor"
-    />
-  </svg>
-);
-
-const DeleteIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-    <path
-      d="M7 2a1 1 0 0 0-1 1v1H3.5a.5.5 0 0 0 0 1H4v11a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V5h.5a.5.5 0 0 0 0-1H14V3a1 1 0 0 0-1-1H7Zm1 2h4V3H8v1Zm-1 2h8v10a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6Zm2 2a.5.5 0 0 0-.5.5v6a.5.5 0 1 0 1 0v-6A.5.5 0 0 0 9 8Zm3 0a.5.5 0 0 0-.5.5v6a.5.5 0 1 0 1 0v-6A.5.5 0 0 0 12 8Z"
-      fill="currentColor"
-    />
-  </svg>
-);
-
-const ConfirmIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-    <path d="M16.707 5.293a1 1 0 0 0-1.414 0L8.5 12.086 5.707 9.293a1 1 0 1 0-1.414 1.414l3.5 3.5a1 1 0 0 0 1.414 0l7-7a1 1 0 0 0 0-1.414Z" fill="currentColor" />
-  </svg>
-);
-
-const CancelIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-    <path
-      d="M5.293 5.293a1 1 0 0 1 1.414 0L10 8.586l3.293-3.293a1 1 0 0 1 1.414 1.414L11.414 10l3.293 3.293a1 1 0 0 1-1.414 1.414L10 11.414l-3.293 3.293a1 1 0 0 1-1.414-1.414L8.586 10 5.293 6.707a1 1 0 0 1 0-1.414Z"
-      fill="currentColor"
-    />
-  </svg>
-);
 
 type WorkspaceFolderDefinition = {
   folder: CustomFolderState;
@@ -830,9 +800,7 @@ const App = (): JSX.Element => {
   const newTabInputPrimedRef = useRef(false);
   const draftCommittedRef = useRef(false);
   const renameInputRef = useRef<HTMLInputElement | null>(null);
-  const [renameTarget, setRenameTarget] = useState<{ type: 'tab' | 'folder'; id: string } | null>(
-    null
-  );
+  const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [renameError, setRenameError] = useState<string | null>(null);
   const renameCommittedRef = useRef(false);
@@ -1791,105 +1759,6 @@ const App = (): JSX.Element => {
     preparedGraphics.layers.length > 0 &&
     viewInterpretation.extent !== null;
 
-  const renderCustomTabButton = (tab: CustomTabState, nested = false) => {
-    const customActive = activeExpressionTab === tab.id;
-    const evaluation = customTabEvaluations.get(tab.id);
-    const hasError = Boolean(evaluation?.error);
-    const isRenaming = renameTarget?.type === 'tab' && renameTarget.id === tab.id;
-    const rowClassName = ['expression-tab-row', nested ? 'expression-tab-row-nested' : '']
-      .filter(Boolean)
-      .join(' ');
-    const baseButtonClass = [
-      'expression-tab',
-      nested ? 'expression-tab-nested' : '',
-      customActive ? 'expression-tab-active' : '',
-      hasError ? 'expression-tab-error-state' : ''
-    ]
-      .filter(Boolean)
-      .join(' ');
-    return (
-      <div key={tab.id} className={rowClassName} role="presentation">
-        <div className="expression-tab-main">
-          {isRenaming ? (
-            <div className="expression-rename-row">
-              <input
-                ref={renameInputRef}
-                className="expression-tab-input expression-rename-input"
-                value={renameDraft}
-                onChange={handleRenameDraftChange}
-                onKeyDown={handleRenameDraftKeyDown}
-                onBlur={handleRenameDraftBlur}
-                aria-label="Rename expression"
-              />
-              <div className="expression-tab-icons">
-                <button
-                  type="button"
-                  className="expression-icon-button"
-                  onClick={() => {
-                    const committed = commitRename(renameDraft);
-                    if (!committed && renameInputRef.current) {
-                      renameInputRef.current.focus();
-                      renameInputRef.current.select();
-                    }
-                  }}
-                  aria-label="Save name"
-                >
-                  <ConfirmIcon />
-                </button>
-                <button
-                  type="button"
-                  className="expression-icon-button"
-                  onClick={cancelRename}
-                  aria-label="Cancel rename"
-                >
-                  <CancelIcon />
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <button
-                type="button"
-                role="tab"
-                id={getExpressionTabButtonId(tab.id)}
-                aria-controls={getExpressionTabPanelId(tab.id)}
-                aria-selected={customActive}
-                tabIndex={customActive ? 0 : -1}
-                className={baseButtonClass}
-                onClick={() => handleExpressionTabSelect(tab.id)}
-              >
-                {tab.name}
-              </button>
-              <div className="expression-tab-icons">
-                <button
-                  type="button"
-                  className="expression-icon-button"
-                  onClick={() => handleRenameTabStart(tab)}
-                  aria-label={`Rename ${tab.name}`}
-                >
-                  <RenameIcon />
-                </button>
-                <button
-                  type="button"
-                  className="expression-icon-button"
-                  onClick={() => handleRemoveTab(tab.id)}
-                  aria-label={`Remove ${tab.name}`}
-                >
-                  <DeleteIcon />
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-        {isRenaming && renameError ? (
-          <p className="expression-tab-error expression-rename-error" role="alert">
-            {renameError}
-          </p>
-        ) : null}
-      </div>
-    );
-  };
-
   const isMainTabActive = activeExpressionTab === MAIN_TAB_ID;
   const isViewTabActive = activeExpressionTab === VIEW_TAB_ID;
 
@@ -1946,172 +1815,42 @@ const App = (): JSX.Element => {
             </div>
 
             <div className="expression-tabs">
-              <div className="expression-tabs-header">
-                <div
-                  className="expression-tabs-list"
-                  role="tablist"
-                  aria-label="Expression editors"
-                >
-                  <button
-                    type="button"
-                    role="tab"
-                    id={getExpressionTabButtonId(MAIN_TAB_ID)}
-                    aria-controls={getExpressionTabPanelId(MAIN_TAB_ID)}
-                    aria-selected={isMainTabActive}
-                    tabIndex={isMainTabActive ? 0 : -1}
-                    className={`expression-tab${isMainTabActive ? ' expression-tab-active' : ''}`}
-                    onClick={() => handleExpressionTabSelect(MAIN_TAB_ID)}
-                  >
-                    Main
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    id={getExpressionTabButtonId(VIEW_TAB_ID)}
-                    aria-controls={getExpressionTabPanelId(VIEW_TAB_ID)}
-                    aria-selected={isViewTabActive}
-                    tabIndex={isViewTabActive ? 0 : -1}
-                    className={`expression-tab${isViewTabActive ? ' expression-tab-active' : ''}`}
-                    onClick={() => handleExpressionTabSelect(VIEW_TAB_ID)}
-                  >
-                    View
-                  </button>
-                  {rootCustomTabs.map((tab) => renderCustomTabButton(tab))}
-                  <div className="expression-add-controls" role="presentation">
-                    <div className="expression-add-expression">
-                      {tabNameDraft !== null && tabDraftFolderId === null ? (
-                        <input
-                          ref={newTabInputRef}
-                          className="expression-tab-input"
-                          value={tabNameDraft}
-                          onChange={handleTabNameDraftChange}
-                          onKeyDown={handleTabNameDraftKeyDown}
-                          onBlur={handleTabNameDraftBlur}
-                          aria-label="New tab name"
-                        />
-                      ) : (
-                        <button
-                          type="button"
-                          className="expression-tab expression-tab-add"
-                          onClick={() => handleAddTabClick(null)}
-                          aria-label="Add expression tab"
-                        >
-                          +
-                        </button>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      className="expression-tab expression-tab-add expression-folder-button"
-                      onClick={handleAddFolderClick}
-                      aria-label="Add folder"
-                    >
-                      Add folder
-                    </button>
-                  </div>
-                  {customFolders.map((folder) => {
-                    const folderTabs = tabsByFolder.get(folder.id) ?? [];
-                    const folderRenaming = renameTarget?.type === 'folder' && renameTarget.id === folder.id;
-                    return (
-                      <div key={folder.id} className="expression-folder" role="presentation">
-                        {folderRenaming ? (
-                          <div className="expression-folder-header expression-folder-header-edit">
-                            <div className="expression-rename-row">
-                              <input
-                                ref={renameInputRef}
-                                className="expression-tab-input expression-rename-input"
-                                value={renameDraft}
-                                onChange={handleRenameDraftChange}
-                                onKeyDown={handleRenameDraftKeyDown}
-                                onBlur={handleRenameDraftBlur}
-                                aria-label="Rename folder"
-                              />
-                              <div className="expression-tab-icons">
-                                <button
-                                  type="button"
-                                  className="expression-icon-button"
-                                  onClick={() => {
-                                    const committed = commitRename(renameDraft);
-                                    if (!committed && renameInputRef.current) {
-                                      renameInputRef.current.focus();
-                                      renameInputRef.current.select();
-                                    }
-                                  }}
-                                  aria-label="Save folder name"
-                                >
-                                  <ConfirmIcon />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="expression-icon-button"
-                                  onClick={cancelRename}
-                                  aria-label="Cancel rename"
-                                >
-                                  <CancelIcon />
-                                </button>
-                              </div>
-                            </div>
-                            {renameError ? (
-                              <p className="expression-tab-error expression-rename-error" role="alert">
-                                {renameError}
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <div className="expression-folder-header">
-                            <span className="expression-folder-name">{folder.name}</span>
-                            <div className="expression-folder-actions">
-                              <button
-                                type="button"
-                                className="expression-icon-button"
-                                onClick={() => handleAddTabClick(folder.id)}
-                                aria-label={`Add expression inside ${folder.name}`}
-                              >
-                                +
-                              </button>
-                              <button
-                                type="button"
-                                className="expression-icon-button"
-                                onClick={() => handleRenameFolderStart(folder)}
-                                aria-label={`Rename folder ${folder.name}`}
-                              >
-                                <RenameIcon />
-                              </button>
-                              <button
-                                type="button"
-                                className="expression-icon-button"
-                                onClick={() => handleRemoveFolder(folder.id)}
-                                aria-label={`Remove folder ${folder.name}`}
-                              >
-                                <DeleteIcon />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        <div className="expression-folder-tabs">
-                          {folderTabs.map((tab) => renderCustomTabButton(tab, true))}
-                          {tabNameDraft !== null && tabDraftFolderId === folder.id ? (
-                            <input
-                              ref={newTabInputRef}
-                              className="expression-tab-input expression-folder-input"
-                              value={tabNameDraft}
-                              onChange={handleTabNameDraftChange}
-                              onKeyDown={handleTabNameDraftKeyDown}
-                              onBlur={handleTabNameDraftBlur}
-                              aria-label={`New tab name for ${folder.name}`}
-                            />
-                          ) : null}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                {tabNameDraftError ? (
-                  <p className="expression-tab-error" role="alert">
-                    {tabNameDraftError}
-                  </p>
-                ) : null}
-              </div>
+              <ExpressionTree
+                mainTabId={MAIN_TAB_ID}
+                viewTabId={VIEW_TAB_ID}
+                isMainTabActive={isMainTabActive}
+                isViewTabActive={isViewTabActive}
+                activeExpressionTab={activeExpressionTab}
+                rootCustomTabs={rootCustomTabs}
+                customFolders={customFolders}
+                tabsByFolder={tabsByFolder}
+                tabEvaluations={customTabEvaluations}
+                tabNameDraft={tabNameDraft}
+                tabDraftFolderId={tabDraftFolderId}
+                tabNameDraftError={tabNameDraftError}
+                renameTarget={renameTarget}
+                renameDraft={renameDraft}
+                renameError={renameError}
+                newTabInputRef={newTabInputRef}
+                renameInputRef={renameInputRef}
+                getButtonId={getExpressionTabButtonId}
+                getPanelId={getExpressionTabPanelId}
+                onSelectTab={handleExpressionTabSelect}
+                onAddTab={handleAddTabClick}
+                onAddFolder={handleAddFolderClick}
+                onTabDraftChange={handleTabNameDraftChange}
+                onTabDraftKeyDown={handleTabNameDraftKeyDown}
+                onTabDraftBlur={handleTabNameDraftBlur}
+                onRenameDraftChange={handleRenameDraftChange}
+                onRenameDraftKeyDown={handleRenameDraftKeyDown}
+                onRenameDraftBlur={handleRenameDraftBlur}
+                onRenameTabStart={handleRenameTabStart}
+                onRenameFolderStart={handleRenameFolderStart}
+                onCommitRename={commitRename}
+                onCancelRename={cancelRename}
+                onRemoveTab={handleRemoveTab}
+                onRemoveFolder={handleRemoveFolder}
+              />
               <div className="expression-tab-panels">
                 <div
                   role="tabpanel"
