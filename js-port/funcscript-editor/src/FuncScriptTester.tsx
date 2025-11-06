@@ -876,11 +876,6 @@ const modeButtonActiveStyle: CSSProperties = {
   borderColor: '#24292f'
 };
 
-const modeButtonDisabledStyle: CSSProperties = {
-  opacity: 0.5,
-  cursor: 'not-allowed'
-};
-
 const testToggleStyle: CSSProperties = {
   ...modeButtonBaseStyle,
   fontWeight: 600
@@ -1388,8 +1383,7 @@ const FuncScriptTester = ({
       return;
     }
     const stored = loadPersistedState(saveKey);
-    const desiredMode = stored?.mode ?? 'standard';
-    setMode((prev) => (prev === desiredMode ? prev : desiredMode));
+    setMode((prev) => (prev === 'standard' ? prev : 'standard'));
     setShowTestingControls(stored?.showTesting ?? false);
     collapsedInitializedRef.current = false;
     initialAutoSelectRef.current = true;
@@ -1401,10 +1395,10 @@ const FuncScriptTester = ({
       return;
     }
     storePersistedState(saveKey, {
-      mode,
+      mode: 'standard',
       showTesting: showTestingControls
     });
-  }, [saveKey, mode, showTestingControls]);
+  }, [saveKey, showTestingControls]);
 
   const handleEditorError = useCallback(
     (message: string | null) => {
@@ -2645,8 +2639,6 @@ const FuncScriptTester = ({
     [mode, expressionPreviewSegments]
   );
 
-  const treeModeDisabled = !parseTree || Boolean(currentParseError);
-
   const leftPaneStyle = useMemo(() => {
     const base: CSSProperties = {
       ...leftPaneBaseStyle,
@@ -2757,32 +2749,6 @@ const FuncScriptTester = ({
       <div style={leftPaneStyle}>
         <div style={toolbarStyle}>
           <div style={toolbarButtonGroupStyle}>
-            <button
-              type="button"
-              style={{
-                ...modeButtonBaseStyle,
-                ...(mode === 'standard' ? modeButtonActiveStyle : {})
-              }}
-              onClick={() => setMode('standard')}
-            >
-              Standard
-            </button>
-            <button
-              type="button"
-              style={{
-                ...modeButtonBaseStyle,
-                ...(mode === 'tree' ? modeButtonActiveStyle : {}),
-                ...(treeModeDisabled ? modeButtonDisabledStyle : {})
-              }}
-              onClick={() => {
-                if (!treeModeDisabled) {
-                  setMode('tree');
-                }
-              }}
-              disabled={treeModeDisabled}
-            >
-              Tree
-            </button>
             <button
               type="button"
               style={testToggleButtonStyle}

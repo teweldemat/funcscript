@@ -61,11 +61,83 @@
 
 .top-controls {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
   margin-bottom: 12px;
+}
+
+.app-title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.app-icon {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-icon-triangle {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: conic-gradient(from 30deg, rgba(59, 130, 246, 0.9) 0deg, rgba(59, 130, 246, 0.9) 120deg, transparent 120deg);
+  clip-path: polygon(50% 0%, 100% 86%, 0% 86%);
+  filter: drop-shadow(0 2px 6px rgba(59, 130, 246, 0.35));
+}
+
+.app-icon-circle {
+  position: absolute;
+  width: 52%;
+  height: 52%;
+  border-radius: 50%;
+  background: rgba(249, 115, 22, 0.9);
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.45));
+}
+
+.app-icon-line {
+  position: absolute;
+  width: 70%;
+  height: 18%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #facc15 0%, #22d3ee 100%);
+  transform: rotate(-18deg) translateY(12px);
+  filter: drop-shadow(0 1px 4px rgba(34, 211, 238, 0.35));
+}
+
+.app-title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #f1f5f9;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.app-title-func {
+  color: #38bdf8;
+}
+
+.app-title-draw {
+  color: #f97316;
+}
+
+.top-controls-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  min-width: 180px;
 }
 
 .dialog-button {
@@ -93,12 +165,22 @@
   outline-offset: 2px;
 }
 
+
 .dialog-button + .dialog-button {
   margin-left: 12px;
 }
 
+.top-controls-actions .dialog-button + .dialog-button {
+  margin-left: 0;
+}
+
 .dialog-button-reference {
-  margin-left: auto;
+  margin-left: 0;
+}
+
+.top-controls-actions .dialog-button {
+  width: 100%;
+  text-align: center;
 }
 
 .dialog-overlay {
@@ -210,6 +292,23 @@
   margin: 0;
   color: rgba(226, 232, 240, 0.7);
   font-size: 0.9rem;
+}
+
+.dialog-reference-link {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(226, 232, 240, 0.75);
+}
+
+.dialog-reference-link a {
+  color: #38bdf8;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.dialog-reference-link a:hover,
+.dialog-reference-link a:focus-visible {
+  text-decoration: underline;
 }
 
 .dialog-footer {
@@ -494,6 +593,12 @@
   line-height: 1.45;
   background: rgba(15, 23, 42, 0.7);
   border: 1px solid transparent;
+  max-height: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
 }
 
 .status-error {

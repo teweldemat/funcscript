@@ -45,7 +45,8 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: path.resolve(__dirname, 'index.html')
+      template: path.resolve(__dirname, 'index.html'),
+      favicon: path.resolve(__dirname, 'favicon.svg')
     })
   ],
   devtool: 'source-map',

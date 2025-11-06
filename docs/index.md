@@ -46,5 +46,5 @@ back into JSON pipelines, APIs, or templating systems.
 - Consult the [Built-in Symbols](reference/built-in-symbols.md) and [Types](reference/types.md) reference for details.
 
 ## Hosted Demos
-- [FuncScript Studio](web/funcscript-studio/)
-- [Graphics Examples](web/fs-graphics/)
+- [FuncScript Tester](web/funcscript-studio/)
+- [FuncDraw Application](web/fs-graphics/)

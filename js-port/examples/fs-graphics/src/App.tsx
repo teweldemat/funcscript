@@ -867,6 +867,9 @@ const App = (): JSX.Element => {
     }
 
     const viewResult = evaluateExpression(provider, viewExpression);
+    if (viewResult.typed) {
+      provider.set('view', viewResult.typed);
+    }
     const graphicsResult = evaluateExpression(provider, graphicsExpression);
 
     return {
@@ -993,6 +996,19 @@ const App = (): JSX.Element => {
     drawImmediate();
   }, [stopAnimation, drawImmediate]);
 
+  const handleClear = useCallback(() => {
+    playingRef.current = false;
+    setIsPlaying(false);
+    stopAnimation();
+    setTime(0);
+    setSelectedExampleId('custom');
+    setViewExpression(defaultViewExpression);
+    setGraphicsExpression(`{\n  return []; // See reference for supported primitives.\n}`);
+    setCustomTabs([]);
+    setActiveExpressionTab(GRAPHICS_TAB_ID);
+    drawImmediate();
+  }, [drawImmediate, stopAnimation]);
+
   useEffect(() => {
     if (selectedExampleId === 'custom') {
       return;
@@ -1112,25 +1128,45 @@ const App = (): JSX.Element => {
         <section className="panel panel-left" style={{ width: `${leftWidth}px` }}>
           <div className="panel-body panel-body-right">
             <div className="top-controls">
-              <button
-                type="button"
-                className="dialog-button"
-                onClick={handleExampleOpen}
-                aria-haspopup="dialog"
-                aria-expanded={exampleOpen}
-              >
-                Load Example
-              </button>
+              <div className="app-title-group">
+                <span className="app-icon" aria-hidden="true">
+                  <span className="app-icon-triangle" />
+                  <span className="app-icon-circle" />
+                  <span className="app-icon-line" />
+                </span>
+                <h1 className="app-title" aria-label="FuncDraw application title">
+                  <span className="app-title-func">Func</span>
+                  <span className="app-title-draw">Draw</span>
+                </h1>
+              </div>
+              <div className="top-controls-actions">
+                <button
+                  type="button"
+                  className="dialog-button"
+                  onClick={handleClear}
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  className="dialog-button"
+                  onClick={handleExampleOpen}
+                  aria-haspopup="dialog"
+                  aria-expanded={exampleOpen}
+                >
+                  Load Example
+                </button>
 
-              <button
-                type="button"
-                className="dialog-button dialog-button-reference"
-                onClick={handleReferenceOpen}
-                aria-haspopup="dialog"
-                aria-expanded={referenceOpen}
-              >
-                Reference
-              </button>
+                <button
+                  type="button"
+                  className="dialog-button dialog-button-reference"
+                  onClick={handleReferenceOpen}
+                  aria-haspopup="dialog"
+                  aria-expanded={referenceOpen}
+                >
+                  Reference
+                </button>
+              </div>
             </div>
 
             <div className="expression-tabs">
@@ -1467,6 +1503,15 @@ function ReferencePopup({ open, selection, onSelect, onClose }: ReferencePopupPr
           ) : (
             <p className="dialog-empty">No topics available.</p>
           )}
+          <p className="dialog-reference-link">
+            <a
+              href="https://teweldemat.github.io/funcscript/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open the full FuncScript language reference on GitHub
+            </a>
+          </p>
         </div>
         <footer className="dialog-footer">
           <button type="button" className="control-button" onClick={onClose}>

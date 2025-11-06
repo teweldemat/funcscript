@@ -40,14 +40,14 @@
     // front slanted steering column
     { type: 'line', data: { from: front, to: fTop, stroke: '#9ca3af', width: 0.6 } },
 
-    // lower horizontal bar
+    // top horizontal bar
     { type: 'line', data: { from: rTopLower, to: fJoinLower, stroke: '#9ca3af', width: 0.6 } },
 
     // lower triangle (gear to both ends of lower bar)
     { type: 'line', data: { from: gear, to: rTopLower, stroke: '#9ca3af', width: 0.6 } },
     { type: 'line', data: { from: gear, to: fJoinLower, stroke: '#9ca3af', width: 0.6 } },
 
-    // rear diagonal brace (gear to rear base)
+    // lower horizontal bar
     { type: 'line', data: { from: gear, to: rear, stroke: '#9ca3af', width: 0.6 } },
 
     // seat
