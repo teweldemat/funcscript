@@ -47,4 +47,4 @@ back into JSON pipelines, APIs, or templating systems.
 
 ## Hosted Demos
 - [FuncScript Tester](web/funcscript-studio/)
-- [FuncDraw Application](web/fs-graphics/)
+- [FuncDraw Application](web/fs-graphics/) a drawing application that uses FuncScript to define graphical models
