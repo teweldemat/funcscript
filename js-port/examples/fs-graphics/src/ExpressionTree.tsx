@@ -20,7 +20,6 @@ type ExpressionTreeProps = {
   isViewTabActive: boolean;
   activeExpressionTab: string;
   entriesByParent: Map<string | null, ExpressionEntry[]>;
-  activeExpressionTitle: string;
   tabEvaluations: Map<string, EvaluationResult>;
   tabNameDraft: string | null;
   tabDraftFolderId: string | null;
@@ -32,6 +31,7 @@ type ExpressionTreeProps = {
   renameInputRef: RefObject<HTMLInputElement>;
   getButtonId: (tabId: string) => string;
   getPanelId: (tabId: string) => string;
+  collapsedFolders: Set<string>;
   onSelectTab: (tabId: string) => void;
   onAddTab: (folderId: string | null) => void;
   onAddFolder: (parentId: string | null) => void;
@@ -47,6 +47,10 @@ type ExpressionTreeProps = {
   onCancelRename: () => void;
   onRemoveTab: (tabId: string) => void;
   onRemoveFolder: (folderId: string) => void;
+  onToggleFolderCollapse: (folderId: string) => void;
+  onEnsureFolderExpanded: (folderId: string | null) => void;
+  onExpandAllFolders: () => void;
+  onCollapseAllFolders: () => void;
 };
 
 type ExpressionEntry =
@@ -77,12 +81,54 @@ const MenuIcon = () => (
   </svg>
 );
 
+const AddIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+    <path d="M9 3a1 1 0 0 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H3a1 1 0 0 1 0-2h6V3Z" fill="currentColor" />
+  </svg>
+);
+
+const FolderIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      d="M3 6a2 2 0 0 1 2-2h4.2a2 2 0 0 1 1.6.8L12.2 6H19a2 2 0 0 1 2 2v2.5H3V6Zm0 5.5h18V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6.5Zm9 1.5a.75.75 0 0 0-1.5 0V16H7a.75.75 0 0 0 0 1.5h3.5V21a.75.75 0 0 0 1.5 0v-3.5H15A.75.75 0 1 0 15 16h-3V13Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 const ChevronIcon = ({ collapsed }: { collapsed: boolean }) => (
   <svg width="12" height="12" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
     <path
       d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.14l3.71-3.91a.75.75 0 0 1 1.08 1.04l-4.24 4.46a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z"
       fill="currentColor"
       transform={collapsed ? 'rotate(-90 10 10)' : undefined}
+    />
+  </svg>
+);
+
+const MainIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      d="M5 4h14a1 1 0 0 1 .92 1.38l-5 12a1 1 0 0 1-.92.62H5a1 1 0 0 1-.92-1.38l5-12A1 1 0 0 1 10 4Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
+const ViewIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      d="M12 6c5 0 9 4 10 6-1 2-5 6-10 6S3 14 2 12c1-2 5-6 10-6Zm0 2c-2.2 0-4 1.8-4 4s1.8 4 4 4a4 4 0 0 0 0-8Zm0 2.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
+const ReturnIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+    <path
+      d="M10 3a1 1 0 0 1 .9.56l3 6a1 1 0 0 1-.9 1.44H7a1 1 0 0 1-.9-1.44l3-6A1 1 0 0 1 10 3Zm0 8a1 1 0 0 1 .95.68l2 6a1 1 0 0 1-1.9.64L10 13.6l-1.05 4.72a1 1 0 0 1-1.9-.64l2-6A1 1 0 0 1 10 11Z"
+      fill="currentColor"
     />
   </svg>
 );
@@ -94,7 +140,6 @@ export const ExpressionTree = ({
   isViewTabActive,
   activeExpressionTab,
   entriesByParent,
-  activeExpressionTitle,
   tabEvaluations,
   tabNameDraft,
   tabDraftFolderId,
@@ -106,6 +151,7 @@ export const ExpressionTree = ({
   renameInputRef,
   getButtonId,
   getPanelId,
+  collapsedFolders,
   onSelectTab,
   onAddTab,
   onAddFolder,
@@ -120,15 +166,37 @@ export const ExpressionTree = ({
   onCommitRename,
   onCancelRename,
   onRemoveTab,
-  onRemoveFolder
+  onRemoveFolder,
+  onToggleFolderCollapse,
+  onEnsureFolderExpanded,
+  onExpandAllFolders,
+  onCollapseAllFolders
 }: ExpressionTreeProps) => {
   const isRootDrafting = tabNameDraft !== null && tabDraftFolderId === null;
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRefs = useRef(new Map<string, HTMLDivElement | null>());
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const menuPortalRef = useRef<HTMLDivElement | null>(null);
-  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => new Set());
   const rootEntries = entriesByParent.get(null) ?? [];
+  const orderEntries = useCallback((entries: ExpressionEntry[]) => {
+    if (!entries || entries.length === 0) {
+      return [];
+    }
+    const returnEntries: ExpressionEntry[] = [];
+    const others: ExpressionEntry[] = [];
+    for (const entry of entries) {
+      if (
+        entry.kind === 'tab' &&
+        entry.tab.name.trim().toLowerCase() === 'return'
+      ) {
+        returnEntries.push(entry);
+      } else {
+        others.push(entry);
+      }
+    }
+    return [...returnEntries, ...others];
+  }, []);
+  const orderedRootEntries = orderEntries(rootEntries);
 
   const registerMenuRef = useCallback((id: string, node: HTMLDivElement | null) => {
     if (node) {
@@ -136,32 +204,6 @@ export const ExpressionTree = ({
     } else {
       menuRefs.current.delete(id);
     }
-  }, []);
-
-  const toggleFolderCollapse = useCallback((folderId: string) => {
-    setCollapsedFolders((current) => {
-      const next = new Set(current);
-      if (next.has(folderId)) {
-        next.delete(folderId);
-      } else {
-        next.add(folderId);
-      }
-      return next;
-    });
-  }, []);
-
-  const ensureFolderExpanded = useCallback((folderId: string | null) => {
-    if (!folderId) {
-      return;
-    }
-    setCollapsedFolders((current) => {
-      if (!current.has(folderId)) {
-        return current;
-      }
-      const next = new Set(current);
-      next.delete(folderId);
-      return next;
-    });
   }, []);
 
   useEffect(() => {
@@ -295,20 +337,42 @@ export const ExpressionTree = ({
   );
 
   const renderRootHeader = () => {
-    const rootActions = [
-      { key: 'add-file', label: 'Add file', handler: () => onAddTab(null) },
-      { key: 'add-folder', label: 'Add folder', handler: () => onAddFolder(null) }
+    const actions = [
+      { key: 'add-file', label: 'Add file', handler: () => onAddTab(null), icon: <AddIcon /> },
+      {
+        key: 'add-folder',
+        label: 'Add folder',
+        handler: () => onAddFolder(null),
+        icon: <FolderIcon />
+      },
+      {
+        key: 'expand',
+        label: 'Expand all',
+        handler: onExpandAllFolders,
+        icon: <ChevronIcon collapsed={false} />
+      },
+      {
+        key: 'collapse',
+        label: 'Collapse all',
+        handler: onCollapseAllFolders,
+        icon: <ChevronIcon collapsed />
+      }
     ];
+
     return (
-      <div className="expression-tree-header">
-        <div className="expression-tree-header-text">
-          <span className="expression-tree-header-title">{activeExpressionTitle}</span>
-        </div>
-        {renderMenuButton(
-          'root-menu',
-          rootActions,
-          'expression-root-menu-wrapper expression-menu-wrapper-static'
-        )}
+      <div className="expression-tree-toolbar" role="toolbar" aria-label="Tree actions">
+        {actions.map((action) => (
+          <button
+            key={action.key}
+            type="button"
+            className="expression-toolbar-button"
+            onClick={action.handler}
+            title={action.label}
+            aria-label={action.label}
+          >
+            {action.icon}
+          </button>
+        ))}
       </div>
     );
   };
@@ -341,9 +405,16 @@ export const ExpressionTree = ({
     const baseButtonClass = [
       'expression-tab',
       nested ? 'expression-tab-nested' : '',
+      'expression-tab-file',
       customActive ? 'expression-tab-active' : '',
       hasError ? 'expression-tab-error-state' : ''
     ]
+      .filter(Boolean)
+      .join(' ');
+    const normalizedName = tab.name.trim().toLowerCase();
+    const isReturnTab = normalizedName === 'return';
+    const icon = isReturnTab ? <ReturnIcon /> : null;
+    const buttonClassName = [baseButtonClass, isReturnTab ? 'expression-tab-return' : '']
       .filter(Boolean)
       .join(' ');
 
@@ -401,10 +472,13 @@ export const ExpressionTree = ({
                 aria-controls={getPanelId(tab.id)}
                 aria-selected={customActive}
                 tabIndex={customActive ? 0 : -1}
-                className={baseButtonClass}
+                className={buttonClassName}
                 onClick={() => onSelectTab(tab.id)}
               >
-                {tab.name}
+                <span className="expression-tab-label">
+                  {icon ? <span className="expression-tab-icon">{icon}</span> : null}
+                  {tab.name}
+                </span>
               </button>
               {renderMenuButton(tabMenuId, tabActions, 'expression-tab-menu-wrapper')}
             </>
@@ -420,7 +494,7 @@ export const ExpressionTree = ({
   };
 
   const renderFolder = (folder: CustomFolderState): JSX.Element => {
-    const childEntries = entriesByParent.get(folder.id) ?? [];
+    const childEntries = orderEntries(entriesByParent.get(folder.id) ?? []);
     const folderRenaming = renameTarget?.type === 'folder' && renameTarget.id === folder.id;
     const isDraftingInFolder = tabNameDraft !== null && tabDraftFolderId === folder.id;
     const isCollapsed = !folderRenaming && collapsedFolders.has(folder.id);
@@ -431,7 +505,7 @@ export const ExpressionTree = ({
         key: 'add-file',
         label: 'Add file',
         handler: () => {
-          ensureFolderExpanded(folder.id);
+          onEnsureFolderExpanded(folder.id);
           onAddTab(folder.id);
         }
       },
@@ -439,7 +513,7 @@ export const ExpressionTree = ({
         key: 'add-folder',
         label: 'Add folder',
         handler: () => {
-          ensureFolderExpanded(folder.id);
+          onEnsureFolderExpanded(folder.id);
           onAddFolder(folder.id);
         }
       },
@@ -504,7 +578,10 @@ export const ExpressionTree = ({
               type="button"
               className="expression-folder-toggle"
               aria-label={isCollapsed ? `Expand ${folder.name}` : `Collapse ${folder.name}`}
-              onClick={() => toggleFolderCollapse(folder.id)}
+              onClick={(event) => {
+                onToggleFolderCollapse(folder.id);
+                event.currentTarget.blur();
+              }}
             >
               <ChevronIcon collapsed={isCollapsed} />
             </button>
@@ -548,24 +625,38 @@ export const ExpressionTree = ({
             aria-controls={getPanelId(mainTabId)}
             aria-selected={isMainTabActive}
             tabIndex={isMainTabActive ? 0 : -1}
-            className={`expression-tab${isMainTabActive ? ' expression-tab-active' : ''}`}
+            className={`expression-tab expression-tab-main${
+              isMainTabActive ? ' expression-tab-active' : ''
+            }`}
             onClick={() => onSelectTab(mainTabId)}
           >
-            Main
+            <span className="expression-tab-label">
+              <span className="expression-tab-icon">
+                <MainIcon />
+              </span>
+              Main
+            </span>
           </button>
           <button
             type="button"
             role="tab"
             id={getButtonId(viewTabId)}
-          aria-controls={getPanelId(viewTabId)}
-          aria-selected={isViewTabActive}
-          tabIndex={isViewTabActive ? 0 : -1}
-          className={`expression-tab${isViewTabActive ? ' expression-tab-active' : ''}`}
-          onClick={() => onSelectTab(viewTabId)}
-        >
-          View
-        </button>
-        {rootEntries.map((entry) =>
+            aria-controls={getPanelId(viewTabId)}
+            aria-selected={isViewTabActive}
+            tabIndex={isViewTabActive ? 0 : -1}
+            className={`expression-tab expression-tab-view${
+              isViewTabActive ? ' expression-tab-active' : ''
+            }`}
+            onClick={() => onSelectTab(viewTabId)}
+          >
+            <span className="expression-tab-label">
+              <span className="expression-tab-icon">
+                <ViewIcon />
+              </span>
+              View
+            </span>
+          </button>
+        {orderedRootEntries.map((entry) =>
           entry.kind === 'tab' ? renderCustomTabButton(entry.tab) : renderFolder(entry.folder)
         )}
         {renderRootDraftInput()}

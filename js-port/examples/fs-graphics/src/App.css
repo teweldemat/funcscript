@@ -513,7 +513,7 @@
 
 .expression-tabs {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 220px 12px 1fr;
   align-items: stretch;
   flex: 1;
   min-height: 0;
@@ -539,7 +539,8 @@
   background: rgba(15, 23, 42, 0.65);
   border: 1px solid rgba(148, 163, 184, 0.2);
   align-self: stretch;
-  width: 190px;
+  width: auto;
+  min-width: 170px;
   max-height: 100%;
   position: relative;
 }
@@ -549,6 +550,22 @@
   flex-direction: column;
   gap: 8px;
   overflow-y: auto;
+}
+
+.expression-inner-splitter {
+  width: 10px;
+  cursor: col-resize;
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.25);
+  transition: background 120ms ease;
+  margin: 0 4px;
+  align-self: stretch;
+}
+
+.expression-inner-splitter:hover,
+.expression-inner-splitter:focus-visible,
+.expression-inner-splitter-dragging {
+  background: rgba(59, 130, 246, 0.5);
 }
 
 .expression-tab {
@@ -564,6 +581,23 @@
   transition: background 120ms ease, color 120ms ease;
   text-align: left;
   width: 100%;
+}
+
+.expression-tab-file {
+  font-weight: 500;
+  color: rgba(226, 232, 240, 0.8);
+}
+
+.expression-tab-main {
+  color: #38bdf8;
+}
+
+.expression-tab-view {
+  color: #f97316;
+}
+
+.expression-tab-return {
+  color: #34d399;
 }
 
 .expression-tab-add {
@@ -626,6 +660,17 @@
 
 .expression-tab-main > .expression-tab {
   flex: 1;
+}
+
+.expression-tab-icon {
+  display: inline-flex;
+  margin-right: 6px;
+}
+
+.expression-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .expression-menu-wrapper {
@@ -764,9 +809,6 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-top: 8px;
-  margin-top: 8px;
-  border-top: 1px solid rgba(148, 163, 184, 0.15);
 }
 
 .expression-folder-header {
@@ -821,31 +863,37 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-left: 8px;
+  padding: 12px;
+  margin-left: 8px;
+  border-left: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.35);
 }
 
-.expression-tree-header {
+.expression-tree-toolbar {
   margin-bottom: 12px;
-  padding: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.expression-toolbar-button {
   border: none;
-  background: transparent;
-  display: flex;
+  background: rgba(148, 163, 184, 0.18);
+  color: rgba(226, 232, 240, 0.9);
+  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
 }
 
-.expression-tree-header-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.expression-tree-header-title {
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: rgba(226, 232, 240, 0.95);
+.expression-toolbar-button:hover,
+.expression-toolbar-button:focus-visible {
+  background: rgba(59, 130, 246, 0.35);
+  color: #fff;
 }
 
 .expression-root-input {
@@ -908,7 +956,7 @@
   flex: 1;
   min-height: 0;
   position: relative;
-  grid-column: 2;
+  grid-column: 3;
   grid-row: 1;
 }
 

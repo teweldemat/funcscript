@@ -41,6 +41,8 @@ import { ExpressionTree } from './ExpressionTree';
 
 const MIN_LEFT_WIDTH = 260;
 const MIN_RIGHT_WIDTH = 320;
+const MIN_TREE_WIDTH = 170;
+const MIN_EDITOR_WIDTH = 360;
 const DEFAULT_RATIO = 0.45;
 const BACKGROUND_COLOR = '#0f172a';
 const GRID_COLOR = 'rgba(148, 163, 184, 0.2)';
@@ -160,6 +162,8 @@ type PersistedSnapshot = {
   customTabs?: CustomTabState[];
   customFolders?: CustomFolderState[];
   activeExpressionTab?: string;
+  treeWidth?: number;
+  expandedFolderIds?: string[];
 };
 
 const STORAGE_KEY = 'fs-graphics-state';
@@ -563,6 +567,19 @@ const sanitizeCustomFolders = (value: unknown): CustomFolderState[] | undefined 
   return result;
 };
 
+const sanitizeStringArray = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const result: string[] = [];
+  for (const entry of value) {
+    if (typeof entry === 'string') {
+      result.push(entry);
+    }
+  }
+  return result.length > 0 ? result : [];
+};
+
 const loadPersistedSnapshot = (): PersistedSnapshot | null => {
   if (typeof window === 'undefined') {
     return null;
@@ -592,6 +609,9 @@ const loadPersistedSnapshot = (): PersistedSnapshot | null => {
     if (typeof data.activeExpressionTab === 'string') {
       snapshot.activeExpressionTab = data.activeExpressionTab;
     }
+    if (typeof data.treeWidth === 'number' && Number.isFinite(data.treeWidth)) {
+      snapshot.treeWidth = data.treeWidth;
+    }
     if ('customTabs' in data) {
       const sanitized = sanitizeCustomTabs(data.customTabs);
       if (sanitized) {
@@ -602,6 +622,12 @@ const loadPersistedSnapshot = (): PersistedSnapshot | null => {
       const sanitizedFolders = sanitizeCustomFolders(data.customFolders);
       if (sanitizedFolders) {
         snapshot.customFolders = sanitizedFolders;
+      }
+    }
+    if ('expandedFolderIds' in data) {
+      const expanded = sanitizeStringArray(data.expandedFolderIds);
+      if (expanded) {
+        snapshot.expandedFolderIds = expanded;
       }
     }
     return snapshot;
@@ -855,6 +881,32 @@ const App = (): JSX.Element => {
   const [renameDraft, setRenameDraft] = useState('');
   const [renameError, setRenameError] = useState<string | null>(null);
   const renameCommittedRef = useRef(false);
+  const [treeWidth, setTreeWidth] = useState(() => {
+    const persisted = persistedStateRef.current;
+    if (persisted && typeof persisted.treeWidth === 'number' && Number.isFinite(persisted.treeWidth)) {
+      return Math.max(MIN_TREE_WIDTH, Math.round(persisted.treeWidth));
+    }
+    return 220;
+  });
+  const [treeDragging, setTreeDragging] = useState(false);
+  const expressionLayoutRef = useRef<HTMLDivElement | null>(null);
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => {
+    const persisted = persistedStateRef.current;
+    if (!persisted?.customFolders || persisted.customFolders.length === 0) {
+      return new Set();
+    }
+    const expandedSet = persisted.expandedFolderIds ? new Set(persisted.expandedFolderIds) : null;
+    if (!expandedSet) {
+      return new Set();
+    }
+    const collapsed = new Set<string>();
+    for (const folder of persisted.customFolders) {
+      if (!expandedSet.has(folder.id)) {
+        collapsed.add(folder.id);
+      }
+    }
+    return collapsed;
+  });
 
   const getContextNameSet = useCallback(
     (
@@ -923,6 +975,32 @@ const App = (): JSX.Element => {
       }
     });
   }, [renameTarget]);
+
+  useEffect(() => {
+    setCollapsedFolders((current) => {
+      if (current.size === 0) {
+        return current;
+      }
+      const validIds = new Set(customFolders.map((folder) => folder.id));
+      let requiresUpdate = false;
+      for (const id of current) {
+        if (!validIds.has(id)) {
+          requiresUpdate = true;
+          break;
+        }
+      }
+      if (!requiresUpdate) {
+        return current;
+      }
+      const next = new Set<string>();
+      for (const id of current) {
+        if (validIds.has(id)) {
+          next.add(id);
+        }
+      }
+      return next;
+    });
+  }, [customFolders]);
 
   useEffect(() => {
     if (!pendingFocusEditorId) {
@@ -1034,6 +1112,141 @@ const App = (): JSX.Element => {
       applyWidthFromClientX(event.touches[0].clientX);
     }
   }, [applyWidthFromClientX]);
+
+  const clampTreeWidth = useCallback(() => {
+    const container = expressionLayoutRef.current;
+    if (!container) {
+      return;
+    }
+    const rect = container.getBoundingClientRect();
+    const maxWidth = Math.max(MIN_TREE_WIDTH, rect.width - MIN_EDITOR_WIDTH);
+    setTreeWidth((current) => clamp(current, MIN_TREE_WIDTH, maxWidth));
+  }, []);
+
+  const applyTreeWidthFromClientX = useCallback(
+    (clientX: number) => {
+      const container = expressionLayoutRef.current;
+      if (!container) {
+        return;
+      }
+      const rect = container.getBoundingClientRect();
+      const relative = clientX - rect.left;
+      const maxWidth = Math.max(MIN_TREE_WIDTH, rect.width - MIN_EDITOR_WIDTH);
+      const nextWidth = clamp(relative, MIN_TREE_WIDTH, maxWidth);
+      setTreeWidth(nextWidth);
+    },
+    []
+  );
+
+  useEffect(() => {
+    clampTreeWidth();
+    window.addEventListener('resize', clampTreeWidth);
+    return () => window.removeEventListener('resize', clampTreeWidth);
+  }, [clampTreeWidth]);
+
+  useEffect(() => {
+    if (!treeDragging) {
+      return;
+    }
+    const handleMouseMove = (event: MouseEvent) => {
+      applyTreeWidthFromClientX(event.clientX);
+    };
+    const handleTouchMove = (event: TouchEvent) => {
+      if (event.touches.length > 0) {
+        applyTreeWidthFromClientX(event.touches[0].clientX);
+      }
+    };
+    const handlePointerUp = () => {
+      setTreeDragging(false);
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('mouseup', handlePointerUp);
+    window.addEventListener('touchend', handlePointerUp);
+    window.addEventListener('touchcancel', handlePointerUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('mouseup', handlePointerUp);
+      window.removeEventListener('touchend', handlePointerUp);
+      window.removeEventListener('touchcancel', handlePointerUp);
+      document.body.style.removeProperty('cursor');
+      document.body.style.removeProperty('user-select');
+    };
+  }, [applyTreeWidthFromClientX, treeDragging]);
+
+  const handleTreeSplitterMouseDown = useCallback(() => {
+    setTreeDragging(true);
+  }, []);
+
+  const handleTreeSplitterTouchStart = useCallback(
+    (event: ReactTouchEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      setTreeDragging(true);
+      if (event.touches.length > 0) {
+        applyTreeWidthFromClientX(event.touches[0].clientX);
+      }
+    },
+    [applyTreeWidthFromClientX]
+  );
+
+  const handleTreeSplitterKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      const container = expressionLayoutRef.current;
+      if (!container) {
+        return;
+      }
+      const rect = container.getBoundingClientRect();
+      const maxWidth = Math.max(MIN_TREE_WIDTH, rect.width - MIN_EDITOR_WIDTH);
+      let delta = 0;
+      if (event.key === 'ArrowLeft') {
+        delta = -10;
+      } else if (event.key === 'ArrowRight') {
+        delta = 10;
+      }
+      if (delta !== 0) {
+        event.preventDefault();
+        setTreeWidth((current) => clamp(current + delta, MIN_TREE_WIDTH, maxWidth));
+      }
+    },
+    []
+  );
+
+  const handleToggleFolderCollapse = useCallback((folderId: string) => {
+    setCollapsedFolders((current) => {
+      const next = new Set(current);
+      if (next.has(folderId)) {
+        next.delete(folderId);
+      } else {
+        next.add(folderId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleEnsureFolderExpanded = useCallback((folderId: string | null) => {
+    if (!folderId) {
+      return;
+    }
+    setCollapsedFolders((current) => {
+      if (!current.has(folderId)) {
+        return current;
+      }
+      const next = new Set(current);
+      next.delete(folderId);
+      return next;
+    });
+  }, []);
+
+  const handleExpandAllFolders = useCallback(() => {
+    setCollapsedFolders(new Set());
+  }, []);
+
+  const handleCollapseAllFolders = useCallback(() => {
+    setCollapsedFolders(new Set(customFolders.map((folder) => folder.id)));
+  }, [customFolders]);
 
   const handleReferenceOpen = useCallback(() => {
     setReferenceSelection((current) => {
@@ -1489,6 +1702,9 @@ const App = (): JSX.Element => {
     if (typeof window === 'undefined') {
       return;
     }
+    const expandedFolderIds = customFolders
+      .map((folder) => folder.id)
+      .filter((folderId) => !collapsedFolders.has(folderId));
     const snapshot: PersistedSnapshot = {
       leftWidth,
       selectedExampleId,
@@ -1496,7 +1712,9 @@ const App = (): JSX.Element => {
       viewExpression,
       customTabs,
       customFolders,
-      activeExpressionTab
+      activeExpressionTab,
+      treeWidth,
+      expandedFolderIds
     };
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
@@ -1509,6 +1727,8 @@ const App = (): JSX.Element => {
     customTabs,
     graphicsExpression,
     leftWidth,
+    collapsedFolders,
+    treeWidth,
     selectedExampleId,
     viewExpression
   ]);
@@ -1585,20 +1805,6 @@ const App = (): JSX.Element => {
     }
     return map;
   }, [customFolders, customTabs]);
-
-  const activeExpressionTitle = useMemo(() => {
-    if (activeExpressionTab === MAIN_TAB_ID) {
-      return 'Main expression';
-    }
-    if (activeExpressionTab === VIEW_TAB_ID) {
-      return 'View expression';
-    }
-    const tab = customTabs.find((entry) => entry.id === activeExpressionTab);
-    if (tab) {
-      return `${tab.name} expression`;
-    }
-    return 'Expression';
-  }, [activeExpressionTab, customTabs]);
 
   const viewInterpretation = useMemo(() => interpretView(viewEvaluation.value), [viewEvaluation.value]);
 
@@ -1894,7 +2100,11 @@ const App = (): JSX.Element => {
               </div>
             </div>
 
-            <div className="expression-tabs">
+            <div
+              className="expression-tabs"
+              ref={expressionLayoutRef}
+              style={{ gridTemplateColumns: `${Math.round(treeWidth)}px 12px 1fr` }}
+            >
               <ExpressionTree
                 mainTabId={MAIN_TAB_ID}
                 viewTabId={VIEW_TAB_ID}
@@ -1902,7 +2112,6 @@ const App = (): JSX.Element => {
                 isViewTabActive={isViewTabActive}
                 activeExpressionTab={activeExpressionTab}
                 entriesByParent={entriesByParent}
-                activeExpressionTitle={activeExpressionTitle}
                 tabEvaluations={customTabEvaluations}
                 tabNameDraft={tabNameDraft}
                 tabDraftFolderId={tabDraftFolderId}
@@ -1914,6 +2123,7 @@ const App = (): JSX.Element => {
                 renameInputRef={renameInputRef}
                 getButtonId={getExpressionTabButtonId}
                 getPanelId={getExpressionTabPanelId}
+                collapsedFolders={collapsedFolders}
                 onSelectTab={handleExpressionTabSelect}
                 onAddTab={handleAddTabClick}
                 onAddFolder={handleAddFolderClick}
@@ -1929,6 +2139,22 @@ const App = (): JSX.Element => {
                 onCancelRename={cancelRename}
                 onRemoveTab={handleRemoveTab}
                 onRemoveFolder={handleRemoveFolder}
+                onToggleFolderCollapse={handleToggleFolderCollapse}
+                onEnsureFolderExpanded={handleEnsureFolderExpanded}
+                onExpandAllFolders={handleExpandAllFolders}
+                onCollapseAllFolders={handleCollapseAllFolders}
+              />
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize tree"
+                tabIndex={0}
+                className={`expression-inner-splitter${
+                  treeDragging ? ' expression-inner-splitter-dragging' : ''
+                }`}
+                onMouseDown={handleTreeSplitterMouseDown}
+                onTouchStart={handleTreeSplitterTouchStart}
+                onKeyDown={handleTreeSplitterKeyDown}
               />
               <div className="expression-tab-panels">
                 <div
