@@ -2,7 +2,6 @@ import {
   ChangeEvent,
   FocusEvent,
   KeyboardEvent,
-  MouseEvent as ReactMouseEvent,
   TouchEvent as ReactTouchEvent,
   useCallback,
   useEffect,
@@ -38,6 +37,10 @@ import {
 } from '@tewelde/funcscript/browser';
 import examples, { type CustomFolderDefinition, type CustomTabDefinition } from './examples';
 import { ExpressionTree } from './ExpressionTree';
+import { ExamplePopup } from './components/ExamplePopup';
+import { ReferencePopup } from './components/ReferencePopup';
+import { StatusMessage } from './components/StatusMessage';
+import { PRIMITIVE_REFERENCE } from './reference';
 
 const MIN_LEFT_WIDTH = 260;
 const MIN_RIGHT_WIDTH = 320;
@@ -69,90 +72,6 @@ export type RenameTarget = { type: 'tab' | 'folder'; id: string };
 type ExpressionEntry =
   | { kind: 'tab'; createdAt: number; tab: CustomTabState }
   | { kind: 'folder'; createdAt: number; folder: CustomFolderState };
-
-type PrimitiveReference = {
-  name: string;
-  title: string;
-  description: string;
-  example: string;
-};
-
-const PRIMITIVE_REFERENCE: PrimitiveReference[] = [
-  {
-    name: 'line',
-    title: 'Line',
-    description: 'Draw a straight segment between two points.',
-    example: `{
-  type:'line',
-  data:{
-    from:[-5,0],
-    to:[5,0],
-    stroke:'#38bdf8',
-    width:0.35,
-    dash:[1,0.5]
-  }
-}`
-  },
-  {
-    name: 'rect',
-    title: 'Rectangle',
-    description: 'Filled or stroked axis-aligned rectangle.',
-    example: `{
-  type:'rect',
-  data:{
-    position:[-4,-2],
-    size:[8,4],
-    fill:'rgba(56,189,248,0.25)',
-    stroke:'#38bdf8',
-    width:0.4
-  }
-}`
-  },
-  {
-    name: 'circle',
-    title: 'Circle',
-    description: 'Circle defined by center and radius.',
-    example: `{
-  type:'circle',
-  data:{
-    center:[2,-1],
-    radius:3,
-    stroke:'#f97316',
-    fill:'rgba(249,115,22,0.25)',
-    width:0.35
-  }
-}`
-  },
-  {
-    name: 'polygon',
-    title: 'Polygon',
-    description: 'Closed shape from three or more points.',
-    example: `{
-  type:'polygon',
-  data:{
-    points:[[-6,-2],[-2,4],[4,3],[6,-1]],
-    fill:'rgba(94,234,212,0.25)',
-    stroke:'#0ea5e9',
-    width:0.3
-  }
-}`
-  },
-  {
-    name: 'text',
-    title: 'Text',
-    description: 'Label rendered at a point using world coordinates.',
-    example: `{
-  type:'text',
-  data:{
-    position:[0,6],
-    text:'Hello',
-    color:'#e2e8f0',
-    fontSize:1.6,
-    align:'center'
-  }
-}`
-  }
-];
 
 type PersistedSnapshot = {
   leftWidth?: number;
@@ -2207,189 +2126,6 @@ const App = (): JSX.Element => {
       />
     </>
   );
-};
-
-type ReferencePopupProps = {
-  open: boolean;
-  selection: string;
-  onSelect: (value: string) => void;
-  onClose: () => void;
-};
-
-function ReferencePopup({ open, selection, onSelect, onClose }: ReferencePopupProps): JSX.Element | null {
-  if (!open) {
-    return null;
-  }
-
-  const current = PRIMITIVE_REFERENCE.find((entry) => entry.name === selection) ?? PRIMITIVE_REFERENCE[0] ?? null;
-
-  const handleBackgroundClick = (event: ReactMouseEvent<HTMLDivElement>) => {
-    if (event.currentTarget === event.target) {
-      onClose();
-    }
-  };
-
-  const handleSelectChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    onSelect(event.target.value);
-  };
-
-  return (
-    <div
-      className="dialog-overlay"
-      onClick={handleBackgroundClick}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="reference-title"
-    >
-      <div className="dialog">
-        <header className="dialog-header">
-          <h2 id="reference-title">Reference</h2>
-          <button type="button" className="dialog-close" onClick={onClose} aria-label="Close reference">
-            ×
-          </button>
-        </header>
-        <div className="dialog-body">
-          <label className="input-label" htmlFor="reference-select">
-            Topic
-          </label>
-          <select
-            id="reference-select"
-            className="dialog-select"
-            value={current?.name ?? ''}
-            onChange={handleSelectChange}
-          >
-            {PRIMITIVE_REFERENCE.map((entry) => (
-              <option key={entry.name} value={entry.name}>
-                {entry.title}
-              </option>
-            ))}
-          </select>
-          {current ? (
-            <article className="dialog-card">
-              <p className="dialog-description">{current.description}</p>
-              <pre className="dialog-example">
-                <code>{current.example}</code>
-              </pre>
-            </article>
-          ) : (
-            <p className="dialog-empty">No topics available.</p>
-          )}
-          <p className="dialog-reference-link">
-            <a
-              href="https://teweldemat.github.io/funcscript/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Open the full FuncScript language reference on GitHub
-            </a>
-          </p>
-        </div>
-        <footer className="dialog-footer">
-          <button type="button" className="control-button" onClick={onClose}>
-            Close
-          </button>
-        </footer>
-      </div>
-    </div>
-  );
-}
-
-type ExamplePopupProps = {
-  open: boolean;
-  currentId: string | null;
-  onSelect: (id: string) => void;
-  onClose: () => void;
-};
-
-function ExamplePopup({ open, currentId, onSelect, onClose }: ExamplePopupProps): JSX.Element | null {
-  if (!open) {
-    return null;
-  }
-
-  const handleBackgroundClick = (event: ReactMouseEvent<HTMLDivElement>) => {
-    if (event.currentTarget === event.target) {
-      onClose();
-    }
-  };
-
-  return (
-    <div
-      className="dialog-overlay"
-      onClick={handleBackgroundClick}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="example-dialog-title"
-    >
-      <div className="dialog">
-        <header className="dialog-header">
-          <h2 id="example-dialog-title">Load Example</h2>
-          <button type="button" className="dialog-close" onClick={onClose} aria-label="Close example list">
-            ×
-          </button>
-        </header>
-        <div className="dialog-body">
-          <p className="dialog-description" style={{ marginBottom: 4 }}>
-            Choose a preset to replace the current workspace.
-          </p>
-          <ul className="dialog-option-list">
-            {examples.map((example) => {
-              const active = currentId === example.id;
-              const className = active
-                ? 'dialog-option-button dialog-option-button-active'
-                : 'dialog-option-button';
-              return (
-                <li key={example.id}>
-                  <button type="button" className={className} onClick={() => onSelect(example.id)}>
-                    {example.name}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-        <footer className="dialog-footer">
-          <button type="button" className="control-button" onClick={onClose}>
-            Cancel
-          </button>
-        </footer>
-      </div>
-    </div>
-  );
-}
-
-const StatusMessage = ({
-  error,
-  warning,
-  info,
-  success
-}: {
-  error?: string | null;
-  warning?: string | null;
-  info?: string | string[] | null;
-  success?: string | null;
-}): JSX.Element | null => {
-  if (error) {
-    return <p className="status status-error">{error}</p>;
-  }
-  if (warning) {
-    return <p className="status status-warning">{warning}</p>;
-  }
-  if (info && Array.isArray(info) && info.length > 0) {
-    return (
-      <ul className="status status-info">
-        {info.map((entry, index) => (
-          <li key={index}>{entry}</li>
-        ))}
-      </ul>
-    );
-  }
-  if (info && typeof info === 'string') {
-    return <p className="status status-info">{info}</p>;
-  }
-  if (success) {
-    return <p className="status status-success">{success}</p>;
-  }
-  return null;
 };
 
 export default App;
