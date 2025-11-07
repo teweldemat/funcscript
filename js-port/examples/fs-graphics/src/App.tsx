@@ -52,14 +52,21 @@ export type CustomTabState = {
   name: string;
   expression: string;
   folderId: string | null;
+  createdAt: number;
 };
 
 export type CustomFolderState = {
   id: string;
   name: string;
+  parentId: string | null;
+  createdAt: number;
 };
 
 export type RenameTarget = { type: 'tab' | 'folder'; id: string };
+
+type ExpressionEntry =
+  | { kind: 'tab'; createdAt: number; tab: CustomTabState }
+  | { kind: 'folder'; createdAt: number; folder: CustomFolderState };
 
 type PrimitiveReference = {
   name: string;
@@ -451,11 +458,12 @@ const createCustomTabsFromDefinitions = (definitions?: CustomTabDefinition[]): C
   if (!definitions || definitions.length === 0) {
     return [];
   }
-  return definitions.map((definition) => ({
+  return definitions.map((definition, index) => ({
     id: createCustomTabId(),
     name: definition.name,
     expression: definition.expression,
-    folderId: null
+    folderId: null,
+    createdAt: index
   }));
 };
 
@@ -486,6 +494,7 @@ const sanitizeCustomTabs = (value: unknown): CustomTabState[] | undefined => {
     return undefined;
   }
   const result: CustomTabState[] = [];
+  let fallbackCounter = 0;
   for (const entry of value) {
     if (!entry || typeof entry !== 'object') {
       continue;
@@ -501,7 +510,17 @@ const sanitizeCustomTabs = (value: unknown): CustomTabState[] | undefined => {
           folderId = null;
         }
       }
-      result.push({ id, name, expression, folderId });
+      let createdAt = Date.now() + fallbackCounter;
+      if ('createdAt' in entry) {
+        const candidate = (entry as { createdAt?: unknown }).createdAt;
+        if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+          createdAt = candidate;
+        }
+      } else {
+        createdAt = fallbackCounter;
+      }
+      fallbackCounter += 1;
+      result.push({ id, name, expression, folderId, createdAt });
     }
   }
   return result;
@@ -512,13 +531,33 @@ const sanitizeCustomFolders = (value: unknown): CustomFolderState[] | undefined 
     return undefined;
   }
   const result: CustomFolderState[] = [];
+  let fallbackCounter = 0;
   for (const entry of value) {
     if (!entry || typeof entry !== 'object') {
       continue;
     }
     const { id, name } = entry as Partial<CustomFolderState>;
     if (typeof id === 'string' && typeof name === 'string') {
-      result.push({ id, name });
+      let parentId: string | null = null;
+      if ('parentId' in entry) {
+        const candidate = (entry as { parentId?: unknown }).parentId;
+        if (typeof candidate === 'string') {
+          parentId = candidate;
+        } else if (candidate === null) {
+          parentId = null;
+        }
+      }
+      let createdAt = Date.now() + fallbackCounter;
+      if ('createdAt' in entry) {
+        const candidate = (entry as { createdAt?: unknown }).createdAt;
+        if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+          createdAt = candidate;
+        }
+      } else {
+        createdAt = fallbackCounter;
+      }
+      fallbackCounter += 1;
+      result.push({ id, name, parentId, createdAt });
     }
   }
   return result;
@@ -817,6 +856,49 @@ const App = (): JSX.Element => {
   const [renameError, setRenameError] = useState<string | null>(null);
   const renameCommittedRef = useRef(false);
 
+  const getContextNameSet = useCallback(
+    (
+      parentId: string | null,
+      options?: { excludeTabId?: string; excludeFolderId?: string }
+    ) => {
+    const names = new Set<string>();
+    if (parentId === null) {
+      names.add(MAIN_TAB_ID);
+      names.add(VIEW_TAB_ID);
+    }
+    for (const tab of customTabs) {
+      if (tab.folderId === parentId && tab.id !== options?.excludeTabId) {
+        names.add(tab.name.toLowerCase());
+      }
+    }
+    for (const folder of customFolders) {
+      const folderParent = folder.parentId ?? null;
+      if (folderParent === parentId && folder.id !== options?.excludeFolderId) {
+        names.add(folder.name.toLowerCase());
+      }
+    }
+    return names;
+    },
+    [customFolders, customTabs]
+  );
+
+  const collectDescendantFolderIds = useCallback(
+    (folderId: string): Set<string> => {
+      const descendants = new Set<string>();
+      const traverse = (id: string) => {
+        for (const folder of customFolders) {
+          if ((folder.parentId ?? null) === id) {
+            descendants.add(folder.id);
+            traverse(folder.id);
+          }
+        }
+      };
+      traverse(folderId);
+      return descendants;
+    },
+    [customFolders]
+  );
+
   useEffect(() => {
     if (tabNameDraft !== null) {
       if (!newTabInputPrimedRef.current && newTabInputRef.current) {
@@ -1031,42 +1113,37 @@ const App = (): JSX.Element => {
         }
         return;
       }
-      const existingNames = new Set<string>([MAIN_TAB_ID, VIEW_TAB_ID]);
-      for (const tab of customTabs) {
-        existingNames.add(tab.name.toLowerCase());
-      }
-      if (!folderId) {
-        for (const folder of customFolders) {
-          existingNames.add(folder.name.toLowerCase());
-        }
-      }
+      const existingNames = getContextNameSet(folderId);
       const defaultName = buildDefaultTabName(existingNames);
       setTabDraftFolderId(folderId);
       setTabNameDraft(defaultName);
       setTabNameDraftError(null);
       draftCommittedRef.current = false;
     },
-    [customFolders, customTabs, tabNameDraft]
+    [customFolders, customTabs, getContextNameSet, tabNameDraft]
   );
 
-  const handleAddFolderClick = useCallback(() => {
-    const existingNames = new Set<string>();
-    for (const folder of customFolders) {
-      existingNames.add(folder.name.toLowerCase());
-    }
-    for (const tab of customTabs) {
-      if (!tab.folderId) {
-        existingNames.add(tab.name.toLowerCase());
-      }
-    }
-    const defaultName = buildDefaultFolderName(existingNames);
-    const newFolder: CustomFolderState = {
-      id: createCustomFolderId(),
-      name: defaultName
-    };
-    setCustomFolders((current) => [...current, newFolder]);
-    setSelectedExampleId((current) => (current === 'custom' ? current : 'custom'));
-  }, [customFolders, customTabs, setCustomFolders, setSelectedExampleId]);
+  const handleAddFolderClick = useCallback(
+    (parentId: string | null = null) => {
+      const existingNames = getContextNameSet(parentId);
+      const defaultName = buildDefaultFolderName(existingNames);
+      const newFolder: CustomFolderState = {
+        id: createCustomFolderId(),
+        name: defaultName,
+        parentId,
+        createdAt: Date.now()
+      };
+      setCustomFolders((current) => [...current, newFolder]);
+      setSelectedExampleId((current) => (current === 'custom' ? current : 'custom'));
+      setTabNameDraft(null);
+      setTabNameDraftError(null);
+      setRenameTarget({ type: 'folder', id: newFolder.id });
+      setRenameDraft(defaultName);
+      setRenameError(null);
+      renameCommittedRef.current = false;
+    },
+    [getContextNameSet, setCustomFolders, setSelectedExampleId]
+  );
 
   const cancelRename = useCallback(() => {
     setRenameTarget(null);
@@ -1126,24 +1203,13 @@ const App = (): JSX.Element => {
           setRenameError('Use letters, digits, or underscores; start with a letter or underscore.');
           return false;
         }
-        const existingNames = new Set<string>([MAIN_TAB_ID, VIEW_TAB_ID]);
-        for (const tab of customTabs) {
-          if (tab.id !== renameTarget.id) {
-            existingNames.add(tab.name.toLowerCase());
-          }
-        }
         const lower = trimmed.toLowerCase();
+        const existingNames = getContextNameSet(currentTab.folderId, {
+          excludeTabId: renameTarget.id
+        });
         if (existingNames.has(lower)) {
           setRenameError('That name is already in use.');
           return false;
-        }
-        if (currentTab.folderId === null) {
-          for (const folder of customFolders) {
-            if (folder.name.toLowerCase() === lower) {
-              setRenameError('That name is already in use.');
-              return false;
-            }
-          }
         }
         setCustomTabs((current) =>
           current.map((tab) => (tab.id === renameTarget.id ? { ...tab, name: trimmed } : tab))
@@ -1163,17 +1229,12 @@ const App = (): JSX.Element => {
           return true;
         }
         const lower = trimmed.toLowerCase();
-        for (const folder of customFolders) {
-          if (folder.id !== renameTarget.id && folder.name.toLowerCase() === lower) {
-            setRenameError('That name is already in use.');
-            return false;
-          }
-        }
-        for (const tab of customTabs) {
-          if (tab.folderId === null && tab.name.toLowerCase() === lower) {
-            setRenameError('That name is already used by a file.');
-            return false;
-          }
+        const existingNames = getContextNameSet(currentFolder.parentId ?? null, {
+          excludeFolderId: renameTarget.id
+        });
+        if (existingNames.has(lower)) {
+          setRenameError('That name is already in use.');
+          return false;
         }
         setCustomFolders((current) =>
           current.map((folder) => (folder.id === renameTarget.id ? { ...folder, name: trimmed } : folder))
@@ -1190,6 +1251,7 @@ const App = (): JSX.Element => {
       activeExpressionTab,
       customFolders,
       customTabs,
+      getContextNameSet,
       renameDraft,
       renameTarget,
       setCustomFolders,
@@ -1256,23 +1318,25 @@ const App = (): JSX.Element => {
 
   const handleRemoveFolder = useCallback(
     (folderId: string) => {
+      const descendantIds = collectDescendantFolderIds(folderId);
+      const allFolderIds = new Set<string>([folderId, ...descendantIds]);
       const removedTabIds = new Set<string>();
       for (const tab of customTabs) {
-        if (tab.folderId === folderId) {
+        if (tab.folderId && allFolderIds.has(tab.folderId)) {
           removedTabIds.add(tab.id);
         }
       }
-      setCustomFolders((current) => current.filter((folder) => folder.id !== folderId));
-      setCustomTabs((current) => current.filter((tab) => tab.folderId !== folderId));
+      setCustomFolders((current) => current.filter((folder) => !allFolderIds.has(folder.id)));
+      setCustomTabs((current) => current.filter((tab) => !tab.folderId || !allFolderIds.has(tab.folderId)));
       setSelectedExampleId((current) => (current === 'custom' ? current : 'custom'));
       if (renameTarget) {
-        if (renameTarget.type === 'folder' && renameTarget.id === folderId) {
+        if (renameTarget.type === 'folder' && allFolderIds.has(renameTarget.id)) {
           cancelRename();
         } else if (renameTarget.type === 'tab' && removedTabIds.has(renameTarget.id)) {
           cancelRename();
         }
       }
-      if (tabDraftFolderId === folderId) {
+      if (tabDraftFolderId && allFolderIds.has(tabDraftFolderId)) {
         setTabNameDraft(null);
         setTabNameDraftError(null);
         setTabDraftFolderId(null);
@@ -1281,7 +1345,7 @@ const App = (): JSX.Element => {
         removedTabIds.has(current) ? MAIN_TAB_ID : current
       );
     },
-    [cancelRename, customTabs, renameTarget, tabDraftFolderId]
+    [cancelRename, collectDescendantFolderIds, customTabs, renameTarget, tabDraftFolderId]
   );
 
   const commitCustomTabDraft = useCallback(
@@ -1300,15 +1364,7 @@ const App = (): JSX.Element => {
         return false;
       }
       const lowerName = trimmedName.toLowerCase();
-      const existingNames = new Set<string>([MAIN_TAB_ID, VIEW_TAB_ID]);
-      for (const tab of customTabs) {
-        existingNames.add(tab.name.toLowerCase());
-      }
-      if (tabDraftFolderId === null) {
-        for (const folder of customFolders) {
-          existingNames.add(folder.name.toLowerCase());
-        }
-      }
+      const existingNames = getContextNameSet(tabDraftFolderId);
       if (existingNames.has(lowerName)) {
         setTabNameDraftError('That name is already in use.');
         return false;
@@ -1318,7 +1374,8 @@ const App = (): JSX.Element => {
         id: createCustomTabId(),
         name: trimmedName,
         expression: '{\n  return 0;\n}',
-        folderId: tabDraftFolderId
+        folderId: tabDraftFolderId,
+        createdAt: Date.now()
       };
       setCustomTabs((current) => [...current, newTab]);
       setActiveExpressionTab(newTab.id);
@@ -1329,7 +1386,7 @@ const App = (): JSX.Element => {
       draftCommittedRef.current = true;
       return true;
     },
-    [customFolders, customTabs, tabDraftFolderId, tabNameDraft]
+    [customFolders, customTabs, getContextNameSet, tabDraftFolderId, tabNameDraft]
   );
 
   const handleTabNameDraftChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
@@ -1505,32 +1562,43 @@ const App = (): JSX.Element => {
   const viewEvaluation = evaluationState.viewEvaluation;
   const graphicsEvaluation = evaluationState.graphicsEvaluation;
 
-  const tabsByFolder = useMemo(() => {
-    const map = new Map<string, CustomTabState[]>();
-    for (const tab of customTabs) {
-      if (!tab.folderId) {
-        continue;
-      }
-      const list = map.get(tab.folderId);
+  const entriesByParent = useMemo(() => {
+    const map = new Map<string | null, ExpressionEntry[]>();
+    const addEntry = (parent: string | null, entry: ExpressionEntry) => {
+      const key = parent ?? null;
+      const list = map.get(key);
       if (list) {
-        list.push(tab);
+        list.push(entry);
       } else {
-        map.set(tab.folderId, [tab]);
+        map.set(key, [entry]);
       }
+    };
+
+    for (const tab of customTabs) {
+      addEntry(tab.folderId ?? null, { kind: 'tab', createdAt: tab.createdAt, tab });
     }
-    for (const entry of map.values()) {
-      entry.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    for (const folder of customFolders) {
+      addEntry(folder.parentId ?? null, { kind: 'folder', createdAt: folder.createdAt, folder });
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => a.createdAt - b.createdAt);
     }
     return map;
-  }, [customTabs]);
+  }, [customFolders, customTabs]);
 
-  const rootCustomTabs = useMemo(
-    () =>
-      customTabs
-        .filter((tab) => tab.folderId === null)
-        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
-    [customTabs]
-  );
+  const activeExpressionTitle = useMemo(() => {
+    if (activeExpressionTab === MAIN_TAB_ID) {
+      return 'Main expression';
+    }
+    if (activeExpressionTab === VIEW_TAB_ID) {
+      return 'View expression';
+    }
+    const tab = customTabs.find((entry) => entry.id === activeExpressionTab);
+    if (tab) {
+      return `${tab.name} expression`;
+    }
+    return 'Expression';
+  }, [activeExpressionTab, customTabs]);
 
   const viewInterpretation = useMemo(() => interpretView(viewEvaluation.value), [viewEvaluation.value]);
 
@@ -1833,9 +1901,8 @@ const App = (): JSX.Element => {
                 isMainTabActive={isMainTabActive}
                 isViewTabActive={isViewTabActive}
                 activeExpressionTab={activeExpressionTab}
-                rootCustomTabs={rootCustomTabs}
-                customFolders={customFolders}
-                tabsByFolder={tabsByFolder}
+                entriesByParent={entriesByParent}
+                activeExpressionTitle={activeExpressionTitle}
                 tabEvaluations={customTabEvaluations}
                 tabNameDraft={tabNameDraft}
                 tabDraftFolderId={tabDraftFolderId}
@@ -1871,13 +1938,11 @@ const App = (): JSX.Element => {
                   hidden={activeExpressionTab !== MAIN_TAB_ID}
                   className="expression-tab-panel"
                 >
-                  <label className="input-label" htmlFor="main-expression-editor">
-                    Main expression
-                  </label>
                   <div
                     className="editor-container editor-container-fill"
                     data-editor-id={MAIN_TAB_ID}
                     id="main-expression-editor"
+                    aria-label="Main expression editor"
                   >
                     <FuncScriptEditor
                       value={graphicsExpression}
@@ -1900,13 +1965,11 @@ const App = (): JSX.Element => {
                   hidden={activeExpressionTab !== VIEW_TAB_ID}
                   className="expression-tab-panel"
                 >
-                  <label className="input-label" htmlFor="view-expression-editor">
-                    View expression
-                  </label>
                   <div
                     className="editor-container editor-container-fill"
                     data-editor-id={VIEW_TAB_ID}
                     id="view-expression-editor"
+                    aria-label="View expression editor"
                   >
                     <FuncScriptEditor
                       value={viewExpression}
@@ -1934,13 +1997,11 @@ const App = (): JSX.Element => {
                       hidden={activeExpressionTab !== tab.id}
                       className="expression-tab-panel"
                     >
-                      <label className="input-label" htmlFor={`custom-expression-editor-${tab.id}`}>
-                        {tab.name} expression
-                      </label>
                       <div
                         className="editor-container editor-container-fill"
                         data-editor-id={tab.id}
                         id={`custom-expression-editor-${tab.id}`}
+                        aria-label={`${tab.name} expression editor`}
                       >
                         <FuncScriptEditor
                           value={tab.expression}

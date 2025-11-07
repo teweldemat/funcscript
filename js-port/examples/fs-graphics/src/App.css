@@ -530,7 +530,7 @@
   min-width: 0;
 }
 
-.expression-tabs-list {
+.expression-tabs-shell {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -541,6 +541,13 @@
   align-self: stretch;
   width: 190px;
   max-height: 100%;
+  position: relative;
+}
+
+.expression-tabs-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   overflow-y: auto;
 }
 
@@ -564,25 +571,18 @@
   width: 100%;
 }
 
-.expression-add-controls {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
+.expression-tabs-shell:hover .expression-root-menu-wrapper,
+.expression-tabs-shell:focus-within .expression-root-menu-wrapper,
+.expression-folder-header:hover .expression-folder-menu-wrapper,
+.expression-folder-header:focus-within .expression-folder-menu-wrapper {
+  opacity: 1;
+  pointer-events: auto;
 }
 
-.expression-add-expression {
-  flex: 1;
-  display: flex;
-}
-
-.expression-add-expression > * {
-  flex: 1;
-}
-
-.expression-folder-button {
-  flex: 1;
-  width: auto;
-  text-align: center;
+.expression-tab-row:hover .expression-tab-menu-wrapper,
+.expression-tab-row:focus-within .expression-tab-menu-wrapper {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .expression-tab-row {
@@ -605,10 +605,117 @@
 .expression-tab-icons {
   display: flex;
   gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.expression-tab-row:hover .expression-tab-icons,
+.expression-tab-row:focus-within .expression-tab-icons,
+.expression-tab-main:hover .expression-tab-icons,
+.expression-tab-main:focus-within .expression-tab-icons {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.expression-rename-row .expression-tab-icons,
+.expression-folder-header-edit .expression-tab-icons {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .expression-tab-main > .expression-tab {
   flex: 1;
+}
+
+.expression-menu-wrapper {
+  position: relative;
+  display: inline-flex;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.expression-menu-wrapper-static {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.expression-menu-wrapper-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.expression-menu-button {
+  border: none;
+  background: rgba(226, 232, 240, 0.3);
+  color: rgba(15, 23, 42, 0.75);
+  border-radius: 999px;
+  padding: 4px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.15);
+  transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+.expression-menu-button:hover {
+  background: rgba(226, 232, 240, 0.6);
+  color: rgba(15, 23, 42, 0.85);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+}
+
+.expression-menu-button:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+.expression-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  color: #0f172a;
+  border-radius: 12px;
+  min-width: 150px;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.35);
+  padding: 4px;
+  z-index: 5;
+}
+
+.expression-menu-portal {
+  position: fixed;
+  right: auto;
+}
+
+.expression-menu-item {
+  border: none;
+  background: transparent;
+  padding: 8px 12px;
+  text-align: left;
+  border-radius: 8px;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+}
+
+.expression-menu-item:hover,
+.expression-menu-item:focus-visible {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.expression-root-menu-wrapper {
+  align-self: flex-start;
+}
+
+.expression-folder-menu-wrapper,
+.expression-tab-menu-wrapper {
+  margin-left: auto;
 }
 
 .expression-icon-button {
@@ -670,6 +777,34 @@
   padding: 0 4px;
 }
 
+.expression-folder-header > .expression-folder-name {
+  flex: 1;
+}
+
+.expression-folder-toggle {
+  border: none;
+  background: rgba(226, 232, 240, 0.18);
+  color: rgba(226, 232, 240, 0.85);
+  border-radius: 999px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.expression-folder-toggle:hover,
+.expression-folder-toggle:focus-visible {
+  background: rgba(226, 232, 240, 0.32);
+  color: #fff;
+}
+
+.expression-folder-collapsed .expression-folder-tabs {
+  display: none;
+}
+
 .expression-folder-header-edit {
   flex-direction: column;
   align-items: stretch;
@@ -682,16 +817,39 @@
   color: rgba(226, 232, 240, 0.86);
 }
 
-.expression-folder-actions {
-  display: flex;
-  gap: 4px;
-}
-
 .expression-folder-tabs {
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding-left: 8px;
+}
+
+.expression-tree-header {
+  margin-bottom: 12px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.expression-tree-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.expression-tree-header-title {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(226, 232, 240, 0.95);
+}
+
+.expression-root-input {
+  width: 100%;
 }
 
 .expression-tab-nested {

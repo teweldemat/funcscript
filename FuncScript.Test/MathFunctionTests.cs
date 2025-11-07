@@ -114,5 +114,15 @@ namespace FuncScript.Test
             Assert.That(e, Is.TypeOf<double>());
             Assert.That((double)e, Is.EqualTo(System.Math.E).Within(1e-10));
         }
+        
+        [Test]
+        public void PiAndEAvialableOnlyThroughMath()
+        {
+            var pi = Engine.Evaluate("pi");
+            var e = Engine.Evaluate("");
+
+            Assert.That(pi, Is.Null);
+            Assert.That(e, Is.Null);
+        }
     }
 }
