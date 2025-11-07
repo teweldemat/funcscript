@@ -925,11 +925,6 @@ const App = (): JSX.Element => {
   const [pendingFocusEditorId, setPendingFocusEditorId] = useState<string | null>(null);
   const newTabInputPrimedRef = useRef(false);
   const draftCommittedRef = useRef(false);
-  const renameInputRef = useRef<HTMLInputElement | null>(null);
-  const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null);
-  const [renameDraft, setRenameDraft] = useState('');
-  const [renameError, setRenameError] = useState<string | null>(null);
-  const renameCommittedRef = useRef(false);
   const [treeWidth, setTreeWidth] = useState(() => {
     const persisted = persistedStateRef.current;
     if (persisted && typeof persisted.treeWidth === 'number' && Number.isFinite(persisted.treeWidth)) {
@@ -1012,18 +1007,6 @@ const App = (): JSX.Element => {
       setTabDraftFolderId(null);
     }
   }, [tabNameDraft]);
-
-  useEffect(() => {
-    if (!renameTarget) {
-      return;
-    }
-    requestAnimationFrame(() => {
-      if (renameInputRef.current) {
-        renameInputRef.current.focus();
-        renameInputRef.current.select();
-      }
-    });
-  }, [renameTarget]);
 
   useEffect(() => {
     setCollapsedFolders((current) => {
@@ -1385,8 +1368,14 @@ const App = (): JSX.Element => {
     [customFolders, customTabs, getContextNameSet, tabNameDraft]
   );
 
+  const handleCancelTabDraft = useCallback(() => {
+    setTabNameDraft(null);
+    setTabNameDraftError(null);
+    setTabDraftFolderId(null);
+  }, []);
+
   const handleAddFolderClick = useCallback(
-    (parentId: string | null = null) => {
+    (parentId: string | null = null): CustomFolderState => {
       const existingNames = getContextNameSet(parentId);
       const defaultName = buildDefaultFolderName(existingNames);
       const newFolder: CustomFolderState = {
@@ -1397,186 +1386,38 @@ const App = (): JSX.Element => {
       };
       setCustomFolders((current) => [...current, newFolder]);
       setSelectedExampleId((current) => (current === 'custom' ? current : 'custom'));
-      setTabNameDraft(null);
-      setTabNameDraftError(null);
-      setRenameTarget({ type: 'folder', id: newFolder.id });
-      setRenameDraft(defaultName);
-      setRenameError(null);
-      renameCommittedRef.current = false;
+      handleCancelTabDraft();
+      return newFolder;
     },
-    [getContextNameSet, setCustomFolders, setSelectedExampleId]
+    [getContextNameSet, handleCancelTabDraft, setCustomFolders, setSelectedExampleId]
   );
 
-  const cancelRename = useCallback(() => {
-    setRenameTarget(null);
-    setRenameDraft('');
-    setRenameError(null);
-    renameCommittedRef.current = false;
-  }, []);
-
-  const handleRenameTabStart = useCallback(
-    (tab: CustomTabState) => {
-      setTabNameDraft(null);
-      setTabNameDraftError(null);
-      setTabDraftFolderId(null);
-      setRenameTarget({ type: 'tab', id: tab.id });
-      setRenameDraft(tab.name);
-      setRenameError(null);
-      renameCommittedRef.current = false;
-    },
-    []
-  );
-
-  const handleRenameFolderStart = useCallback(
-    (folder: CustomFolderState) => {
-      setTabNameDraft(null);
-      setTabNameDraftError(null);
-      setTabDraftFolderId(null);
-      setRenameTarget({ type: 'folder', id: folder.id });
-      setRenameDraft(folder.name);
-      setRenameError(null);
-      renameCommittedRef.current = false;
-    },
-    []
-  );
-
-  const commitRename = useCallback(
-    (rawValue?: string) => {
-      if (!renameTarget) {
-        return false;
-      }
-      const inputValue = rawValue ?? renameDraft;
-      const trimmed = inputValue.trim();
-      if (!trimmed) {
-        setRenameError('Name is required.');
-        return false;
-      }
-      if (renameTarget.type === 'tab') {
-        const currentTab = customTabs.find((tab) => tab.id === renameTarget.id);
-        if (!currentTab) {
-          cancelRename();
-          return false;
-        }
-        if (trimmed === currentTab.name) {
-          cancelRename();
-          return true;
-        }
-        if (!isValidTabName(trimmed)) {
-          setRenameError('Use letters, digits, or underscores; start with a letter or underscore.');
-          return false;
-        }
-        const lower = trimmed.toLowerCase();
-        const existingNames = getContextNameSet(currentTab.folderId, {
-          excludeTabId: renameTarget.id
-        });
-        if (existingNames.has(lower)) {
-          setRenameError('That name is already in use.');
-          return false;
-        }
-        setCustomTabs((current) =>
-          current.map((tab) => (tab.id === renameTarget.id ? { ...tab, name: trimmed } : tab))
-        );
-        setSelectedExampleId((current) => (current === 'custom' ? current : 'custom'));
-        if (activeExpressionTab === renameTarget.id) {
-          setPendingFocusEditorId(renameTarget.id);
-        }
-      } else {
-        const currentFolder = customFolders.find((folder) => folder.id === renameTarget.id);
-        if (!currentFolder) {
-          cancelRename();
-          return false;
-        }
-        if (trimmed === currentFolder.name) {
-          cancelRename();
-          return true;
-        }
-        const lower = trimmed.toLowerCase();
-        const existingNames = getContextNameSet(currentFolder.parentId ?? null, {
-          excludeFolderId: renameTarget.id
-        });
-        if (existingNames.has(lower)) {
-          setRenameError('That name is already in use.');
-          return false;
-        }
-        setCustomFolders((current) =>
-          current.map((folder) => (folder.id === renameTarget.id ? { ...folder, name: trimmed } : folder))
-        );
-        setSelectedExampleId((current) => (current === 'custom' ? current : 'custom'));
-      }
-      renameCommittedRef.current = true;
-      setRenameTarget(null);
-      setRenameDraft('');
-      setRenameError(null);
-      return true;
-    },
-    [
-      activeExpressionTab,
-      customFolders,
-      customTabs,
-      getContextNameSet,
-      renameDraft,
-      renameTarget,
-      setCustomFolders,
-      setCustomTabs,
-      setPendingFocusEditorId,
-      setSelectedExampleId,
-      setRenameError,
-      setRenameTarget
-    ]
-  );
-
-  const handleRenameDraftChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setRenameDraft(event.target.value);
-    setRenameError(null);
-    renameCommittedRef.current = false;
-  }, []);
-
-  const handleRenameDraftKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        const committed = commitRename(event.currentTarget.value);
-        if (committed && event.currentTarget) {
-          event.currentTarget.blur();
-        }
-      } else if (event.key === 'Escape') {
-        event.preventDefault();
-        cancelRename();
-      }
-    },
-    [cancelRename, commitRename]
-  );
-
-  const handleRenameDraftBlur = useCallback(
-    (event: FocusEvent<HTMLInputElement>) => {
-      if (renameCommittedRef.current) {
-        renameCommittedRef.current = false;
-        return;
-      }
-      const committed = commitRename(event.currentTarget.value);
-      if (!committed) {
-        requestAnimationFrame(() => {
-          if (renameInputRef.current) {
-            renameInputRef.current.focus();
-            renameInputRef.current.select();
-          }
-        });
-      }
-    },
-    [commitRename]
-  );
-
-  const handleRemoveTab = useCallback(
-    (tabId: string) => {
-      setCustomTabs((current) => current.filter((tab) => tab.id !== tabId));
+  const handleRenameTab = useCallback(
+    (tabId: string, nextName: string) => {
+      setCustomTabs((current) =>
+        current.map((tab) => (tab.id === tabId ? { ...tab, name: nextName } : tab))
+      );
       setSelectedExampleId((current) => (current === 'custom' ? current : 'custom'));
-      if (renameTarget && renameTarget.type === 'tab' && renameTarget.id === tabId) {
-        cancelRename();
+      if (activeExpressionTab === tabId) {
+        setPendingFocusEditorId(tabId);
       }
-      setActiveExpressionTab((current) => (current === tabId ? MAIN_TAB_ID : current));
     },
-    [cancelRename, renameTarget]
+    [activeExpressionTab]
   );
+
+  const handleRenameFolder = useCallback((folderId: string, nextName: string) => {
+    setCustomFolders((current) =>
+      current.map((folder) => (folder.id === folderId ? { ...folder, name: nextName } : folder))
+    );
+    setSelectedExampleId((current) => (current === 'custom' ? current : 'custom'));
+  }, []);
+
+
+  const handleRemoveTab = useCallback((tabId: string) => {
+    setCustomTabs((current) => current.filter((tab) => tab.id !== tabId));
+    setSelectedExampleId((current) => (current === 'custom' ? current : 'custom'));
+    setActiveExpressionTab((current) => (current === tabId ? MAIN_TAB_ID : current));
+  }, []);
 
   const handleRemoveFolder = useCallback(
     (folderId: string) => {
@@ -1591,23 +1432,14 @@ const App = (): JSX.Element => {
       setCustomFolders((current) => current.filter((folder) => !allFolderIds.has(folder.id)));
       setCustomTabs((current) => current.filter((tab) => !tab.folderId || !allFolderIds.has(tab.folderId)));
       setSelectedExampleId((current) => (current === 'custom' ? current : 'custom'));
-      if (renameTarget) {
-        if (renameTarget.type === 'folder' && allFolderIds.has(renameTarget.id)) {
-          cancelRename();
-        } else if (renameTarget.type === 'tab' && removedTabIds.has(renameTarget.id)) {
-          cancelRename();
-        }
-      }
       if (tabDraftFolderId && allFolderIds.has(tabDraftFolderId)) {
-        setTabNameDraft(null);
-        setTabNameDraftError(null);
-        setTabDraftFolderId(null);
+        handleCancelTabDraft();
       }
       setActiveExpressionTab((current) =>
         removedTabIds.has(current) ? MAIN_TAB_ID : current
       );
     },
-    [cancelRename, collectDescendantFolderIds, customTabs, renameTarget, tabDraftFolderId]
+    [collectDescendantFolderIds, customTabs, handleCancelTabDraft, tabDraftFolderId]
   );
 
   const commitCustomTabDraft = useCallback(
@@ -1667,12 +1499,10 @@ const App = (): JSX.Element => {
         }
       } else if (event.key === 'Escape') {
         event.preventDefault();
-        setTabNameDraft(null);
-        setTabNameDraftError(null);
-        setTabDraftFolderId(null);
+        handleCancelTabDraft();
       }
     },
-    [commitCustomTabDraft]
+    [commitCustomTabDraft, handleCancelTabDraft]
   );
 
   const handleTabNameDraftBlur = useCallback(
@@ -2169,11 +1999,7 @@ const App = (): JSX.Element => {
                 tabNameDraft={tabNameDraft}
                 tabDraftFolderId={tabDraftFolderId}
                 tabNameDraftError={tabNameDraftError}
-                renameTarget={renameTarget}
-                renameDraft={renameDraft}
-                renameError={renameError}
                 newTabInputRef={newTabInputRef}
-                renameInputRef={renameInputRef}
                 getButtonId={getExpressionTabButtonId}
                 getPanelId={getExpressionTabPanelId}
                 collapsedFolders={collapsedFolders}
@@ -2183,13 +2009,9 @@ const App = (): JSX.Element => {
                 onTabDraftChange={handleTabNameDraftChange}
                 onTabDraftKeyDown={handleTabNameDraftKeyDown}
                 onTabDraftBlur={handleTabNameDraftBlur}
-                onRenameDraftChange={handleRenameDraftChange}
-                onRenameDraftKeyDown={handleRenameDraftKeyDown}
-                onRenameDraftBlur={handleRenameDraftBlur}
-                onRenameTabStart={handleRenameTabStart}
-                onRenameFolderStart={handleRenameFolderStart}
-                onCommitRename={commitRename}
-                onCancelRename={cancelRename}
+                onCancelTabDraft={handleCancelTabDraft}
+                onRenameTab={handleRenameTab}
+                onRenameFolder={handleRenameFolder}
                 onRemoveTab={handleRemoveTab}
                 onRemoveFolder={handleRemoveFolder}
                 onToggleFolderCollapse={handleToggleFolderCollapse}

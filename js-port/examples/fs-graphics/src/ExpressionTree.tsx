@@ -6,12 +6,14 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState
 } from 'react';
 import { createPortal } from 'react-dom';
 import type { CustomFolderState, CustomTabState, RenameTarget } from './App';
 import type { EvaluationResult } from './graphics';
+import { isValidTabName } from './workspace';
 
 type ExpressionTreeProps = {
   mainTabId: string;
@@ -24,27 +26,19 @@ type ExpressionTreeProps = {
   tabNameDraft: string | null;
   tabDraftFolderId: string | null;
   tabNameDraftError: string | null;
-  renameTarget: RenameTarget | null;
-  renameDraft: string;
-  renameError: string | null;
   newTabInputRef: RefObject<HTMLInputElement>;
-  renameInputRef: RefObject<HTMLInputElement>;
   getButtonId: (tabId: string) => string;
   getPanelId: (tabId: string) => string;
   collapsedFolders: Set<string>;
   onSelectTab: (tabId: string) => void;
   onAddTab: (folderId: string | null) => void;
-  onAddFolder: (parentId: string | null) => void;
+  onAddFolder: (parentId: string | null) => CustomFolderState;
   onTabDraftChange: ChangeEventHandler<HTMLInputElement>;
   onTabDraftKeyDown: KeyboardEventHandler<HTMLInputElement>;
   onTabDraftBlur: FocusEventHandler<HTMLInputElement>;
-  onRenameDraftChange: ChangeEventHandler<HTMLInputElement>;
-  onRenameDraftKeyDown: KeyboardEventHandler<HTMLInputElement>;
-  onRenameDraftBlur: FocusEventHandler<HTMLInputElement>;
-  onRenameTabStart: (tab: CustomTabState) => void;
-  onRenameFolderStart: (folder: CustomFolderState) => void;
-  onCommitRename: (value?: string) => boolean;
-  onCancelRename: () => void;
+  onCancelTabDraft: () => void;
+  onRenameTab: (tabId: string, name: string) => void;
+  onRenameFolder: (folderId: string, name: string) => void;
   onRemoveTab: (tabId: string) => void;
   onRemoveFolder: (folderId: string) => void;
   onToggleFolderCollapse: (folderId: string) => void;
@@ -144,11 +138,7 @@ export const ExpressionTree = ({
   tabNameDraft,
   tabDraftFolderId,
   tabNameDraftError,
-  renameTarget,
-  renameDraft,
-  renameError,
   newTabInputRef,
-  renameInputRef,
   getButtonId,
   getPanelId,
   collapsedFolders,
@@ -158,13 +148,9 @@ export const ExpressionTree = ({
   onTabDraftChange,
   onTabDraftKeyDown,
   onTabDraftBlur,
-  onRenameDraftChange,
-  onRenameDraftKeyDown,
-  onRenameDraftBlur,
-  onRenameTabStart,
-  onRenameFolderStart,
-  onCommitRename,
-  onCancelRename,
+  onCancelTabDraft,
+  onRenameTab,
+  onRenameFolder,
   onRemoveTab,
   onRemoveFolder,
   onToggleFolderCollapse,
@@ -197,6 +183,220 @@ export const ExpressionTree = ({
     return [...returnEntries, ...others];
   }, []);
   const orderedRootEntries = orderEntries(rootEntries);
+
+  const renameInputRef = useRef<HTMLInputElement | null>(null);
+  const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const renameCommittedRef = useRef(false);
+
+  const { tabById, folderById } = useMemo(() => {
+    const tabMap = new Map<string, CustomTabState>();
+    const folderMap = new Map<string, CustomFolderState>();
+    for (const group of entriesByParent.values()) {
+      for (const entry of group) {
+        if (entry.kind === 'tab') {
+          tabMap.set(entry.tab.id, entry.tab);
+        } else {
+          folderMap.set(entry.folder.id, entry.folder);
+        }
+      }
+    }
+    return { tabById: tabMap, folderById: folderMap };
+  }, [entriesByParent]);
+
+  const getContextNameSet = useCallback(
+    (
+      parentId: string | null,
+      options?: { excludeTabId?: string; excludeFolderId?: string }
+    ) => {
+      const names = new Set<string>();
+      if (parentId === null) {
+        names.add(mainTabId.toLowerCase());
+        names.add(viewTabId.toLowerCase());
+      }
+      const entries = entriesByParent.get(parentId ?? null) ?? [];
+      for (const entry of entries) {
+        if (entry.kind === 'tab') {
+          if (entry.tab.id !== options?.excludeTabId) {
+            names.add(entry.tab.name.toLowerCase());
+          }
+        } else if (entry.folder.id !== options?.excludeFolderId) {
+          names.add(entry.folder.name.toLowerCase());
+        }
+      }
+      return names;
+    },
+    [entriesByParent, mainTabId, viewTabId]
+  );
+
+  const cancelRename = useCallback(() => {
+    setRenameTarget(null);
+    setRenameDraft('');
+    setRenameError(null);
+    renameCommittedRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    if (!renameTarget) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      if (renameInputRef.current) {
+        renameInputRef.current.focus();
+        renameInputRef.current.select();
+      }
+    });
+  }, [renameTarget]);
+
+  useEffect(() => {
+    if (!renameTarget) {
+      return;
+    }
+    const exists =
+      renameTarget.type === 'tab'
+        ? tabById.has(renameTarget.id)
+        : folderById.has(renameTarget.id);
+    if (!exists) {
+      cancelRename();
+    }
+  }, [renameTarget, tabById, folderById, cancelRename]);
+
+  const handleRenameTabStart = useCallback(
+    (tab: CustomTabState) => {
+      onCancelTabDraft();
+      setRenameTarget({ type: 'tab', id: tab.id });
+      setRenameDraft(tab.name);
+      setRenameError(null);
+      renameCommittedRef.current = false;
+    },
+    [onCancelTabDraft]
+  );
+
+  const handleRenameFolderStart = useCallback(
+    (folder: CustomFolderState) => {
+      onCancelTabDraft();
+      setRenameTarget({ type: 'folder', id: folder.id });
+      setRenameDraft(folder.name);
+      setRenameError(null);
+      renameCommittedRef.current = false;
+    },
+    [onCancelTabDraft]
+  );
+
+  const commitRename = useCallback(
+    (rawValue?: string) => {
+      if (!renameTarget) {
+        return false;
+      }
+      const nextValue = rawValue ?? renameDraft;
+      const trimmed = nextValue.trim();
+      if (!trimmed) {
+        setRenameError('Name is required.');
+        return false;
+      }
+      if (renameTarget.type === 'tab') {
+        const tab = tabById.get(renameTarget.id);
+        if (!tab) {
+          cancelRename();
+          return false;
+        }
+        if (trimmed === tab.name) {
+          cancelRename();
+          return true;
+        }
+        if (!isValidTabName(trimmed)) {
+          setRenameError('Use letters, digits, or underscores; start with a letter or underscore.');
+          return false;
+        }
+        const existing = getContextNameSet(tab.folderId ?? null, { excludeTabId: tab.id });
+        if (existing.has(trimmed.toLowerCase())) {
+          setRenameError('That name is already in use.');
+          return false;
+        }
+        onRenameTab(tab.id, trimmed);
+      } else {
+        const folder = folderById.get(renameTarget.id);
+        if (!folder) {
+          cancelRename();
+          return false;
+        }
+        if (trimmed === folder.name) {
+          cancelRename();
+          return true;
+        }
+        const existing = getContextNameSet(folder.parentId ?? null, { excludeFolderId: folder.id });
+        if (existing.has(trimmed.toLowerCase())) {
+          setRenameError('That name is already in use.');
+          return false;
+        }
+        onRenameFolder(folder.id, trimmed);
+      }
+      renameCommittedRef.current = true;
+      cancelRename();
+      return true;
+    },
+    [
+      cancelRename,
+      folderById,
+      getContextNameSet,
+      onRenameFolder,
+      onRenameTab,
+      renameDraft,
+      renameTarget,
+      tabById
+    ]
+  );
+
+  const handleRenameDraftChange = useCallback<ChangeEventHandler<HTMLInputElement>>((event) => {
+    setRenameDraft(event.target.value);
+    setRenameError(null);
+    renameCommittedRef.current = false;
+  }, []);
+
+  const handleRenameDraftKeyDown = useCallback<KeyboardEventHandler<HTMLInputElement>>(
+    (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        const committed = commitRename(event.currentTarget.value);
+        if (committed && event.currentTarget) {
+          event.currentTarget.blur();
+        }
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        cancelRename();
+      }
+    },
+    [cancelRename, commitRename]
+  );
+
+  const handleRenameDraftBlur = useCallback<FocusEventHandler<HTMLInputElement>>(
+    (event) => {
+      if (renameCommittedRef.current) {
+        renameCommittedRef.current = false;
+        return;
+      }
+      const committed = commitRename(event.currentTarget.value);
+      if (!committed) {
+        requestAnimationFrame(() => {
+          if (renameInputRef.current) {
+            renameInputRef.current.focus();
+            renameInputRef.current.select();
+          }
+        });
+      }
+    },
+    [commitRename]
+  );
+
+  const handleAddFolderRequest = useCallback(
+    (parentId: string | null) => {
+      const folder = onAddFolder(parentId);
+      handleRenameFolderStart(folder);
+      return folder;
+    },
+    [handleRenameFolderStart, onAddFolder]
+  );
 
   const registerMenuRef = useCallback((id: string, node: HTMLDivElement | null) => {
     if (node) {
@@ -342,7 +542,7 @@ export const ExpressionTree = ({
       {
         key: 'add-folder',
         label: 'Add folder',
-        handler: () => onAddFolder(null),
+        handler: () => handleAddFolderRequest(null),
         icon: <FolderIcon />
       },
       {
@@ -420,8 +620,17 @@ export const ExpressionTree = ({
 
     const tabMenuId = `tab-menu-${tab.id}`;
     const tabActions = [
-      { key: 'rename', label: 'Rename', handler: () => onRenameTabStart(tab) },
-      { key: 'delete', label: 'Delete', handler: () => onRemoveTab(tab.id) }
+      { key: 'rename', label: 'Rename', handler: () => handleRenameTabStart(tab) },
+      {
+        key: 'delete',
+        label: 'Delete',
+        handler: () => {
+          if (renameTarget?.type === 'tab' && renameTarget.id === tab.id) {
+            cancelRename();
+          }
+          onRemoveTab(tab.id);
+        }
+      }
     ];
 
     return (
@@ -433,9 +642,9 @@ export const ExpressionTree = ({
                 ref={renameInputRef}
                 className="expression-tab-input expression-rename-input"
                 value={renameDraft}
-                onChange={onRenameDraftChange}
-                onKeyDown={onRenameDraftKeyDown}
-                onBlur={onRenameDraftBlur}
+                onChange={handleRenameDraftChange}
+                onKeyDown={handleRenameDraftKeyDown}
+                onBlur={handleRenameDraftBlur}
                 aria-label="Rename expression"
               />
               <div className="expression-tab-icons">
@@ -443,7 +652,7 @@ export const ExpressionTree = ({
                   type="button"
                   className="expression-icon-button"
                   onClick={() => {
-                    const committed = onCommitRename(renameDraft);
+                    const committed = commitRename(renameDraft);
                     if (!committed && renameInputRef.current) {
                       renameInputRef.current.focus();
                       renameInputRef.current.select();
@@ -456,7 +665,7 @@ export const ExpressionTree = ({
                 <button
                   type="button"
                   className="expression-icon-button"
-                  onClick={onCancelRename}
+                  onClick={cancelRename}
                   aria-label="Cancel rename"
                 >
                   <CancelIcon />
@@ -514,11 +723,20 @@ export const ExpressionTree = ({
         label: 'Add folder',
         handler: () => {
           onEnsureFolderExpanded(folder.id);
-          onAddFolder(folder.id);
+          handleAddFolderRequest(folder.id);
         }
       },
-      { key: 'rename', label: 'Rename', handler: () => onRenameFolderStart(folder) },
-      { key: 'delete', label: 'Delete', handler: () => onRemoveFolder(folder.id) }
+      { key: 'rename', label: 'Rename', handler: () => handleRenameFolderStart(folder) },
+      {
+        key: 'delete',
+        label: 'Delete',
+        handler: () => {
+          if (renameTarget?.type === 'folder' && renameTarget.id === folder.id) {
+            cancelRename();
+          }
+          onRemoveFolder(folder.id);
+        }
+      }
     ];
 
     return (
@@ -536,9 +754,9 @@ export const ExpressionTree = ({
                 ref={renameInputRef}
                 className="expression-tab-input expression-rename-input"
                 value={renameDraft}
-                onChange={onRenameDraftChange}
-                onKeyDown={onRenameDraftKeyDown}
-                onBlur={onRenameDraftBlur}
+                onChange={handleRenameDraftChange}
+                onKeyDown={handleRenameDraftKeyDown}
+                onBlur={handleRenameDraftBlur}
                 aria-label="Rename folder"
               />
               <div className="expression-tab-icons">
@@ -546,7 +764,7 @@ export const ExpressionTree = ({
                   type="button"
                   className="expression-icon-button"
                   onClick={() => {
-                    const committed = onCommitRename(renameDraft);
+                    const committed = commitRename(renameDraft);
                     if (!committed && renameInputRef.current) {
                       renameInputRef.current.focus();
                       renameInputRef.current.select();
@@ -559,7 +777,7 @@ export const ExpressionTree = ({
                 <button
                   type="button"
                   className="expression-icon-button"
-                  onClick={onCancelRename}
+                  onClick={cancelRename}
                   aria-label="Cancel rename"
                 >
                   <CancelIcon />
