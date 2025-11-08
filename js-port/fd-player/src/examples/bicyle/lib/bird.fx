@@ -1,7 +1,9 @@
-// bird({ location: [x, y], size: 1, flap: 0 })
+// bird([x, y], bodyWidth, flapTime)
 (locationParam, sizeParam, flapTParam) => {
   location: locationParam ?? [0, 0];
-  scale: sizeParam ?? 1;
+  baseBodyWidth: 4.9; // width produced when legacy scale = 1
+  targetBodyWidth: sizeParam ?? baseBodyWidth;
+  scale: targetBodyWidth / baseBodyWidth;
   timeValue: flapTParam ?? 0;
 
   lerp: (a, b, u) => a + (b - a) * u;
@@ -39,7 +41,7 @@
     bodyCenter[1] - (bodyLength / 2) * math.sin(bodyPitch)
   ];
 
-  bodyRadius: 2.45 * scale;
+  bodyRadius: targetBodyWidth / 2;
   body: { type: 'circle'; data: { center: bodyCenter; radius: bodyRadius; fill: '#e2e8f0'; stroke: '#0f172a'; width: 0.3; }; };
   belly:{ type:'circle'; data:{ center:[bodyCenter[0]-0.35*scale, bodyCenter[1]+0.65*scale]; radius: bodyRadius*0.7; fill:'#f8fafc'; stroke:'transparent'; width:0; }; };
   head: { type:'circle'; data:{ center:[nose[0]+0.15*scale, nose[1]-0.12*scale]; radius:1.08*scale; fill:'#f8fafc'; stroke:'#0f172a'; width:0.3; }; };

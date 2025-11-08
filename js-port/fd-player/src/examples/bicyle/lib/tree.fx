@@ -1,11 +1,13 @@
-// tree([0, 0], 1)
-(position, scale) => {
+// tree([0, 0], trunkHeight)
+(position, sizeParam) => {
   base: position ?? [0, 0];
-  size: scale ?? 1;
-  trunkWidth: 0.9 * size;
-  trunkHeight: 4 * size;
-  canopyWidth: 5 * size;
-  canopyHeight: 4 * size;
+  baseTrunkHeight: 4;
+  targetTrunkHeight: sizeParam ?? baseTrunkHeight;
+  scale: targetTrunkHeight / baseTrunkHeight;
+  trunkWidth: 0.9 * scale;
+  trunkHeight: targetTrunkHeight;
+  canopyWidth: 5 * scale;
+  canopyHeight: 4 * scale;
 
   trunkBottomLeft: [base[0] - trunkWidth / 2, base[1]];
   canopyBaseY: base[1] + trunkHeight;

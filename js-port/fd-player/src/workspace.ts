@@ -28,6 +28,8 @@ export type PersistedSnapshot = {
   activeExpressionTab?: string;
   treeWidth?: number;
   expandedFolderIds?: string[];
+  expandedFoldersByExample?: Record<string, string[]>;
+  collapsedFoldersByExample?: Record<string, string[]>;
 };
 
 export const createCustomTabId = () =>
@@ -160,6 +162,23 @@ const sanitizeStringArray = (value: unknown): string[] | undefined => {
   return result.length > 0 ? result : [];
 };
 
+const sanitizeFolderPathMap = (value: unknown): Record<string, string[]> | undefined => {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+  const entries: Record<string, string[]> = {};
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof key !== 'string') {
+      continue;
+    }
+    const sanitized = sanitizeStringArray(raw);
+    if (sanitized !== undefined) {
+      entries[key] = sanitized;
+    }
+  }
+  return Object.keys(entries).length > 0 ? entries : {};
+};
+
 export const loadPersistedSnapshot = (storageKey: string = STORAGE_KEY): PersistedSnapshot | null => {
   if (typeof window === 'undefined') {
     return null;
@@ -208,6 +227,18 @@ export const loadPersistedSnapshot = (storageKey: string = STORAGE_KEY): Persist
       const expanded = sanitizeStringArray(data.expandedFolderIds);
       if (expanded !== undefined) {
         snapshot.expandedFolderIds = expanded;
+      }
+    }
+    if ('expandedFoldersByExample' in data) {
+      const expandedByExample = sanitizeFolderPathMap(data.expandedFoldersByExample);
+      if (expandedByExample !== undefined) {
+        snapshot.expandedFoldersByExample = expandedByExample;
+      }
+    }
+    if ('collapsedFoldersByExample' in data) {
+      const collapsedByExample = sanitizeFolderPathMap(data.collapsedFoldersByExample);
+      if (collapsedByExample !== undefined) {
+        snapshot.collapsedFoldersByExample = collapsedByExample;
       }
     }
     return snapshot;

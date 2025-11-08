@@ -52,6 +52,7 @@ const MIN_EDITOR_WIDTH = 360;
 const DEFAULT_RATIO = 0.45;
 const BACKGROUND_COLOR = '#0f172a';
 const GRID_COLOR = 'rgba(148, 163, 184, 0.2)';
+const VIEW_PADDING = 0;
 const MAIN_TAB_ID = 'main';
 const VIEW_TAB_ID = 'view';
 
@@ -116,6 +117,73 @@ const createWorkspaceStateFromDefinitions = (
   return { tabs, folders };
 };
 
+const buildFolderPathMap = (folders: CustomFolderState[]): Map<string, string> => {
+  const byId = new Map<string, CustomFolderState>();
+  for (const folder of folders) {
+    byId.set(folder.id, folder);
+  }
+  const pathMap = new Map<string, string>();
+  const visit = (folder: CustomFolderState | undefined, trail: Set<string>): string => {
+    if (!folder) {
+      return '';
+    }
+    const cached = pathMap.get(folder.id);
+    if (cached) {
+      return cached;
+    }
+    if (trail.has(folder.id)) {
+      return folder.name;
+    }
+    trail.add(folder.id);
+    const parent = folder.parentId ? byId.get(folder.parentId) : undefined;
+    const parentPath = parent ? visit(parent, trail) : '';
+    const path = parentPath ? `${parentPath}/${folder.name}` : folder.name;
+    pathMap.set(folder.id, path);
+    trail.delete(folder.id);
+    return path;
+  };
+  for (const folder of folders) {
+    visit(folder, new Set());
+  }
+  return pathMap;
+};
+
+const computeCollapsedFromExpandedIds = (
+  folders: CustomFolderState[],
+  expandedIds?: string[]
+): Set<string> => {
+  if (!folders || folders.length === 0 || !expandedIds) {
+    return new Set();
+  }
+  const expandedSet = new Set(expandedIds);
+  const collapsed = new Set<string>();
+  for (const folder of folders) {
+    if (!expandedSet.has(folder.id)) {
+      collapsed.add(folder.id);
+    }
+  }
+  return collapsed;
+};
+
+const computeCollapsedFromCollapsedPaths = (
+  folders: CustomFolderState[],
+  collapsedPaths?: string[]
+): Set<string> => {
+  if (!folders || folders.length === 0 || !collapsedPaths) {
+    return new Set();
+  }
+  const collapsedSet = new Set(collapsedPaths);
+  const pathMap = buildFolderPathMap(folders);
+  const collapsed = new Set<string>();
+  for (const folder of folders) {
+    const path = pathMap.get(folder.id);
+    if (path && collapsedSet.has(path)) {
+      collapsed.add(folder.id);
+    }
+  }
+  return collapsed;
+};
+
 const getExpressionTabButtonId = (tabId: string) => {
   if (tabId === MAIN_TAB_ID) {
     return 'main-expression-tab';
@@ -158,6 +226,16 @@ const drawScene = (
 
   const projector = projectPointBuilder(extent, pixelWidth, pixelHeight, padding);
   const { project, scale } = projector;
+  const clipWidth = pixelWidth - padding * 2;
+  const clipHeight = pixelHeight - padding * 2;
+  if (clipWidth <= 0 || clipHeight <= 0) {
+    return;
+  }
+
+  context.save();
+  context.beginPath();
+  context.rect(padding, padding, clipWidth, clipHeight);
+  context.clip();
 
   const applyStroke = (stroke: string | null, width: number) => {
     context.lineWidth = Math.max(1, width * scale);
@@ -303,6 +381,7 @@ const drawScene = (
     }
   }
 
+  context.restore();
 };
 
 const App = (): JSX.Element => {
@@ -400,21 +479,7 @@ const App = (): JSX.Element => {
     if (!persisted?.customFolders || persisted.customFolders.length === 0) {
       return new Set();
     }
-    if (!('expandedFolderIds' in persisted)) {
-      return new Set();
-    }
-    const expandedIds = persisted.expandedFolderIds;
-    if (expandedIds === undefined) {
-      return new Set();
-    }
-    const expandedSet = new Set(expandedIds);
-    const collapsed = new Set<string>();
-    for (const folder of persisted.customFolders) {
-      if (!expandedSet.has(folder.id)) {
-        collapsed.add(folder.id);
-      }
-    }
-    return collapsed;
+    return computeCollapsedFromExpandedIds(persisted.customFolders, persisted.expandedFolderIds);
   });
 
   const getContextNameSet = useCallback(
@@ -1049,6 +1114,25 @@ const App = (): JSX.Element => {
     const expandedFolderIds = customFolders
       .map((folder) => folder.id)
       .filter((folderId) => !collapsedFolders.has(folderId));
+    const previousCollapsedMap = persistedStateRef.current?.collapsedFoldersByExample;
+    let collapsedFoldersByExample = previousCollapsedMap ? { ...previousCollapsedMap } : undefined;
+    if (selectedExampleId !== 'custom') {
+      const folderPathMap = buildFolderPathMap(customFolders);
+      const collapsedPaths: string[] = [];
+      for (const folder of customFolders) {
+        if (!collapsedFolders.has(folder.id)) {
+          continue;
+        }
+        const path = folderPathMap.get(folder.id);
+        if (path) {
+          collapsedPaths.push(path);
+        }
+      }
+      if (!collapsedFoldersByExample) {
+        collapsedFoldersByExample = {};
+      }
+      collapsedFoldersByExample[selectedExampleId] = collapsedPaths;
+    }
     const snapshot: PersistedSnapshot = {
       leftWidth,
       selectedExampleId,
@@ -1060,8 +1144,16 @@ const App = (): JSX.Element => {
       treeWidth,
       expandedFolderIds
     };
+    const previousExpandedMap = persistedStateRef.current?.expandedFoldersByExample;
+    if (previousExpandedMap && Object.keys(previousExpandedMap).length > 0) {
+      snapshot.expandedFoldersByExample = previousExpandedMap;
+    }
+    if (collapsedFoldersByExample && Object.keys(collapsedFoldersByExample).length > 0) {
+      snapshot.collapsedFoldersByExample = collapsedFoldersByExample;
+    }
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+      persistedStateRef.current = snapshot;
     } catch {
       // Swallow storage errors to avoid breaking the editor experience.
     }
@@ -1195,7 +1287,7 @@ const App = (): JSX.Element => {
       }
       const { preparedGraphics: latestGraphics, extent } = drawStateRef.current;
       const warnings: string[] = [];
-      drawScene(canvas, context, extent, latestGraphics, warnings, 48);
+      drawScene(canvas, context, extent, latestGraphics, warnings, VIEW_PADDING);
       setRenderWarnings(warnings);
     });
   }, [setRenderWarnings]);
@@ -1211,7 +1303,7 @@ const App = (): JSX.Element => {
     }
     const { preparedGraphics: latestGraphics, extent } = drawStateRef.current;
     const warnings: string[] = [];
-    drawScene(canvas, context, extent, latestGraphics, warnings, 48);
+    drawScene(canvas, context, extent, latestGraphics, warnings, VIEW_PADDING);
     setRenderWarnings(warnings);
   }, [setRenderWarnings]);
 
@@ -1299,8 +1391,14 @@ const App = (): JSX.Element => {
       tabs: example.customTabs,
       folders: example.customFolders
     });
+    const collapsedPaths =
+      persistedStateRef.current?.collapsedFoldersByExample?.[selectedExampleId];
+    const restoredCollapsed = collapsedPaths
+      ? computeCollapsedFromCollapsedPaths(workspace.folders, collapsedPaths)
+      : new Set<string>();
     setCustomTabs(workspace.tabs);
     setCustomFolders(workspace.folders);
+    setCollapsedFolders(restoredCollapsed);
     setTabNameDraft(null);
     setTabDraftFolderId(null);
     setActiveExpressionTab(MAIN_TAB_ID);
@@ -1334,10 +1432,34 @@ const App = (): JSX.Element => {
       return;
     }
 
-    const updateCanvasSize = () => {
+    const computeCssSize = () => {
       const rect = wrapper.getBoundingClientRect();
-      const cssWidth = Math.max(1, rect.width);
-      const cssHeight = Math.max(1, rect.height);
+      const wrapperWidth = Math.max(1, rect.width);
+      const wrapperHeight = Math.max(1, rect.height);
+      const extent = viewInterpretation.extent;
+      if (!extent) {
+        return { cssWidth: wrapperWidth, cssHeight: wrapperHeight };
+      }
+      const viewWidth = Math.max(0.001, extent.maxX - extent.minX);
+      const viewHeight = Math.max(0.001, extent.maxY - extent.minY);
+      const viewAspect = viewWidth / viewHeight;
+      const wrapperAspect = wrapperWidth / wrapperHeight;
+      let cssWidth = wrapperWidth;
+      let cssHeight = wrapperHeight;
+      if (wrapperAspect > viewAspect) {
+        cssHeight = wrapperHeight;
+        cssWidth = cssHeight * viewAspect;
+      } else {
+        cssWidth = wrapperWidth;
+        cssHeight = cssWidth / viewAspect;
+      }
+      cssWidth = Math.max(1, Math.min(cssWidth, wrapperWidth));
+      cssHeight = Math.max(1, Math.min(cssHeight, wrapperHeight));
+      return { cssWidth, cssHeight };
+    };
+
+    const updateCanvasSize = () => {
+      const { cssWidth, cssHeight } = computeCssSize();
       const dpr = window.devicePixelRatio || 1;
       const pixelWidth = Math.max(1, Math.round(cssWidth * dpr));
       const pixelHeight = Math.max(1, Math.round(cssHeight * dpr));
@@ -1377,7 +1499,7 @@ const App = (): JSX.Element => {
     return () => {
       observer.disconnect();
     };
-  }, [requestFrame]);
+  }, [requestFrame, viewInterpretation.extent]);
 
   const unknownTypesWarning =
     graphicsInterpretation.unknownTypes.length > 0

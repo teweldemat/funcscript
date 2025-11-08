@@ -1,11 +1,13 @@
 (rearWheelCenterParam, wheelRadiusParam, wheelTurnAngleParam) => {
   rearWheelCenter: rearWheelCenterParam ?? [0, 0];
-  wheelRadius: wheelRadiusParam ?? 9;
+  baseWheelRadius: 9;
+  wheelRadius: wheelRadiusParam ?? baseWheelRadius;
+  scaleFactor: wheelRadius / baseWheelRadius;
   wheelTurnAngle: wheelTurnAngleParam ?? 0;
 
-  innerRadius: 1;
-  wheelToWheel: 25;
-  gearRadius: 2;
+  innerRadius: 1 * scaleFactor;
+  wheelToWheel: 25 * scaleFactor;
+  gearRadius: 2 * scaleFactor;
   gearTeeth: 12;
   gearRatio: 0.6;
 

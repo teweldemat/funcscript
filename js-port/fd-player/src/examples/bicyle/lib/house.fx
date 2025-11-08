@@ -1,22 +1,32 @@
-(position, size, kind) => {
+// House where sizeParam controls the main wall height (absolute units)
+(position, sizeParam, kindParam) => {
   base: position ?? [0, 0];
-  scaleBoost: 1.8;
-  kindScale:
-    if (kind = 'building') then 1.15
-    else if (kind = 'tower') then 1.05
-    else 1;
-  scale: (size ?? 1) * scaleBoost * kindScale;
+  kind: kindParam ?? 'house';
   isBuilding: kind = 'building';
   isTower: kind = 'tower';
 
-  bodyWidth:
-    if (isBuilding) then 12 * scale
-    else if (isTower) then 6 * scale
-    else 9 * scale;
-  bodyHeight:
-    if (isBuilding) then 12 * scale
-    else if (isTower) then 16 * scale
-    else 7 * scale;
+  scaleBoost: 1.8;
+  kindScale:
+    if (isBuilding) then 1.15
+    else if (isTower) then 1.05
+    else 1;
+
+  baseBodyHeight:
+    if (isBuilding) then 12
+    else if (isTower) then 16
+    else 7;
+
+  baseBodyWidth:
+    if (isBuilding) then 12
+    else if (isTower) then 6
+    else 9;
+
+  defaultBodyHeight: baseBodyHeight * scaleBoost * kindScale;
+  targetBodyHeight: sizeParam ?? defaultBodyHeight;
+  scale: targetBodyHeight / baseBodyHeight;
+
+  bodyWidth: baseBodyWidth * scale;
+  bodyHeight: targetBodyHeight;
 
   bodyLeft: base[0] - bodyWidth / 2;
   bodyBottom: base[1];
