@@ -1097,8 +1097,10 @@ const App = (): JSX.Element => {
     const funcDraw = FuncDraw.evaluate(resolver, time, { baseProvider });
     const environmentProvider = funcDraw.environmentProvider;
 
-    const evaluationMap = new Map<string, EvaluationResult>();
+    const viewResult = evaluateExpression(environmentProvider, viewExpression);
+    environmentProvider.setNamedValue('view', viewResult.typed ?? null);
 
+    const evaluationMap = new Map<string, EvaluationResult>();
     for (const tab of customTabs) {
       const path = resolver.getPathForTab(tab.id);
       if (!path) {
@@ -1110,8 +1112,6 @@ const App = (): JSX.Element => {
       }
     }
 
-    const viewResult = evaluateExpression(environmentProvider, viewExpression);
-    environmentProvider.setNamedValue('view', viewResult.typed ?? null);
     const graphicsResult = evaluateExpression(environmentProvider, graphicsExpression);
 
     return {

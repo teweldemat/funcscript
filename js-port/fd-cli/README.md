@@ -16,7 +16,7 @@ Key options:
 - `-f, --format <raw|svg|png>`: choose between JSON output, SVG markup, or PNG bitmap rendering.
 - `-o, --out <file>`: write SVG/PNG output to a file (PNG uses `./fd-output.png` when omitted).
 - `--width`, `--height`, `--padding`: configure render dimensions.
-- `--time`, `--time-name`: control the injected FuncDraw time variable.
+- `--time`, `--time-name`: control the injected FuncDraw time variable (seconds).
 - `--list`: print all discovered expressions.
 
 SVG output is printed to stdout when `--out` is omitted, while PNG output always writes to a file.

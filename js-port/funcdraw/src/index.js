@@ -393,10 +393,9 @@ class FuncDrawEvaluationManager {
     const configuredTimeName = typeof options.timeName === 'string' ? options.timeName : '';
     const normalizedTimeName = normalizeName(configuredTimeName) || 't';
     this.timeVariableName = normalizedTimeName;
-    const timeValue = typeof explicitTime === 'number' && Number.isFinite(explicitTime)
-      ? explicitTime
-      : Date.now();
-    this.timeValue = ensureTyped(timeValue);
+    const hasExplicitTime = typeof explicitTime === 'number' && Number.isFinite(explicitTime);
+    const resolvedTimeSeconds = hasExplicitTime ? explicitTime : Date.now() / 1000;
+    this.timeValue = ensureTyped(resolvedTimeSeconds);
     this.evaluations = new Map();
     this.evaluating = new Set();
     this.folderProviders = new Map();

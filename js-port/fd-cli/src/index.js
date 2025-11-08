@@ -352,7 +352,7 @@ const printHelp = () => {
     '      --padding <px>       Padding around content (default 48).',
     '      --background <color> Background color for svg/png.',
     '      --grid-color <color> Axis color for svg/png.',
-    '      --time <ms>          Millisecond timestamp to inject as time variable.',
+    '      --time <seconds>     Timestamp (in seconds) to inject as the time variable.',
     '      --time-name <name>   Name of the time variable (defaults to "t").',
     '      --list               List expressions discovered under the root.',
     '      --compact            Compact JSON for raw output.',
