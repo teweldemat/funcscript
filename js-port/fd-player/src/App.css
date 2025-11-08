@@ -671,6 +671,17 @@
   color: #34d399;
 }
 
+.expression-tab-return-arrow {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.expression-tab-return-label {
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+}
+
 .expression-tab-add {
   min-width: 0;
   width: 100%;

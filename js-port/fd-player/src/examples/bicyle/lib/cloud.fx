@@ -1,5 +1,9 @@
-(centerX, baseY, scale) => {
-  sizeScale: scale ?? 1;
+// cloud({ center: [0, 0], width: 80 })
+(options) => {
+  center: options.center ?? [0, 0];
+  targetWidth: options.width ?? 12;
+  baseWidth: 12;
+  sizeScale: targetWidth / baseWidth;
   baseRadius: 3.8 * sizeScale;
   strokeWidth: 0.22 * sizeScale;
 
@@ -15,7 +19,7 @@
   shadow: {
     type: 'circle';
     data: {
-      center: [centerX + 2 * sizeScale, baseY - 2.2 * sizeScale];
+      center: [center[0] + 2 * sizeScale, center[1] - 2.2 * sizeScale];
       radius: baseRadius * 1.5;
       fill: 'rgba(148,163,184,0.25)';
       stroke: 'transparent';
@@ -26,7 +30,7 @@
   softGlow: {
     type: 'circle';
     data: {
-      center: [centerX + 0.5 * sizeScale, baseY + 0.4 * sizeScale];
+      center: [center[0] + 0.5 * sizeScale, center[1] + 0.4 * sizeScale];
       radius: baseRadius * 1.8;
       fill: 'rgba(241,245,249,0.3)';
       stroke: 'transparent';
@@ -41,7 +45,7 @@
     return {
       type: 'circle';
       data: {
-        center: [centerX + puff.dx * sizeScale, baseY + puff.dy * sizeScale];
+        center: [center[0] + puff.dx * sizeScale, center[1] + puff.dy * sizeScale];
         radius: baseRadius * puff.radiusScale;
         fill: shade;
         stroke: 'transparent';
@@ -53,7 +57,7 @@
   highlight: {
     type: 'circle';
     data: {
-      center: [centerX - 1.8 * sizeScale, baseY + 1.4 * sizeScale];
+      center: [center[0] - 1.8 * sizeScale, center[1] + 1.4 * sizeScale];
       radius: baseRadius * 0.8;
       fill: 'rgba(248,250,252,0.6)';
       stroke: 'transparent';

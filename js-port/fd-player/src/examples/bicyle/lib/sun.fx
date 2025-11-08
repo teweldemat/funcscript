@@ -1,11 +1,12 @@
-(center, scale) => {
-  sizeScale: scale ?? 1;
-  radius: 6 * sizeScale;
-  strokeWidth: 0.35 * sizeScale;
+// sun({ center: [0, 0], radius: 20 })
+(options) => {
+  center: options.center ?? [0, 0];
+  radius: options.radius ?? 20;
+  strokeWidth: radius * 0.058;
   glowRadius: radius * 1.35;
   rayCount: 12;
-  rayInnerRadius: radius + 0.8 * sizeScale;
-  rayOuterRadius: radius + 4 * sizeScale;
+  rayInnerRadius: radius * 1.15;
+  rayOuterRadius: radius * 1.5;
 
   glow: {
     type: 'circle';

@@ -5,6 +5,7 @@
     tree: tree,
     cloud: cloud,
     sun: sun,
-    bird: bird
+    bird: bird,
+    house: house
   };
 }

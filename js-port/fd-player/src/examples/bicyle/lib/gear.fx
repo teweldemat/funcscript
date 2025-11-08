@@ -1,3 +1,4 @@
+// gear([0, 0], 4, 12, 0)
 (center, radius, teeth, angleAdvance) => {
   n: teeth;
   toothSize: 0.7;

@@ -400,10 +400,14 @@ const App = (): JSX.Element => {
     if (!persisted?.customFolders || persisted.customFolders.length === 0) {
       return new Set();
     }
-    const expandedSet = persisted.expandedFolderIds ? new Set(persisted.expandedFolderIds) : null;
-    if (!expandedSet) {
+    if (!('expandedFolderIds' in persisted)) {
       return new Set();
     }
+    const expandedIds = persisted.expandedFolderIds;
+    if (expandedIds === undefined) {
+      return new Set();
+    }
+    const expandedSet = new Set(expandedIds);
     const collapsed = new Set<string>();
     for (const folder of persisted.customFolders) {
       if (!expandedSet.has(folder.id)) {

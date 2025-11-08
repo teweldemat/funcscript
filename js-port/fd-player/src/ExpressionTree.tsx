@@ -120,12 +120,9 @@ const ViewIcon = () => (
 );
 
 const ReturnIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-    <path
-      d="M10 3a1 1 0 0 1 .9.56l3 6a1 1 0 0 1-.9 1.44H7a1 1 0 0 1-.9-1.44l3-6A1 1 0 0 1 10 3Zm0 8a1 1 0 0 1 .95.68l2 6a1 1 0 0 1-1.9.64L10 13.6l-1.05 4.72a1 1 0 0 1-1.9-.64l2-6A1 1 0 0 1 10 11Z"
-      fill="currentColor"
-    />
-  </svg>
+  <span className="expression-tab-return-arrow" aria-hidden="true">
+    =&gt;
+  </span>
 );
 
 export const ExpressionTree = ({
@@ -615,6 +612,9 @@ export const ExpressionTree = ({
     const normalizedName = tab.name.trim().toLowerCase();
     const isReturnTab = normalizedName === 'return';
     const icon = isReturnTab ? <ReturnIcon /> : null;
+    const labelClassName = ['expression-tab-label', isReturnTab ? 'expression-tab-return-label' : '']
+      .filter(Boolean)
+      .join(' ');
     const buttonClassName = [baseButtonClass, isReturnTab ? 'expression-tab-return' : '']
       .filter(Boolean)
       .join(' ');
@@ -685,7 +685,7 @@ export const ExpressionTree = ({
                 className={buttonClassName}
                 onClick={() => onSelectTab(tab.id)}
               >
-                <span className="expression-tab-label">
+                <span className={labelClassName}>
                   {icon ? <span className="expression-tab-icon">{icon}</span> : null}
                   {tab.name}
                 </span>

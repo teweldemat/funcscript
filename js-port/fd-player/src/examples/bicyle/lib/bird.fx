@@ -1,120 +1,75 @@
-(timeOffset, bounds, groundLineY) => {
-  cycleSeconds: 12;
-  normalizedTime: (t / cycleSeconds) + (timeOffset ?? 0);
-  progress: normalizedTime - math.floor(normalizedTime);
+// bird({ location: [x, y], size: 1, flap: 0 })
+(locationParam, sizeParam, flapTParam) => {
+  location: locationParam ?? [0, 0];
+  scale: sizeParam ?? 1;
+  timeValue: flapTParam ?? 0;
 
-  safeBounds: bounds ?? { minX: -40; maxX: 40; minY: -20; maxY: 20 };
-  minX: safeBounds.minX;
-  maxX: safeBounds.maxX;
-  flightStartX: minX - 60;
-  flightEndX: maxX + 60;
-  flightWidth: flightEndX - flightStartX;
-  lockBird: safeBounds.lockBird ?? false;
-  travelProgress: if (lockBird) then 0.5 else progress;
-  flightX: flightStartX + flightWidth * travelProgress;
-
-  safeGround: groundLineY ?? 0;
-  baseAltitude: safeGround + 18;
-  arcOffset: math.sin(progress * math.pi);
-  altitude: baseAltitude + (if (lockBird) then 0 else arcOffset * 10);
-
-  flap: math.sin(progress * math.pi * 6);
-  wingspan: 9;
-  wingLift: flap * 3;
-  wingAngle: flap * 0.85;
-
-  rotate: (vector, angle) => {
-    cosA: math.cos(angle);
-    sinA: math.sin(angle);
-    return [
-      vector[0] * cosA - vector[1] * sinA,
-      vector[0] * sinA + vector[1] * cosA
-    ];
+  lerp: (a, b, u) => a + (b - a) * u;
+  easeInCubic: (u) => u * u * u;
+  easeOutCubic: (u) => 1 - math.pow(1 - u, 3);
+  rotate: (v, a) => {
+    c: math.cos(a);
+    s: math.sin(a);
+    return [v[0] * c - v[1] * s, v[0] * s + v[1] * c];
   };
 
-  bodyLength: 4.2;
-  nose: [flightX + bodyLength / 2, altitude];
-  tail: [flightX - bodyLength / 2, altitude + 0.4];
+  flapHz: 2.1;
+  flapPhase: timeValue * flapHz;
+  flapU: flapPhase - math.floor(flapPhase);
+  downFrac: 0.36;
+  flapState: if (flapU < downFrac)
+    then easeOutCubic(flapU / downFrac)
+    else 1 - easeInCubic((flapU - downFrac) / (1 - downFrac));
 
-  bodyCenter: [flightX - 0.4, altitude];
-  bodyRadius: 2.4;
-  body: {
-    type: 'circle';
-    data: {
-      center: bodyCenter;
-      radius: bodyRadius;
-      fill: '#e2e8f0';
-      stroke: '#0f172a';
-      width: 0.3;
-    };
-  };
+  wingspan: 9.2 * scale;
+  wingAngle: lerp(-0.95, 0.60, flapState);
+  wingLift: (flapState - 0.5) * 5.2 * scale;
+  bodyPitch: lerp(0.12, -0.06, flapState);
+  tailFan: lerp(0.5, 1.0, 1.0 - flapState);
 
-  belly: {
-    type: 'circle';
-    data: {
-      center: [bodyCenter[0] - 0.3, bodyCenter[1] + 0.6];
-      radius: bodyRadius * 0.7;
-      fill: '#f8fafc';
-      stroke: 'transparent';
-      width: 0;
-    };
-  };
+  hoverOffset: math.sin(timeValue * 0.6) * scale * 0.8;
+  bodyLength: 4.4 * scale;
+  bodyCenter: [location[0], location[1] + hoverOffset];
+  nose: [
+    bodyCenter[0] + (bodyLength / 2) * math.cos(bodyPitch),
+    bodyCenter[1] + (bodyLength / 2) * math.sin(bodyPitch)
+  ];
+  tailRoot: [
+    bodyCenter[0] - (bodyLength / 2) * math.cos(bodyPitch),
+    bodyCenter[1] - (bodyLength / 2) * math.sin(bodyPitch)
+  ];
 
-  headCenter: [nose[0] + 0.2, nose[1] - 0.1];
-  head: {
-    type: 'circle';
-    data: {
-      center: headCenter;
-      radius: 1.1;
-      fill: '#f8fafc';
-      stroke: '#0f172a';
-      width: 0.3;
-    };
-  };
+  bodyRadius: 2.45 * scale;
+  body: { type: 'circle'; data: { center: bodyCenter; radius: bodyRadius; fill: '#e2e8f0'; stroke: '#0f172a'; width: 0.3; }; };
+  belly:{ type:'circle'; data:{ center:[bodyCenter[0]-0.35*scale, bodyCenter[1]+0.65*scale]; radius: bodyRadius*0.7; fill:'#f8fafc'; stroke:'transparent'; width:0; }; };
+  head: { type:'circle'; data:{ center:[nose[0]+0.15*scale, nose[1]-0.12*scale]; radius:1.08*scale; fill:'#f8fafc'; stroke:'#0f172a'; width:0.3; }; };
 
-  eye: {
-    type: 'circle';
-    data: {
-      center: [headCenter[0] - 0.35, headCenter[1] - 0.2];
-      radius: 0.2;
-      fill: '#0f172a';
-      stroke: '#0f172a';
-      width: 0.1;
-    };
-  };
-
-  beak: {
-    type: 'polygon';
-    data: {
-      points: [
-        [nose[0], nose[1]],
-        [nose[0] + 0.8, nose[1] + 0.2],
-        [nose[0] + 0.6, nose[1] - 0.1]
-      ];
-      fill: '#fbbf24';
-      stroke: '#92400e';
-      width: 0.2;
-    };
-  };
+  blinkHz: 0.25;
+  blinkPhase: timeValue * blinkHz;
+  blinkU: blinkPhase - math.floor(blinkPhase);
+  eyeOpen: if (blinkU < 0.02) then 0.2 else 1.0;
+  eye:{ type:'circle'; data:{ center:[(nose[0]+0.15*scale)-0.35*scale,(nose[1]-0.12*scale)-0.2*scale]; radius:0.2*eyeOpen*scale; fill:'#0f172a'; stroke:'#0f172a'; width:0.1; }; };
+  beak:{ type:'polygon'; data:{ points:[[nose[0],nose[1]],[nose[0]+0.85*scale,nose[1]+0.2*scale],[nose[0]+0.6*scale,nose[1]-0.1*scale]]; fill:'#fbbf24'; stroke:'#92400e'; width:0.2; }; };
 
   wingFill: '#cbd5f5';
+  wingTipFill: '#e6ecff';
   wingStroke: '#1e293b';
 
-  buildWing: (anchor, direction) => {
-    dirAngle: wingAngle * direction + (if (direction = -1) then 0.2 else -0.2);
-    tipVec: rotate([direction * wingspan, wingLift * direction + 1.6], dirAngle);
-    midVec: rotate([direction * (wingspan * 0.55), wingLift * direction + 2.2], dirAngle);
-    trailingVec: rotate([direction * (wingspan * 0.65), wingLift * direction - 0.5], dirAngle);
-    rearVec: rotate([direction * 2.2, -1.0], dirAngle);
-    primary: {
-      type: 'polygon';
-      data: {
-        points: [
-          anchor,
-          [anchor[0] + rearVec[0], anchor[1] + rearVec[1]],
-          [anchor[0] + tipVec[0], anchor[1] + tipVec[1]],
-          [anchor[0] + midVec[0], anchor[1] + midVec[1]],
-          [anchor[0] + trailingVec[0], anchor[1] + trailingVec[1]]
+  buildWing:(anchor, direction)=>{
+    dirAngle: wingAngle * direction + (if (direction = -1) then 0.22 else -0.22);
+    baseHalf: 1.0 * scale;
+    spanVec: rotate([direction * wingspan, wingLift * direction + 1.3 * scale], dirAngle);
+    baseUp:  rotate([0,  baseHalf], dirAngle);
+    baseDn:  rotate([0, -baseHalf], dirAngle);
+    tip: [anchor[0] + spanVec[0], anchor[1] + spanVec[1]];
+
+    mainTri:{
+      type:'polygon';
+      data:{
+        points:[
+          [anchor[0] + baseUp[0], anchor[1] + baseUp[1]],
+          [anchor[0] + baseDn[0], anchor[1] + baseDn[1]],
+          tip
         ];
         fill: wingFill;
         stroke: wingStroke;
@@ -122,52 +77,58 @@
       };
     };
 
-    highlightVec: rotate([direction * wingspan * 0.45, wingLift * direction + 1.4], dirAngle);
-    highlight: {
-      type: 'polygon';
-      data: {
-        points: [
-          anchor,
-          [anchor[0] + highlightVec[0], anchor[1] + highlightVec[1]],
-          [anchor[0] + midVec[0], anchor[1] + midVec[1]]
+    tipLen: wingspan * 0.35;
+    tipBaseHalf: baseHalf * 0.6;
+    tipSpan: rotate([direction * tipLen, wingLift * direction + 0.2 * scale], dirAngle);
+    tipUp:  rotate([0,  tipBaseHalf], dirAngle);
+    tipDn:  rotate([0, -tipBaseHalf], dirAngle);
+    tipPoint: [tip[0] + tipSpan[0], tip[1] + tipSpan[1]];
+
+    tipTri:{
+      type:'polygon';
+      data:{
+        points:[
+          [tip[0] + tipUp[0], tip[1] + tipUp[1]],
+          [tip[0] + tipDn[0], tip[1] + tipDn[1]],
+          tipPoint
         ];
-        fill: 'rgba(248,250,252,0.85)';
-        stroke: 'transparent';
-        width: 0;
+        fill: wingTipFill;
+        stroke: wingStroke;
+        width: 0.22;
       };
     };
 
-    return {
-      primary;
-      highlight;
-    };
+    return { mainTri; tipTri };
   };
 
-  leftWingAnchor: [flightX - 0.5, altitude + 0.2];
-  rightWingAnchor: [flightX + 0.5, altitude - 0.2];
-  leftWing: buildWing(leftWingAnchor, -1);
+  leftWingAnchor:  [bodyCenter[0] - 0.55 * scale, bodyCenter[1] + 0.22 * scale];
+  rightWingAnchor: [bodyCenter[0] + 0.55 * scale, bodyCenter[1] - 0.22 * scale];
+  leftWing:  buildWing(leftWingAnchor, -1);
   rightWing: buildWing(rightWingAnchor, 1);
-  wings: [
-    leftWing.primary,
-    leftWing.highlight,
-    rightWing.primary,
-    rightWing.highlight
-  ];
 
-  tailFeathers: {
-    type: 'polygon';
-    data: {
-      points: [
-        [tail[0] - 0.4, tail[1] + 0.3],
-        [tail[0] - 1.4, tail[1] + 1.5],
-        [tail[0] - 0.7, tail[1] + 0.5],
-        [tail[0] - 1.3, tail[1] - 0.1]
+  tailSpread: 0.6 * tailFan * scale;
+  tail:{
+    type:'polygon';
+    data:{
+      points:[
+        [tailRoot[0]-0.35*scale,               tailRoot[1]+0.28*scale],
+        [tailRoot[0]-(1.2*scale+tailSpread),   tailRoot[1]+(1.4*scale+0.2*tailFan*scale)],
+        [tailRoot[0]-0.65*scale,               tailRoot[1]+0.45*scale],
+        [tailRoot[0]-(1.1*scale+tailSpread),   tailRoot[1]-(0.2*scale+0.15*tailFan*scale)]
       ];
-      fill: '#94a3b8';
-      stroke: '#0f172a';
-      width: 0.25;
+      fill:'#94a3b8';
+      stroke:'#0f172a';
+      width:0.25;
     };
   };
 
-  return [body, belly, head, wings, tailFeathers, beak, eye];
+  return [
+    rightWing.tipTri,
+    rightWing.mainTri,
+    tail,
+    body, belly, head,
+    beak, eye,
+    leftWing.mainTri,
+    leftWing.tipTri
+  ];
 };

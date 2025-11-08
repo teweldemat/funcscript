@@ -1,3 +1,4 @@
+// wheel([0, 0], 10, 2, 0)
 (center, outerRadius, innerRadius, angle) => {
   n: 12;
   lines: range(0, n) map (i) => {

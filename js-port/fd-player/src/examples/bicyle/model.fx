@@ -1,10 +1,5 @@
 {
   outerRadius: 9.0;
-  innerRadius: 1.0;
-  wheelToWheel: 25.0;
-  gearRadius: 2.0;
-  gearTeeth: 12.0;
-  gearRatio: 0.6;
   speed: 1;
   baseHalfViewWidth: 30;
   baseViewHeight: 40;
@@ -12,8 +7,7 @@
   baseViewMinX: -baseHalfViewWidth;
 
   pedalAngle: speed * t;
-  rearWheelToGear: wheelToWheel / 2;
-  wheelAngle: pedalAngle / gearRatio;
+  traveledDistance: pedalAngle * outerRadius;
 
   startZoomTime: 5.0;
   endZoomTime: 10.0;
@@ -23,17 +17,28 @@
   halfViewWidth: baseHalfViewWidth * zoomFactor;
   viewHeight: baseViewHeight * zoomFactor;
   viewWidth: halfViewWidth * 2;
-  travelSpan: viewWidth + wheelToWheel * 2;
-  traveledDistance: wheelAngle * outerRadius;
+  bikeTravelPadding: outerRadius * 4;
+  travelSpan: viewWidth + bikeTravelPadding * 2;
   wrapCount: math.floor(traveledDistance / travelSpan);
   offsetDistance: traveledDistance - wrapCount * travelSpan;
-  leftWheelX: baseViewMinX - wheelToWheel + offsetDistance;
+  leftWheelX: baseViewMinX - bikeTravelPadding + offsetDistance;
   groundY: 0;
   groundLineY: groundY - outerRadius;
 
-  leftWheelCenter: [leftWheelX, groundY];
-  rightWheelCenter: [leftWheelCenter[0] + wheelToWheel, groundY];
-  frontGearCenter:[leftWheelCenter[0] + rearWheelToGear, groundY];
+  wheelTurnAngle: traveledDistance / outerRadius;
+
+  rearWheelCenter: [leftWheelX, groundY];
+  bicycleResult: bicycle(
+    rearWheelCenter,
+    outerRadius,
+    wheelTurnAngle
+  );
+
+  leftWheelCenter: bicycleResult.leftWheelCenter;
+  rightWheelCenter: bicycleResult.rightWheelCenter;
+  frontGearCenter: bicycleResult.frontGearCenter;
+  frameHeight: bicycleResult.frameHeight;
+  wheelAngle: bicycleResult.wheelAngle;
 
   viewCenterX: (leftWheelCenter[0] + rightWheelCenter[0]) / 2;
   viewMinX: viewCenterX - halfViewWidth;
@@ -47,27 +52,19 @@
     maxY: viewMaxY;
   };
 
-  frameHeight: outerRadius * 1.6;
-  bicycleState: {
-    leftWheelCenter,
-    rightWheelCenter,
-    frontGearCenter,
-    outerRadius,
-    innerRadius,
-    gearRadius,
-    gearTeeth,
-    gearRatio,
-    pedalAngle,
-    wheelAngle,
-    frameHeight
-  };
-  bicycleGraphics: bicycle.model(bicycleState);
+  bicycleGraphics: bicycleResult.graphics;
 
   treeBaseY: groundLineY;
-  backgroundElements: background(treeBaseY, groundLineY, viewBounds, zoomFactor);
+  backgroundElements: background(treeBaseY, groundLineY, viewBounds, t);
+
+  roadElements: road(groundLineY, viewBounds);
 
   graphics: [
-    backgroundElements,
+    backgroundElements.sky,
+    backgroundElements.ground,
+    roadElements,
+    backgroundElements.sky_line,
+    backgroundElements.bird_flock,
     bicycleGraphics
   ];
 

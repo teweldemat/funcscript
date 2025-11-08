@@ -1,3 +1,4 @@
+// tree([0, 0], 1)
 (position, scale) => {
   base: position ?? [0, 0];
   size: scale ?? 1;

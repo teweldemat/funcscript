@@ -206,7 +206,7 @@ export const loadPersistedSnapshot = (storageKey: string = STORAGE_KEY): Persist
     }
     if ('expandedFolderIds' in data) {
       const expanded = sanitizeStringArray(data.expandedFolderIds);
-      if (expanded) {
+      if (expanded !== undefined) {
         snapshot.expandedFolderIds = expanded;
       }
     }
