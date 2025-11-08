@@ -6,15 +6,22 @@
   gearTeeth: 12.0;
   gearRatio: 0.6;
   speed: 1;
-  halfViewWidth: 30;
-  viewHeight: 40;
+  baseHalfViewWidth: 30;
+  baseViewHeight: 40;
   groundOffsetFromBottom: 11;
-  baseViewMinX: -halfViewWidth;
+  baseViewMinX: -baseHalfViewWidth;
 
   pedalAngle: speed * t;
   rearWheelToGear: wheelToWheel / 2;
   wheelAngle: pedalAngle / gearRatio;
 
+  startZoomTime: 5.0;
+  endZoomTime: 10.0;
+  zoomRaw: (t - startZoomTime) / (endZoomTime - startZoomTime);
+  zoomProgress: if (zoomRaw < 0) then 0 else if (zoomRaw > 1) then 1 else zoomRaw;
+  zoomFactor: 1 + zoomProgress * 0.6;
+  halfViewWidth: baseHalfViewWidth * zoomFactor;
+  viewHeight: baseViewHeight * zoomFactor;
   viewWidth: halfViewWidth * 2;
   travelSpan: viewWidth + wheelToWheel * 2;
   traveledDistance: wheelAngle * outerRadius;
