@@ -11,8 +11,9 @@ import {
   useState
 } from 'react';
 import { createPortal } from 'react-dom';
-import type { CustomFolderState, CustomTabState, RenameTarget } from './App';
+import type { CustomFolderState, CustomTabState } from './workspace';
 import type { EvaluationResult } from './graphics';
+import type { RenameTarget } from './App';
 import { isValidTabName } from './workspace';
 
 type ExpressionTreeProps = {

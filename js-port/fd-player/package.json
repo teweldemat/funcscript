@@ -9,6 +9,7 @@
     "build": "tsc --noEmit && webpack --mode production"
   },
   "dependencies": {
+    "@tewelde/funcdraw": "file:../funcdraw",
     "@tewelde/funcscript": "file:../funcscript-js",
     "@tewelde/funcscript-editor": "file:../funcscript-editor",
     "react": "^18.3.1",

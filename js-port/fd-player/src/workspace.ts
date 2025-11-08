@@ -1,16 +1,4 @@
-import {
-  Engine,
-  FSDataType,
-  FsError,
-  KeyValueCollection,
-  ensureTyped,
-  makeValue,
-  typedNull,
-  type DefaultFsDataProvider,
-  type FsDataProvider,
-  type TypedValue
-} from '@tewelde/funcscript/browser';
-import { evaluateExpression, type EvaluationResult } from './graphics';
+import type { ExpressionCollectionResolver, ExpressionListItem } from '@tewelde/funcdraw';
 import type { CustomTabDefinition } from './examples';
 
 export const STORAGE_KEY = 'fd-player-state';
@@ -38,6 +26,8 @@ export type PersistedSnapshot = {
   customTabs?: CustomTabState[];
   customFolders?: CustomFolderState[];
   activeExpressionTab?: string;
+  treeWidth?: number;
+  expandedFolderIds?: string[];
 };
 
 export const createCustomTabId = () =>
@@ -157,12 +147,25 @@ const sanitizeCustomFolders = (value: unknown): CustomFolderState[] | undefined 
   return result;
 };
 
-export const loadPersistedSnapshot = (): PersistedSnapshot | null => {
+const sanitizeStringArray = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const result: string[] = [];
+  for (const entry of value) {
+    if (typeof entry === 'string') {
+      result.push(entry);
+    }
+  }
+  return result.length > 0 ? result : [];
+};
+
+export const loadPersistedSnapshot = (storageKey: string = STORAGE_KEY): PersistedSnapshot | null => {
   if (typeof window === 'undefined') {
     return null;
   }
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKey);
     if (!raw) {
       return null;
     }
@@ -198,318 +201,185 @@ export const loadPersistedSnapshot = (): PersistedSnapshot | null => {
         snapshot.customFolders = sanitizedFolders;
       }
     }
+    if (typeof data.treeWidth === 'number' && Number.isFinite(data.treeWidth)) {
+      snapshot.treeWidth = data.treeWidth;
+    }
+    if ('expandedFolderIds' in data) {
+      const expanded = sanitizeStringArray(data.expandedFolderIds);
+      if (expanded) {
+        snapshot.expandedFolderIds = expanded;
+      }
+    }
     return snapshot;
   } catch {
     return null;
   }
 };
 
-export type WorkspaceFolderDefinition = {
-  folder: CustomFolderState;
-  tabs: CustomTabState[];
+type ResolverInit = {
+  tabs?: CustomTabState[];
+  folders?: CustomFolderState[];
 };
 
-class WorkspaceFolderProvider extends KeyValueCollection {
-  private readonly manager: WorkspaceEvaluationManager;
-  private readonly folderId: string;
+const normalizePathSegments = (segments: string[]): string[] =>
+  segments
+    .filter((segment) => typeof segment === 'string' && segment.trim().length > 0)
+    .map((segment) => segment.trim());
 
-  constructor(manager: WorkspaceEvaluationManager, folderId: string, parent: FsDataProvider | null) {
-    super(parent ?? null);
-    this.manager = manager;
-    this.folderId = folderId;
+const sortByCreatedAt = <T extends { createdAt?: number }>(list: T[]): T[] =>
+  [...list].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+
+export class LocalStorageExpressionCollectionResolver implements ExpressionCollectionResolver {
+  private readonly storageKey: string;
+  private readonly tabs: CustomTabState[];
+  private readonly folders: CustomFolderState[];
+  private readonly folderById = new Map<string, CustomFolderState>();
+  private readonly folderChildren = new Map<string | null, CustomFolderState[]>();
+  private readonly folderNameMaps = new Map<string | null, Map<string, CustomFolderState>>();
+  private readonly folderPathCache = new Map<string, string[]>();
+  private readonly tabMaps = new Map<string | null, Map<string, CustomTabState>>();
+  private readonly tabPaths = new Map<string, string[]>();
+
+  constructor(storageKey: string, data?: ResolverInit) {
+    this.storageKey = storageKey;
+    const snapshot = this.prepareState(data);
+    this.tabs = snapshot.tabs;
+    this.folders = snapshot.folders;
+    this.hydrateFolders();
+    this.hydrateTabs();
   }
 
-  private findTab(name: string): CustomTabState | null {
-    return this.manager.findFolderTabByName(this.folderId, name.toLowerCase());
-  }
-
-  private findChildFolder(name: string): string | null {
-    return this.manager.findChildFolderId(this.folderId, name.toLowerCase());
-  }
-
-  public override get(name: string): TypedValue | null {
-    const tab = this.findTab(name);
-    if (tab) {
-      const evaluation = this.manager.evaluateTab(tab, this);
-      return evaluation.typed ?? typedNull();
-    }
-    const childFolderId = this.findChildFolder(name);
-    if (childFolderId) {
-      return this.manager.getFolderValue(childFolderId);
-    }
-    const parent = (this as unknown as { parent: FsDataProvider | null }).parent ?? null;
-    return parent ? parent.get(name) : null;
-  }
-
-  public override isDefined(name: string): boolean {
-    if (this.findTab(name)) {
-      return true;
-    }
-    if (this.findChildFolder(name)) {
-      return true;
-    }
-    const parent = (this as unknown as { parent: FsDataProvider | null }).parent ?? null;
-    return parent ? parent.isDefined(name) : false;
-  }
-
-  public override getAll(): Array<[string, TypedValue]> {
-    const entries: Array<[string, TypedValue]> = [];
-    const tabs = this.manager.getFolderTabs(this.folderId);
-    for (const tab of tabs) {
-      if (tab.name.toLowerCase() === 'return') {
-        continue;
-      }
-      const evaluation = this.manager.evaluateTab(tab, this);
-      entries.push([tab.name, evaluation.typed ?? typedNull()]);
-    }
-    const childFolders = this.manager.getChildFolders(this.folderId);
-    for (const child of childFolders) {
-      entries.push([child.name, this.manager.getFolderValue(child.id)]);
-    }
-    return entries;
-  }
-}
-
-class WorkspaceEnvironmentProvider extends Engine.FsDataProvider {
-  private readonly manager: WorkspaceEvaluationManager;
-  private readonly namedValues = new Map<string, TypedValue>();
-
-  constructor(manager: WorkspaceEvaluationManager) {
-    super(manager.getBaseProvider());
-    this.manager = manager;
-  }
-
-  public setNamedValue(name: string, value: TypedValue | null) {
-    const lower = name.toLowerCase();
-    if (value) {
-      this.namedValues.set(lower, ensureTyped(value));
-    } else {
-      this.namedValues.delete(lower);
-    }
-  }
-
-  public override get(name: string): TypedValue | null {
-    const lower = name.toLowerCase();
-    if (lower === 't') {
-      return this.manager.getTimeValue();
-    }
-    if (this.namedValues.has(lower)) {
-      return this.namedValues.get(lower) ?? null;
-    }
-    const rootTab = this.manager.findRootTabByName(lower);
-    if (rootTab) {
-      const evaluation = this.manager.evaluateTab(rootTab, this);
-      return evaluation.typed ?? typedNull();
-    }
-    const folderId = this.manager.findFolderIdByName(lower);
-    if (folderId) {
-      return this.manager.getFolderValue(folderId);
-    }
-    return super.get(name);
-  }
-
-  public override isDefined(name: string): boolean {
-    const lower = name.toLowerCase();
-    if (lower === 't') {
-      return true;
-    }
-    if (this.namedValues.has(lower)) {
-      return true;
-    }
-    if (this.manager.findRootTabByName(lower)) {
-      return true;
-    }
-    if (this.manager.findFolderIdByName(lower)) {
-      return true;
-    }
-    return super.isDefined(name);
-  }
-}
-
-export class WorkspaceEvaluationManager {
-  private readonly baseProvider: DefaultFsDataProvider;
-  private readonly timeValue: TypedValue;
-  private readonly rootTabs: CustomTabState[];
-  private readonly rootTabByName = new Map<string, CustomTabState>();
-  private readonly folderDefinitions = new Map<string, WorkspaceFolderDefinition>();
-  private readonly folderTabMaps = new Map<string, Map<string, CustomTabState>>();
-  private readonly folderReturnTabs = new Map<string, CustomTabState>();
-  private readonly childFolderNameMaps = new Map<string | null, Map<string, string>>();
-  private readonly childFoldersByParent = new Map<string | null, CustomFolderState[]>();
-  private readonly evaluations = new Map<string, EvaluationResult>();
-  private readonly evaluating = new Set<string>();
-  private readonly folderProviders = new Map<string, WorkspaceFolderProvider>();
-  private environmentProvider: WorkspaceEnvironmentProvider | null = null;
-
-  constructor(
-    baseProvider: DefaultFsDataProvider,
-    tabs: CustomTabState[],
-    folders: CustomFolderState[],
-    time: number
-  ) {
-    this.baseProvider = baseProvider;
-    this.timeValue = ensureTyped(time);
-    for (const folder of folders) {
-      const entry: WorkspaceFolderDefinition = { folder, tabs: [] };
-      this.folderDefinitions.set(folder.id, entry);
-      this.folderTabMaps.set(folder.id, new Map());
-      const parentKey = folder.parentId ?? null;
-      const children = this.childFoldersByParent.get(parentKey);
-      if (children) {
-        children.push(folder);
-      } else {
-        this.childFoldersByParent.set(parentKey, [folder]);
-      }
-      const nameMap = this.childFolderNameMaps.get(parentKey);
-      if (nameMap) {
-        nameMap.set(folder.name.toLowerCase(), folder.id);
-      } else {
-        this.childFolderNameMaps.set(parentKey, new Map([[folder.name.toLowerCase(), folder.id]]));
-      }
-    }
-
-    const rootAccumulator: CustomTabState[] = [];
-    for (const tab of tabs) {
-      if (tab.folderId && this.folderDefinitions.has(tab.folderId)) {
-        const definition = this.folderDefinitions.get(tab.folderId)!;
-        const lowerName = tab.name.toLowerCase();
-        definition.tabs.push(tab);
-        const nameMap = this.folderTabMaps.get(tab.folderId)!;
-        nameMap.set(lowerName, tab);
-        if (lowerName === 'return' && !this.folderReturnTabs.has(tab.folderId)) {
-          this.folderReturnTabs.set(tab.folderId, tab);
-        }
-      } else {
-        rootAccumulator.push(tab);
-        this.rootTabByName.set(tab.name.toLowerCase(), tab);
-      }
-    }
-
-    this.rootTabs = rootAccumulator;
-    for (const definition of this.folderDefinitions.values()) {
-      definition.tabs.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-    }
-    this.rootTabs.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-    for (const children of this.childFoldersByParent.values()) {
-      children.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-    }
-  }
-
-  public getBaseProvider() {
-    return this.baseProvider;
-  }
-
-  public getTimeValue() {
-    return this.timeValue;
-  }
-
-  public getEnvironmentProvider(): WorkspaceEnvironmentProvider {
-    if (!this.environmentProvider) {
-      this.environmentProvider = new WorkspaceEnvironmentProvider(this);
-    }
-    return this.environmentProvider;
-  }
-
-  public findRootTabByName(lower: string): CustomTabState | null {
-    return this.rootTabByName.get(lower) ?? null;
-  }
-
-  public findFolderIdByName(lower: string): string | null {
-    return this.findChildFolderId(null, lower);
-  }
-
-  public findChildFolderId(parentId: string | null, lower: string): string | null {
-    const map = this.childFolderNameMaps.get(parentId ?? null);
-    if (!map) {
-      return null;
-    }
-    return map.get(lower) ?? null;
-  }
-
-  public getChildFolders(parentId: string | null): CustomFolderState[] {
-    return this.childFoldersByParent.get(parentId ?? null) ?? [];
-  }
-
-  public getFolderProvider(folderId: string): WorkspaceFolderProvider {
-    const existing = this.folderProviders.get(folderId);
-    if (existing) {
-      return existing;
-    }
-    const definition = this.folderDefinitions.get(folderId);
-    const parentProvider = definition?.folder.parentId
-      ? this.getFolderProvider(definition.folder.parentId)
-      : this.getEnvironmentProvider();
-    const provider = new WorkspaceFolderProvider(this, folderId, parentProvider);
-    this.folderProviders.set(folderId, provider);
-    return provider;
-  }
-
-  public getFolderTabs(folderId: string): CustomTabState[] {
-    const definition = this.folderDefinitions.get(folderId);
-    return definition ? definition.tabs : [];
-  }
-
-  public hasFolder(folderId: string): boolean {
-    return this.folderDefinitions.has(folderId);
-  }
-
-  public findFolderTabByName(folderId: string, lower: string): CustomTabState | null {
-    const map = this.folderTabMaps.get(folderId);
-    if (!map) {
-      return null;
-    }
-    return map.get(lower) ?? null;
-  }
-
-  public getFolderValue(folderId: string): TypedValue {
-    const returnTab = this.folderReturnTabs.get(folderId);
-    if (returnTab) {
-      const provider = this.getFolderProvider(folderId);
-      const evaluation = this.evaluateTab(returnTab, provider);
-      return evaluation.typed ?? typedNull();
-    }
-    return ensureTyped(this.getFolderProvider(folderId));
-  }
-
-  public evaluateTab(tab: CustomTabState, provider: FsDataProvider): EvaluationResult {
-    const cached = this.evaluations.get(tab.id);
-    if (cached) {
-      return cached;
-    }
-    if (this.evaluating.has(tab.id)) {
-      const message = 'Circular reference detected while evaluating expression.';
-      const typedError = makeValue(FSDataType.Error, new FsError(FsError.ERROR_DEFAULT, message));
-      const result: EvaluationResult = {
-        value: null,
-        typed: typedError,
-        error: message
+  private prepareState(data?: ResolverInit) {
+    if (data && Array.isArray(data.tabs) && Array.isArray(data.folders)) {
+      return {
+        tabs: [...data.tabs],
+        folders: [...data.folders]
       };
-      this.evaluations.set(tab.id, result);
-      return result;
     }
-
-    this.evaluating.add(tab.id);
-    const result = evaluateExpression(provider, tab.expression);
-    this.evaluating.delete(tab.id);
-
-    let typed: TypedValue | null = result.typed;
-    if (!typed) {
-      if (result.error) {
-        typed = makeValue(FSDataType.Error, new FsError(FsError.ERROR_DEFAULT, result.error));
-      } else {
-        typed = typedNull();
-      }
-    }
-    const normalized: EvaluationResult = {
-      value: result.value,
-      typed,
-      error: result.error
+    const snapshot = loadPersistedSnapshot(this.storageKey);
+    return {
+      tabs: snapshot?.customTabs ? [...snapshot.customTabs] : [],
+      folders: snapshot?.customFolders ? [...snapshot.customFolders] : []
     };
-    this.evaluations.set(tab.id, normalized);
-    return normalized;
   }
 
-  public getEvaluations(): Map<string, EvaluationResult> {
-    return this.evaluations;
+  private hydrateFolders() {
+    for (const folder of this.folders) {
+      this.folderById.set(folder.id, folder);
+      const parentId = folder.parentId ?? null;
+      if (!this.folderChildren.has(parentId)) {
+        this.folderChildren.set(parentId, []);
+      }
+      this.folderChildren.get(parentId)!.push(folder);
+      if (!this.folderNameMaps.has(parentId)) {
+        this.folderNameMaps.set(parentId, new Map());
+      }
+      const nameMap = this.folderNameMaps.get(parentId)!;
+      const lower = folder.name.toLowerCase();
+      if (!nameMap.has(lower)) {
+        nameMap.set(lower, folder);
+      }
+    }
+    for (const children of this.folderChildren.values()) {
+      sortByCreatedAt(children);
+    }
+  }
+
+  private buildFolderPath(folderId: string | null, seen = new Set<string>()): string[] {
+    if (!folderId) {
+      return [];
+    }
+    if (this.folderPathCache.has(folderId)) {
+      return this.folderPathCache.get(folderId)!;
+    }
+    const folder = this.folderById.get(folderId);
+    if (!folder || seen.has(folderId)) {
+      return [];
+    }
+    seen.add(folderId);
+    const parentPath = this.buildFolderPath(folder.parentId ?? null, seen);
+    const path = [...parentPath, folder.name];
+    this.folderPathCache.set(folderId, path);
+    seen.delete(folderId);
+    return path;
+  }
+
+  private hydrateTabs() {
+    for (const tab of this.tabs) {
+      const folderId = tab.folderId && this.folderById.has(tab.folderId) ? tab.folderId : null;
+      const key = folderId ?? null;
+      if (!this.tabMaps.has(key)) {
+        this.tabMaps.set(key, new Map());
+      }
+      const map = this.tabMaps.get(key)!;
+      const lower = tab.name.toLowerCase();
+      if (!map.has(lower)) {
+        map.set(lower, tab);
+      }
+      const folderPath = folderId ? this.buildFolderPath(folderId) : [];
+      this.tabPaths.set(tab.id, [...folderPath, tab.name]);
+    }
+  }
+
+  private resolveFolderId(path: string[]): string | null | undefined {
+    const cleaned = normalizePathSegments(path);
+    if (cleaned.length === 0) {
+      return null;
+    }
+    let current: string | null = null;
+    for (const segment of cleaned) {
+      const nameMap = this.folderNameMaps.get(current);
+      if (!nameMap) {
+        return undefined;
+      }
+      const folder = nameMap.get(segment.toLowerCase());
+      if (!folder) {
+        return undefined;
+      }
+      current = folder.id;
+    }
+    return current;
+  }
+
+  public listItems(path: string[]): ExpressionListItem[] {
+    const folderId = this.resolveFolderId(path);
+    if (folderId === undefined && normalizePathSegments(path).length > 0) {
+      return [];
+    }
+    const parentKey = folderId ?? null;
+    const folders = this.folderChildren.get(parentKey) ?? [];
+    const tabMap = this.tabMaps.get(parentKey) ?? new Map();
+    const items: ExpressionListItem[] = [];
+    for (const folder of folders) {
+      items.push({ kind: 'folder', name: folder.name, createdAt: folder.createdAt });
+    }
+    for (const tab of tabMap.values()) {
+      items.push({ kind: 'expression', name: tab.name, createdAt: tab.createdAt });
+    }
+    return sortByCreatedAt(items);
+  }
+
+  public getExpression(path: string[]): string | null {
+    const cleaned = normalizePathSegments(path);
+    if (cleaned.length === 0) {
+      return null;
+    }
+    const targetName = cleaned[cleaned.length - 1];
+    const folderPath = cleaned.slice(0, -1);
+    const folderId = this.resolveFolderId(folderPath);
+    if (folderId === undefined && folderPath.length > 0) {
+      return null;
+    }
+    const map = this.tabMaps.get(folderId ?? null);
+    if (!map) {
+      return null;
+    }
+    const tab = map.get(targetName.toLowerCase());
+    return tab ? tab.expression : null;
+  }
+
+  public getPathForTab(tabId: string): string[] | null {
+    const path = this.tabPaths.get(tabId);
+    return path ? [...path] : null;
   }
 }
