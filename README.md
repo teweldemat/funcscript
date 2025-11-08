@@ -124,7 +124,7 @@ The published manual currently covers the language overview, practical examples,
 for functions and types. Add new pages inside `docs/`, update the navigation tree in `mkdocs.yml`,
 and the `Documentation` GitHub Actions workflow (`.github/workflows/docs.yml`) will build and deploy
 the site to GitHub Pages whenever `main` receives documentation changes. The deployment also bundles
-the web demos so they are reachable at `web/funcscript-studio/` and `web/fs-graphics/` beneath the
+the web demos so they are reachable at `web/funcscript-studio/` and `web/fd-player/` beneath the
 published site root.
 
 ## Maintainers

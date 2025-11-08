@@ -1,15 +1,16 @@
 {
-  "name": "fs-graphics",
-  "version": "0.0.1",
+  "name": "@tewelde/fd-player",
+  "version": "0.1.0",
   "private": true,
+  "description": "FuncDraw Player — interactive FuncScript-driven graphics viewer",
   "type": "module",
   "scripts": {
     "dev": "webpack serve --mode development --open",
     "build": "tsc --noEmit && webpack --mode production"
   },
   "dependencies": {
-    "@tewelde/funcscript": "file:../../funcscript-js",
-    "@tewelde/funcscript-editor": "file:../../funcscript-editor",
+    "@tewelde/funcscript": "file:../funcscript-js",
+    "@tewelde/funcscript-editor": "file:../funcscript-editor",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

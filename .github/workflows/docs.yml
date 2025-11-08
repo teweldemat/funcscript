@@ -51,7 +51,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: |
-            js-port/examples/fs-graphics/package-lock.json
+            js-port/fd-player/package-lock.json
             js-port/funcscript-studio/package-lock.json
 
       - name: Install funcscript editor dependencies
@@ -62,12 +62,12 @@ jobs:
         working-directory: js-port/funcscript-editor
         run: npm run build
 
-      - name: Install dependencies for fs-graphics
-        working-directory: js-port/examples/fs-graphics
+      - name: Install dependencies for fd-player
+        working-directory: js-port/fd-player
         run: npm ci --ignore-scripts
 
-      - name: Build fs-graphics demo
-        working-directory: js-port/examples/fs-graphics
+      - name: Build fd-player demo
+        working-directory: js-port/fd-player
         env:
           PUBLIC_PATH: ./
         run: npm run build
@@ -87,8 +87,8 @@ jobs:
 
       - name: Bundle web demos into site artifact
         run: |
-          mkdir -p site/web/fs-graphics site/web/funcscript-studio
-          cp -a js-port/examples/fs-graphics/dist/. site/web/fs-graphics/
+          mkdir -p site/web/fd-player site/web/funcscript-studio
+          cp -a js-port/fd-player/dist/. site/web/fd-player/
           cp -a js-port/funcscript-studio/dist/. site/web/funcscript-studio/
 
       - name: Upload Pages artifact

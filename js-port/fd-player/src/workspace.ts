@@ -13,7 +13,7 @@ import {
 import { evaluateExpression, type EvaluationResult } from './graphics';
 import type { CustomTabDefinition } from './examples';
 
-export const STORAGE_KEY = 'fs-graphics-state';
+export const STORAGE_KEY = 'fd-player-state';
 
 export type CustomTabState = {
   id: string;

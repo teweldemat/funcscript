@@ -85,7 +85,7 @@ type PersistedSnapshot = {
   expandedFolderIds?: string[];
 };
 
-const STORAGE_KEY = 'fs-graphics-state';
+const STORAGE_KEY = 'fd-player-state';
 
 const createCustomTabId = () => `custom-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
 const createCustomFolderId = () =>
