@@ -4,55 +4,86 @@
   chunkMin: math.floor(bounds.minX / segmentLength) - 1;
   chunkMax: math.ceil(bounds.maxX / segmentLength) + 1;
   chunkCount: chunkMax - chunkMin + 1;
+  viewPadding: 80;
 
-  structures: range(0, chunkCount) map (chunkOffset) => {
+  structureSlots: [
+    {
+      offset: -120;
+      houseScale: 1.2;
+      houseKind: 'house';
+      trees: [
+        { dx: -12; dy: 0.4; scale: 2.3 },
+        { dx: 12; dy: -0.1; scale: 1.6 }
+      ];
+    },
+    {
+      offset: -60;
+      houseScale: 1.4;
+      houseKind: 'building';
+      trees: [
+        { dx: -14; dy: 0.5; scale: 2.4 },
+        { dx: 14; dy: -0.2; scale: 1.7 }
+      ];
+    },
+    {
+      offset: 0;
+      houseScale: 1;
+      houseKind: 'house';
+      trees: [
+        { dx: -10; dy: 0.3; scale: 2.1 },
+        { dx: 10; dy: -0.1; scale: 1.5 }
+      ];
+    },
+    {
+      offset: 60;
+      houseScale: 1.3;
+      houseKind: 'tower';
+      trees: [
+        { dx: -12; dy: 0.6; scale: 2.6 },
+        { dx: 12; dy: -0.2; scale: 1.8 }
+      ];
+    },
+    {
+      offset: 120;
+      houseScale: 1.1;
+      houseKind: 'house';
+      trees: [
+        { dx: -12; dy: 0.4; scale: 2.2 },
+        { dx: 12; dy: -0.1; scale: 1.6 }
+      ];
+    }
+  ];
+
+  structureChunks: range(0, chunkCount) map (chunkOffset) => {
     chunkIndex: chunkMin + chunkOffset;
     chunkStart: chunkIndex * segmentLength;
 
-    world1: chunkStart - 120;
-    visible1: if (world1 < bounds.minX - 80) then false else (if (world1 > bounds.maxX + 80) then false else true);
-    structure1: if (visible1) then [
-      tree([world1 - 12, treeBaseY + 0.4], 2.3),
-      house([world1, treeBaseY], 1.2, 'house'),
-      tree([world1 + 12, treeBaseY - 0.1], 1.6)
-    ] else [];
+    return structureSlots map (slot) => {
+      worldX: chunkStart + slot.offset;
+      visible: if (worldX < bounds.minX - viewPadding) then false else (if (worldX > bounds.maxX + viewPadding) then false else true);
 
-    world2: chunkStart - 60;
-    visible2: if (world2 < bounds.minX - 80) then false else (if (world2 > bounds.maxX + 80) then false else true);
-    structure2: if (visible2) then [
-      tree([world2 - 14, treeBaseY + 0.5], 2.4),
-      house([world2, treeBaseY], 1.4, 'building'),
-      tree([world2 + 14, treeBaseY - 0.2], 1.7)
-    ] else [];
+      baseHouse: [worldX, treeBaseY];
+      houseElement:
+        if (visible) then house(baseHouse, slot.houseScale, slot.houseKind) else [];
 
-    world3: chunkStart;
-    visible3: if (world3 < bounds.minX - 80) then false else (if (world3 > bounds.maxX + 80) then false else true);
-    structure3: if (visible3) then [
-      tree([world3 - 10, treeBaseY + 0.3], 2.1),
-      house([world3, treeBaseY], 1, 'house'),
-      tree([world3 + 10, treeBaseY - 0.1], 1.5)
-    ] else [];
+      treeElements:
+        if (visible) then slot.trees map (treeConfig) => {
+          treePosition: [worldX + treeConfig.dx, treeBaseY + treeConfig.dy];
+          return tree(treePosition, treeConfig.scale);
+        } else [];
 
-    world4: chunkStart + 60;
-    visible4: if (world4 < bounds.minX - 80) then false else (if (world4 > bounds.maxX + 80) then false else true);
-    structure4: if (visible4) then [
-      tree([world4 - 12, treeBaseY + 0.6], 2.6),
-      house([world4, treeBaseY], 1.3, 'tower'),
-      tree([world4 + 12, treeBaseY - 0.2], 1.8)
-    ] else [];
-
-    world5: chunkStart + 120;
-    visible5: if (world5 < bounds.minX - 80) then false else (if (world5 > bounds.maxX + 80) then false else true);
-    structure5: if (visible5) then [
-      tree([world5 - 12, treeBaseY + 0.4], 2.2),
-      house([world5, treeBaseY], 1.1, 'house'),
-      tree([world5 + 12, treeBaseY - 0.1], 1.6)
-    ] else [];
-
-    return [structure1, structure2, structure3, structure4, structure5];
+      return {
+        house: houseElement;
+        trees: treeElements;
+      };
+    };
   };
 
-  fillerTrees: [];
+  treeLayer: structureChunks map (group) =>
+    group map (entry) => entry.trees;
+
+  houseLayer: structureChunks map (group) =>
+    group map (entry) => entry.house;
 
   backgroundPadding: 200;
   sceneWidth: bounds.maxX - bounds.minX + backgroundPadding * 2;
@@ -89,26 +120,29 @@
     bounds.minX + viewWidth * 0.15,
     groundLineY + skyHeight * 0.85
   ];
-  sunElement: sun(sunCenter, infiniteScale);
+  sunLayer: sun(sunCenter, infiniteScale);
 
   cloudCount: 6;
   horizontalPadding: 0.12;
   cloudRows: [0.68, 0.78, 0.88];
   rowCount: cloudRows.length;
-  clouds: range(0, cloudCount) map (index) => {
+  cloudLayer: range(0, cloudCount) map (index) => {
     fraction: if (cloudCount = 1) then 0.5 else index / (cloudCount - 1);
     usableWidth: 1 - horizontalPadding * 2;
     centerX: bounds.minX + viewWidth * (horizontalPadding + usableWidth * fraction);
     rowIndex: index % rowCount;
     baseFactor: cloudRows[rowIndex];
     sinusOffset: math.sin(index * 1.1) * 0.03;
-    heightFactorRaw: baseFactor + sinusOffset;
     minCloudHeight: 0.4;
     maxCloudHeight: 0.95;
+    heightFactorRaw: baseFactor + sinusOffset;
     heightFactor: if (heightFactorRaw < minCloudHeight) then minCloudHeight else (if (heightFactorRaw > maxCloudHeight) then maxCloudHeight else heightFactorRaw);
     baseY: groundLineY + skyHeight * heightFactor;
     return cloud(centerX, baseY, infiniteScale);
   };
+
+  birdOffsets: [0, 0.38, 0.71];
+  birdLayer: birdOffsets map (offset) => bird(offset, bounds, groundLineY);
 
   roadPadding: 120;
   roadWidth: 1.8;
@@ -151,5 +185,5 @@
 
   roadElements: [asphalt, laneMarkers];
 
-  return [sky, meadow, sunElement, clouds, roadElements, fillerTrees, structures];
+  return [sky, meadow, sunLayer, cloudLayer, birdLayer, roadElements, treeLayer, houseLayer];
 };
