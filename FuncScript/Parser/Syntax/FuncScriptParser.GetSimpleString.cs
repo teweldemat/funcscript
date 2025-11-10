@@ -42,7 +42,9 @@ namespace FuncScript.Core
             if (currentIndex >= context.Expression.Length)
                 return new SimpleStringResult(index, null, index, 0, null);
 
-            var result = GetSimpleString(context,nodes, "\"", currentIndex, serrors);
+            var result = GetSimpleString(context, nodes, "\"\"\"", currentIndex, serrors);
+            if (result.NextIndex == currentIndex)
+                result = GetSimpleString(context,nodes, "\"", currentIndex, serrors);
             if (result.NextIndex == currentIndex)
                 result = GetSimpleString(context,nodes, "'", currentIndex, serrors);
 

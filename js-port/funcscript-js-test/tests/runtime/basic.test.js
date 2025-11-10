@@ -49,6 +49,11 @@ describe('Basic', () => {
     expect(toPlain(evalExpression('Reduce(Map([1,2,4],(x)=>x*x),(c,t)=>t+c,0)'))).to.equal(21);
   });
 
+  it('supports triple-quoted multiline strings', () => {
+    const result = evalExpression('"""one\ntwo"""');
+    expect(toPlain(result)).to.equal('one\ntwo');
+  });
+
   it('supports recursive lambdas', () => {
     expect(toPlain(evalExpression('{fib:(x)=>if(x<2,1,fib(x-2)+fib(x-1)); return fib(4);}'))).to.equal(5);
   });

@@ -45,14 +45,24 @@ public class BugAnalysis
     }
 
     [Test]
-    public void CommentHandling_Bug()
-    {
-        var exp = @"4//3 
+        public void CommentHandling_Bug()
+        {
+            var exp = @"4//3 
  +5;
 ";
-        var res = Engine.Evaluate(exp);
-        Assert.AreEqual(9, res);
-    }
+            var res = Engine.Evaluate(exp);
+            Assert.AreEqual(9, res);
+        }
+
+        [Test]
+        public void BlockCommentHandling()
+        {
+            var exp = @"4/*comment
+spanning*/
++5;";
+            var res = Engine.Evaluate(exp);
+            Assert.AreEqual(9, res);
+        }
 
     [Test]
     public void EvaluateSpateSeparatedExpression()

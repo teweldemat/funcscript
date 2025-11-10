@@ -47,7 +47,7 @@ const OPERATOR_SYMBOLS = [
   ['*', 'div', '/', '%'],
   ['+', '-'],
   ['>=', '<=', '!=', '>', '<', 'in'],
-  ['=', '??', '?!', '?.'],
+  ['==', '=', '??', '?!', '?.'],
   ['or', 'and'],
   ['|'],
   ['>>']
@@ -1412,6 +1412,13 @@ function getPrefixOperator(context, siblings, index) {
 
 // Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetStringTemplate.cs :: GetStringTemplate (entry)
 function getStringTemplate(context, siblings, index) {
+  const tripleBuffer = createNodeBuffer(siblings);
+  const tripleResult = getStringTemplateWithDelimiter(context, tripleBuffer, '"""', index);
+  if (tripleResult.hasProgress(index)) {
+    commitNodeBuffer(siblings, tripleBuffer);
+    return tripleResult;
+  }
+
   const doubleBuffer = createNodeBuffer(siblings);
   const doubleResult = getStringTemplateWithDelimiter(context, doubleBuffer, '"', index);
   if (doubleResult.hasProgress(index)) {

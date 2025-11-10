@@ -143,6 +143,14 @@ namespace FuncScript.Test
         }
 
         [Test]
+        public void TripleQuotedStringsSupportMultiline()
+        {
+            var exp = "\"\"\"one\\nTwo\"\"\"";
+            var result = AssertSingleResultType(exp, typeof(string));
+            Assert.AreEqual("one\nTwo", result);
+        }
+
+        [Test]
         [TestCase("null", null)]
         [TestCase("true", true)]
         [TestCase("TRue", true)]

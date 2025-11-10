@@ -103,18 +103,31 @@ function getLiteralMatch(expression, index, ...keywords) {
 // Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetCommentBlock.cs :: GetCommentBlock
 function getCommentBlock(context, siblings, index) {
   const expression = context.Expression;
-  const afterMarker = getLiteralMatch(expression, index, '//');
-  if (afterMarker === index) {
-    return index;
+  const afterLineMarker = getLiteralMatch(expression, index, '//');
+  if (afterLineMarker > index) {
+    let lineEnd = expression.indexOf('\n', afterLineMarker);
+    if (lineEnd === -1) {
+      lineEnd = expression.length;
+    } else {
+      lineEnd += 1;
+    }
+    siblings.push(new ParseNode(ParseNodeType.Comment, index, lineEnd - index));
+    return lineEnd;
   }
-  let end = expression.indexOf('\n', afterMarker);
-  if (end === -1) {
-    end = expression.length;
-  } else {
-    end += 1;
+
+  const afterBlockMarker = getLiteralMatch(expression, index, '/*');
+  if (afterBlockMarker > index) {
+    let blockEnd = expression.indexOf('*/', afterBlockMarker);
+    if (blockEnd === -1) {
+      blockEnd = expression.length;
+    } else {
+      blockEnd += 2;
+    }
+    siblings.push(new ParseNode(ParseNodeType.Comment, index, blockEnd - index));
+    return blockEnd;
   }
-  siblings.push(new ParseNode(ParseNodeType.Comment, index, end - index));
-  return end;
+
+  return index;
 }
 
 // Mirrors FuncScript/Parser/Syntax/FuncScriptParser.SkipSpace.cs :: SkipSpace
@@ -278,7 +291,10 @@ function getSimpleString(context, siblings, index, errors) {
     return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
   }
 
-  let result = getSimpleStringWithDelimiter(context, buffer, '"', currentIndex, errors);
+  let result = getSimpleStringWithDelimiter(context, buffer, '"""', currentIndex, errors);
+  if (result.NextIndex === currentIndex) {
+    result = getSimpleStringWithDelimiter(context, buffer, '"', currentIndex, errors);
+  }
   if (result.NextIndex === currentIndex) {
     result = getSimpleStringWithDelimiter(context, buffer, '\'', currentIndex, errors);
   }

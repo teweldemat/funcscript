@@ -3,11 +3,12 @@
 FuncScript registers every built-in helper under the symbols documented below. The names are case-sensitive and match how you call them inside scripts. Wherever an operator has both infix and function-call forms, you can use either (`1 + 2` or `+(1, 2)`).
 
 ## Arithmetic Operators
-- `+`, `-`, `*`, `/`, `%` – Standard arithmetic on integers, long integers, and floats; results are promoted to the widest numeric type involved.
+- `+`, `-`, `*`, `/`, `%` – Standard arithmetic on integers, long integers, and floats. Pure integer chains stay integral as long as each division is exact; otherwise values promote to floating point automatically.
+- `div` – Integer-only division; accepts only 32/64-bit integers (or their long forms) and truncates toward zero. Mixing with non-integers raises a type mismatch error.
 - `neg(value)` – Unary negation for numeric values.
 
 ## Comparison & Membership
-- `=`, `!=`, `<`, `<=`, `>`, `>=` – Comparisons returning `Boolean` values.
+- `=`, `==`, `!=`, `<`, `<=`, `>`, `>=` – Comparisons returning `Boolean` values (`==` is an alias for `=`).
 - `in(value, listOrText)` – Membership test for lists and strings.
 
 ## Null & Safe Access Operators

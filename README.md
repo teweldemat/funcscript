@@ -64,9 +64,12 @@ Script files are case-insensitive and expression-oriented. Common constructs inc
 - **Blocks**: `{ items:[1,2,3]; return Sum(items); }`
 - **Lambdas**: `(x)=>x*x` or `(row, index)=>{ ... }`
 - **String templates**: `f"Hello {name}!"`
+- **Strings**: standard `'single'`/`"double"` literals or triple-quoted `"""multi-line"""` blocks when you need verbatim text
 - **Collections**: Lists `[1, 2, 3]` and records `{name:"Ada", skills:["math","logic"]}`
 - **Control**: `If`, `Switch`, `Case`, `fault` for structured errors
 - **Functions**: `Map`, `Reduce`, `Filter`, `Distinct`, `Take`, `JoinText`, `Format`, `TicksToDate`, `point`, and many more
+- **Operators**: `/` promotes to floating point if a remainder appears, while `div` performs integer-only division (accepting only 32/64-bit integers) and `==` is a synonym for `=` when comparing values
+- **Comments**: both `// inline` and `/* multi-line */` styles are supported wherever whitespace is allowed
 
 A more elaborate example lives in `FuncScript/TestFormula.text`, where a payroll table is generated via mapping and HTML string templates.
 

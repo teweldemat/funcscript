@@ -12,6 +12,14 @@ namespace FuncScript.Core
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
 
+            var tripleBuffer = CreateNodeBuffer(siblings);
+            var tripleResult = GetStringTemplate(context, tripleBuffer, "\"\"\"", index);
+            if (tripleResult.HasProgress(index))
+            {
+                CommitNodeBuffer(siblings, tripleBuffer);
+                return tripleResult;
+            }
+
             var doubleBuffer = CreateNodeBuffer(siblings);
             var doubleResult = GetStringTemplate(context, doubleBuffer, "\"", index);
             if (doubleResult.HasProgress(index))

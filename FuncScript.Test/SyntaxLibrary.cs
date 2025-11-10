@@ -64,6 +64,8 @@ namespace FuncScript.Test
         [TestCase("3=3.0", true)]
 
         [TestCase("3=3.0", true)]  //= different int and double
+        [TestCase("1==1", true)]
+        [TestCase("1==2", false)]
 
 
         [TestCase("3=\"3.0\"", false)]  //string to the mix
@@ -115,6 +117,7 @@ namespace FuncScript.Test
 
         [TestCase("1+2//that is it", 3)]
         [TestCase("1+2//that is it\n+5", 8)]
+        [TestCase("1+/*multi\nline*/2", 3)]
 
         [TestCase(@"3%2", 1)] //modulo functoin
         [TestCase(@"2%2", 0)]

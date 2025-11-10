@@ -88,7 +88,7 @@ const { ErrorFunction } = require('./misc/error-function');
 module.exports = function buildBrowserBuiltinMap() {
   const entries = [
     { fn: new IFFunction(), names: ['if'] },
-    { fn: new EqualsFunction(), names: ['='] },
+    { fn: new EqualsFunction(), names: ['=', '=='] },
     { fn: new NotEqualsFunction(), names: ['!='] },
     { fn: new GreaterThanFunction(), names: ['>'] },
     { fn: new GreaterThanOrEqualFunction(), names: ['>='] },

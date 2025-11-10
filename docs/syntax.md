@@ -24,6 +24,19 @@ Records are written with braces. Values can be literals or expressions:
 { gross: 5200; rate: 0.13; net: gross * (1 - rate) }
 ```
 
+## Strings & Templates
+Triple-quoted strings keep verbatim newlines and quotes, which is convenient for large blocks of text:
+
+```funcscript
+{
+  prose: """Dear team,
+The build succeeded.
+Thanks!"""
+}
+```
+
+Standard `'single'` and `"double"` literals remain available, and string templates still use the `f"..."` prefix to embed expressions.
+
 ## Function expressions
 Lambda-style functions use the `(parameters) => body` syntax. They can appear anywhere a value is expected, including inside key/value pairs. When you only need the function as a helper, use `return` to emit just the computed result:
 
@@ -49,6 +62,17 @@ When a block uses `return`, the overall value collapses to the expression that f
 ```
 
 Evaluating the block above produces `4524`, because execution stops at the returned expression and only the bindings required to compute `net` are evaluated.
+
+## Comments
+Use either `// inline` or `/* multi-line */` comments anywhere whitespace is permitted:
+
+```funcscript
+{
+  subtotal: 42;
+  total: subtotal + 8; // sales tax
+  final: total /* currency already normalized */
+}
+```
 
 ## If expression
 Conditional logic uses explicit keywords:

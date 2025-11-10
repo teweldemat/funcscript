@@ -10,18 +10,26 @@ namespace FuncScript.Core
                 throw new ArgumentNullException(nameof(context));
 
             var exp = context.Expression;
-            var i = GetLiteralMatch(exp, index, "//");
-            if (i == index)
-                return index;
-            var i2 = exp.IndexOf("\n", i);
-            if (i2 == -1)
-                i = exp.Length;
-            else
-                i = i2 + 1;
 
-            var text = exp.Substring(index, i - index);
-            siblings.Add(new ParseNode(ParseNodeType.Comment,index,i-index));
-            return i;
+            var lineCommentStart = GetLiteralMatch(exp, index, "//");
+            if (lineCommentStart > index)
+            {
+                var newLineIndex = exp.IndexOf("\n", lineCommentStart);
+                var nextIndex = newLineIndex == -1 ? exp.Length : newLineIndex + 1;
+                siblings.Add(new ParseNode(ParseNodeType.Comment, index, nextIndex - index));
+                return nextIndex;
+            }
+
+            var blockCommentStart = GetLiteralMatch(exp, index, "/*");
+            if (blockCommentStart > index)
+            {
+                var endIndex = exp.IndexOf("*/", blockCommentStart, StringComparison.Ordinal);
+                var nextIndex = endIndex == -1 ? exp.Length : endIndex + 2;
+                siblings.Add(new ParseNode(ParseNodeType.Comment, index, nextIndex - index));
+                return nextIndex;
+            }
+
+            return index;
         }
 
     }

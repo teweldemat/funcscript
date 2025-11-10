@@ -47,4 +47,10 @@ describe('BugAnalysis', () => {
     const result = evaluate(exp, new DefaultFsDataProvider());
     expect(valueOf(result)).to.equal(9);
   });
+
+  it('evaluates expression with block comments correctly', () => {
+    const exp = '4/*3*/\n +5;';
+    const result = evaluate(exp, new DefaultFsDataProvider());
+    expect(valueOf(result)).to.equal(9);
+  });
 });

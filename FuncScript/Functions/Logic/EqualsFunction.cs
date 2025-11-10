@@ -4,6 +4,7 @@ using FuncScript.Model;
 
 namespace FuncScript.Functions.Logic
 {
+    [FunctionAlias("==")]
     public class EqualsFunction : IFsFunction
     {
         public int MaxParsCount => 2;
