@@ -33,7 +33,7 @@ dotnet build FuncScript.sln
 dotnet run --project FuncScript.Cli -- "(2 + 3) * 4"
 
 # Evaluate a block with variables and built-in helpers
-dotnet run --project FuncScript.Cli -- "{ rate:0.13; net:(gross)=>gross*(1-rate); return net(12500); }"
+dotnet run --project FuncScript.Cli -- "{ rate:0.13; net:(gross)=>gross*(1-rate); eval net(12500); }"
 ```
 
 ### Embed in Your Application
@@ -49,7 +49,7 @@ var globals = new DefaultFsDataProvider(new List<KeyValuePair<string, object>>
     new KeyValuePair<string, object>("format", (Func<object,string>)(value => string.Format("{0:#,#0.00}", value)))
 });
 
-var expression = "{ net:(gross)=>gross*(1-taxRate); return format(net(gross)); }";
+var expression = "{ net:(gross)=>gross*(1-taxRate); eval format(net(gross)); }";
 var context = new ObjectKvc(new { gross = 5200 });
 var result = FuncScript.Engine.Evaluate(new KvcProvider(context, globals), expression);
 
@@ -61,7 +61,7 @@ The runtime normalizes .NET values so that primitive types, lists, key-value col
 
 ## Language at a Glance
 Script files are case-insensitive and expression-oriented. Common constructs include:
-- **Blocks**: `{ items:[1,2,3]; return Sum(items); }`
+- **Blocks**: `{ items:[1,2,3]; eval Sum(items); }`
 - **Lambdas**: `(x)=>x*x` or `(row, index)=>{ ... }`
 - **String templates**: `f"Hello {name}!"`
 - **Strings**: standard `'single'`/`"double"` literals or triple-quoted `"""multi-line"""` blocks when you need verbatim text
@@ -70,6 +70,8 @@ Script files are case-insensitive and expression-oriented. Common constructs inc
 - **Functions**: `Map`, `Reduce`, `Filter`, `Distinct`, `Take`, `JoinText`, `Format`, `TicksToDate`, `point`, and many more
 - **Operators**: `/` promotes to floating point if a remainder appears, while `div` performs integer-only division (accepting only 32/64-bit integers) and `==` is a synonym for `=` when comparing values
 - **Comments**: both `// inline` and `/* multi-line */` styles are supported wherever whitespace is allowed
+
+A new `eval` keyword now serves as the preferred way to emit the final value from a block. The historical `return` keyword continues to work for existing scripts but will be phased out in a future release.
 
 A more elaborate example lives in `FuncScript/TestFormula.text`, where a payroll table is generated via mapping and HTML string templates.
 

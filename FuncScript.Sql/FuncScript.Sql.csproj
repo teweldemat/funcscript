@@ -10,7 +10,7 @@
 
   <PropertyGroup>
     <PackageId>Tewelde.FuncScript.Sql</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
     <Authors>Tewelde Ma. Tegegne</Authors>
     <Company>FuncScript</Company>
     <Description>SQL Server and NetTopologySuite helpers for the FuncScript runtime.</Description>

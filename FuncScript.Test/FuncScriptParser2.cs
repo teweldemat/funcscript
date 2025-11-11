@@ -77,6 +77,25 @@ namespace FuncScript.Test
         }
 
         [Test]
+        public void KeyValueCollection_WithEvalClause_SetsReturnExpression()
+        {
+            const string expression = "{foo: 1; eval foo;}";
+            var (result, errors) = ParseExpression(expression);
+
+            Assert.That(errors, Is.Empty, "Eval clause should parse without errors");
+            Assert.That(result.ParseNode, Is.Not.Null);
+            Assert.That(result.NextIndex, Is.EqualTo(expression.Length));
+            Assert.That(result.ExpressionBlock, Is.TypeOf<KvcExpression>());
+
+            var block = (KvcExpression)result.ExpressionBlock;
+            Assert.That(block.singleReturn, Is.Not.Null, "Eval expression should be captured like return");
+
+            var keywordNode = EnumerateNodes(result.ParseNode)
+                .FirstOrDefault(n => n.NodeType == ParseNodeType.KeyWord && n.Length == 4);
+            Assert.That(keywordNode, Is.Not.Null, "Eval keyword should be present in the parse tree");
+        }
+
+        [Test]
         public void KeyValueCollection_KeyOnlyEntry_CreatesReferenceBlock()
         {
             const string expression = "{foo; return foo;}";

@@ -410,3 +410,4 @@ js-port/funcscript-studio/.npm-cache
 .venv-docs
 js-port/fd-player/dist
 js-port/funcscript-js/.npm-cache
+js-port/funcscript-vscode/dist

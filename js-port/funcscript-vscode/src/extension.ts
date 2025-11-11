@@ -49,7 +49,6 @@ const NODE_TYPE_TOKEN: NodeTypeClassifier = {
   IfExpression: 'keyword',
   LiteralString: 'string',
   StringTemplate: 'string',
-  KeyValuePair: 'property',
   KeyValueCollection: 'property',
   List: 'variable',
   Key: 'property',
@@ -69,7 +68,13 @@ const NODE_TYPE_TOKEN: NodeTypeClassifier = {
 
 const FALLBACK_TOKEN: TokenType = 'variable';
 
-const SKIP_NODE_TYPES = new Set<string>(['RootExpression', 'WhiteSpace', 'InfixExpression', 'GeneralInfixExpression']);
+const SKIP_NODE_TYPES = new Set<string>([
+  'RootExpression',
+  'WhiteSpace',
+  'InfixExpression',
+  'GeneralInfixExpression',
+  'KeyValuePair'
+]);
 
 const outputChannelId = 'FuncScript';
 let outputChannel: vscode.OutputChannel | undefined;

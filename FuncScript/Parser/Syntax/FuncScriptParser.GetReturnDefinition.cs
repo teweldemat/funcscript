@@ -16,14 +16,18 @@ namespace FuncScript.Core
 
             var childNodes = new List<ParseNode>();
             var keywordResult = GetKeyWord(context, childNodes, index, KW_RETURN);
-            if (keywordResult==index)
-                return ParseBlockResult.NoAdvance(index);
+            if (keywordResult == index)
+            {
+                keywordResult = GetKeyWord(context, childNodes, index, KW_EVAL);
+                if (keywordResult == index)
+                    return ParseBlockResult.NoAdvance(index);
+            }
 
             var currentIndex = keywordResult;
             var valueResult = GetExpression(context, childNodes, currentIndex);
             if (!valueResult.HasProgress(currentIndex) || valueResult.ExpressionBlock == null)
             {
-                errors.Add(new SyntaxErrorData(currentIndex, 0, "return expression expected"));
+                errors.Add(new SyntaxErrorData(currentIndex, 0, "return/eval expression expected"));
                 return ParseBlockResult.NoAdvance(index);
             }
 

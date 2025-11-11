@@ -19,6 +19,7 @@ const categoryColors = {
     punctuation: '#D4D4D4',
     comment: '#6A9955',
     type: '#4EC9B0',
+    kvKey: '#C586C0',
     boolean: '#569CD6',
     default: '#D4D4D4',
     whitespace: null
@@ -44,7 +45,7 @@ const explicitNodeTypeCategory = new Map([
     ['FunctionCall', 'function'],
     ['Identifier', 'identifier'],
     ['IdentiferList', 'identifier'],
-    ['Key', 'identifier'],
+    ['Key', 'kvKey'],
     ['Selection', 'identifier'],
     ['MemberAccess', 'identifier'],
     ['Operator', 'operator'],
@@ -129,6 +130,66 @@ const sanitizeRange = (start, end, length) => {
     const safeEnd = Math.max(safeStart, Math.min(end, length));
     return safeEnd > safeStart ? { start: safeStart, end: safeEnd } : null;
 };
+const getNodeType = (node) => {
+    if (!node) {
+        return '';
+    }
+    const type = node.NodeType ?? node.nodeType ?? node.Type ?? node.type;
+    return typeof type === 'string' ? type : '';
+};
+const getChildNodes = (node) => {
+    if (!node) {
+        return [];
+    }
+    const candidates = node.Childs ?? node.childs ?? node.Children ?? node.children;
+    return Array.isArray(candidates) ? candidates : [];
+};
+const toNodeRange = (node, length) => {
+    if (!node) {
+        return null;
+    }
+    const pos = typeof node.Pos === 'number' ? node.Pos : typeof node.pos === 'number' ? node.pos : null;
+    const len = typeof node.Length === 'number'
+        ? node.Length
+        : typeof node.length === 'number'
+            ? node.length
+            : null;
+    if (pos === null || len === null) {
+        return null;
+    }
+    return sanitizeRange(pos, pos + len, length);
+};
+const isSkippableKeyNodeType = (nodeTypeRaw) => {
+    const normalized = nodeTypeRaw.trim().toLowerCase();
+    return normalized.length === 0 || normalized.includes('whitespace') || normalized.includes('comment');
+};
+const collectKeyRanges = (root, expressionLength) => {
+    if (!root || typeof root !== 'object' || expressionLength <= 0) {
+        return [];
+    }
+    const ranges = [];
+    const stack = [root];
+    while (stack.length) {
+        const current = stack.pop();
+        if (!current || typeof current !== 'object') {
+            continue;
+        }
+        const nodeType = getNodeType(current);
+        if (nodeType === 'KeyValuePair') {
+            const keyNode = getChildNodes(current).find((child) => !isSkippableKeyNodeType(getNodeType(child)));
+            if (keyNode) {
+                const range = toNodeRange(keyNode, expressionLength);
+                if (range) {
+                    ranges.push(range);
+                }
+            }
+        }
+        for (const child of getChildNodes(current)) {
+            stack.push(child);
+        }
+    }
+    return ranges.sort((a, b) => a.start - b.start);
+};
 export function computeColoredSegments(expression, parseNode) {
     const length = expression.length;
     if (!parseNode || length === 0) {
@@ -143,6 +204,15 @@ export function computeColoredSegments(expression, parseNode) {
             ]
             : [];
     }
+    const keyRanges = collectKeyRanges(parseNode, length);
+    let keyRangeIndex = 0;
+    const isKeySegment = (start, end) => {
+        while (keyRangeIndex < keyRanges.length && keyRanges[keyRangeIndex].end <= start) {
+            keyRangeIndex += 1;
+        }
+        const range = keyRanges[keyRangeIndex];
+        return Boolean(range && range.start < end && range.end > start);
+    };
     let rawSegments = [];
     try {
         const segments = Engine.colorParseTree(parseNode);
@@ -198,12 +268,13 @@ export function computeColoredSegments(expression, parseNode) {
             });
         }
         if (end > start) {
-            const color = getSegmentColor(segment.nodeType);
+            const nodeType = isKeySegment(start, end) ? 'Key' : segment.nodeType;
+            const color = getSegmentColor(nodeType);
             if (!color) {
                 segments.push({
                     start,
                     end,
-                    nodeType: segment.nodeType,
+                    nodeType,
                     color: null
                 });
             }
@@ -211,7 +282,7 @@ export function computeColoredSegments(expression, parseNode) {
                 segments.push({
                     start,
                     end,
-                    nodeType: segment.nodeType,
+                    nodeType,
                     color
                 });
             }

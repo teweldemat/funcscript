@@ -77,7 +77,6 @@ const NODE_TYPE_TOKEN = {
     IfExpression: 'keyword',
     LiteralString: 'string',
     StringTemplate: 'string',
-    KeyValuePair: 'property',
     KeyValueCollection: 'property',
     List: 'variable',
     Key: 'property',
@@ -95,7 +94,13 @@ const NODE_TYPE_TOKEN = {
     Colon: 'operator'
 };
 const FALLBACK_TOKEN = 'variable';
-const SKIP_NODE_TYPES = new Set(['RootExpression', 'WhiteSpace', 'InfixExpression', 'GeneralInfixExpression']);
+const SKIP_NODE_TYPES = new Set([
+    'RootExpression',
+    'WhiteSpace',
+    'InfixExpression',
+    'GeneralInfixExpression',
+    'KeyValuePair'
+]);
 const outputChannelId = 'FuncScript';
 let outputChannel;
 const log = (message) => {

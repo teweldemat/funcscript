@@ -60,7 +60,7 @@ const PREFIX_OPERATORS = [
 ];
 
 // Mirrors FuncScript/Parser/FuncScriptParser.Main.cs keyword initialization
-const KEYWORDS = new Set(['return', 'fault', 'case', 'switch', 'then', 'else']);
+const KEYWORDS = new Set(['return', 'eval', 'fault', 'case', 'switch', 'then', 'else']);
 
 function unwrapRootNode(node) {
   if (!node) {
@@ -843,16 +843,19 @@ function getReturnDefinition(context, siblings, index) {
   }
 
   const childNodes = [];
-  const keywordResult = getKeyWord(context, childNodes, index, 'return');
+  let keywordResult = getKeyWord(context, childNodes, index, 'return');
   if (keywordResult === index) {
-    return ParseResult.noAdvance(index);
+    keywordResult = getKeyWord(context, childNodes, index, 'eval');
+    if (keywordResult === index) {
+      return ParseResult.noAdvance(index);
+    }
   }
 
   let currentIndex = keywordResult;
   currentIndex = skipSpace(context, childNodes, currentIndex);
   const valueResult = getExpression(context, childNodes, currentIndex);
   if (!valueResult.hasProgress(currentIndex) || !valueResult.ExpressionBlock) {
-    context.ErrorsList.push(new SyntaxErrorData(currentIndex, 0, 'return expression expected'));
+    context.ErrorsList.push(new SyntaxErrorData(currentIndex, 0, 'return/eval expression expected'));
     return ParseResult.noAdvance(index);
   }
 

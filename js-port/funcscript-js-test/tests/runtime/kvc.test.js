@@ -27,6 +27,11 @@ describe('KvcTests', () => {
     expect(toPlain(result)).to.equal(15);
   });
 
+  it('resolves eval expression', () => {
+    const result = evaluate('{a:3,c:5,d:a*c,eval d}', provider);
+    expect(toPlain(result)).to.equal(15);
+  });
+
   it('selector expression keeps references', () => {
     const result = evaluate('{a:4,b:5,c:6}{a,c}', provider);
     expect(toPlain(result)).to.deep.equal({ a: 4, c: 6 });

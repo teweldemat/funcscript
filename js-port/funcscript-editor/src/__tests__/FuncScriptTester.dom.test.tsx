@@ -8,9 +8,10 @@ import FuncScriptTester from '../FuncScriptTester.js';
 type TesterHarnessProps = {
   initialValue?: string;
   saveKey?: string;
+  mode?: 'standard' | 'tree';
 };
 
-const TesterHarness = ({ initialValue = 'sin(x)', saveKey }: TesterHarnessProps) => {
+const TesterHarness = ({ initialValue = 'sin(x)', saveKey, mode = 'standard' }: TesterHarnessProps) => {
   const [value, setValue] = useState(initialValue);
   return (
     <FuncScriptTester
@@ -19,6 +20,7 @@ const TesterHarness = ({ initialValue = 'sin(x)', saveKey }: TesterHarnessProps)
       minHeight={160}
       style={{ height: 240 }}
       saveKey={saveKey}
+      initialMode={mode}
     />
   );
 };
@@ -42,9 +44,7 @@ afterEach(() => {
 describe('FuncScriptTester tree workflow', () => {
   it('collapses parse tree nodes by default', async () => {
     const user = userEvent.setup();
-    render(<TesterHarness />);
-
-    await user.click((await screen.findAllByRole('button', { name: 'Tree' }))[0]);
+    render(<TesterHarness mode="tree" />);
 
     const treeEditor = await screen.findByTestId('tester-tree-editor');
     expect(within(treeEditor).queryByRole('button', { name: /^x$/ })).toBeNull();
@@ -59,9 +59,7 @@ describe('FuncScriptTester tree workflow', () => {
 
   it('applies node edits back to the full expression', async () => {
     const user = userEvent.setup();
-    const { container } = render(<TesterHarness />);
-
-    await user.click((await screen.findAllByRole('button', { name: 'Tree' }))[0]);
+    const { container } = render(<TesterHarness mode="tree" />);
 
     const treeEditor = await screen.findByTestId('tester-tree-editor');
 
@@ -116,9 +114,7 @@ describe('FuncScriptTester tree workflow', () => {
 
   it('clears node syntax errors after successful apply', async () => {
     const user = userEvent.setup();
-    render(<TesterHarness initialValue="sin(abc)" />);
-
-    await user.click((await screen.findAllByRole('button', { name: 'Tree' }))[0]);
+    render(<TesterHarness initialValue="sin(abc)" mode="tree" />);
 
     const treeEditor = await screen.findByTestId('tester-tree-editor');
     const expandToggle = await within(treeEditor).findByRole('button', {
@@ -164,9 +160,7 @@ describe('FuncScriptTester tree workflow', () => {
 
   it('supports collapsing and expanding tree nodes', async () => {
     const user = userEvent.setup();
-    render(<TesterHarness />);
-
-    await user.click((await screen.findAllByRole('button', { name: 'Tree' }))[0]);
+    render(<TesterHarness mode="tree" />);
 
     const treeEditor = await screen.findByTestId('tester-tree-editor');
     expect(within(treeEditor).queryByRole('button', { name: /^x$/ })).toBeNull();
@@ -197,9 +191,7 @@ describe('FuncScriptTester tree workflow', () => {
 
   it('persists tree state when saveKey is provided', async () => {
     const user = userEvent.setup();
-    const { unmount } = render(<TesterHarness saveKey="persist-test" />);
-
-    await user.click((await screen.findAllByRole('button', { name: 'Tree' }))[0]);
+    const { unmount } = render(<TesterHarness saveKey="persist-test" mode="tree" />);
 
     const treeEditor = await screen.findByTestId('tester-tree-editor');
     expect(within(treeEditor).queryByRole('button', { name: /^x$/ })).toBeNull();
@@ -225,7 +217,7 @@ describe('FuncScriptTester tree workflow', () => {
 
     unmount();
 
-    render(<TesterHarness saveKey="persist-test" />);
+    render(<TesterHarness saveKey="persist-test" mode="tree" />);
 
     await screen.findByTestId('tester-tree-editor');
     expect(screen.queryByRole('button', { name: /^x$/ })).toBeNull();
@@ -242,9 +234,7 @@ describe('FuncScriptTester tree workflow', () => {
 
   it('keeps the current node selected when a syntax error is present', async () => {
     const user = userEvent.setup();
-    render(<TesterHarness />);
-
-    await user.click((await screen.findAllByRole('button', { name: 'Tree' }))[0]);
+    render(<TesterHarness mode="tree" />);
 
     const treeEditor = await screen.findByTestId('tester-tree-editor');
     const expandToggle = await within(treeEditor).findByRole('button', {

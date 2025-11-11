@@ -1272,6 +1272,7 @@ export type FuncScriptTesterProps = Omit<FuncScriptEditorProps, 'onParseModelCha
   saveKey?: string;
   variables?: FuncScriptTesterVariableInput[];
   onVariablesChange?: (variables: FuncScriptTesterVariableInput[]) => void;
+  initialMode?: 'standard' | 'tree';
 };
 
 const FuncScriptTester = ({
@@ -1283,7 +1284,8 @@ const FuncScriptTester = ({
   style,
   saveKey,
   variables: externalVariables,
-  onVariablesChange
+  onVariablesChange,
+  initialMode = 'standard'
 }: FuncScriptTesterProps) => {
   const [variables, setVariables] = useState<Map<string, VariableState>>(() => new Map());
   const variablesRef = useRef<Map<string, VariableState>>(variables);
@@ -1293,7 +1295,11 @@ const FuncScriptTester = ({
 
   const initialPersistedState = useMemo(() => (saveKey ? loadPersistedState(saveKey) : null), [saveKey]);
 
-  const [mode, setMode] = useState<'standard' | 'tree'>(initialPersistedState?.mode ?? 'standard');
+  const resolvedInitialMode = initialMode === 'tree' ? 'tree' : 'standard';
+
+  const [mode, setMode] = useState<'standard' | 'tree'>(
+    initialPersistedState?.mode ?? resolvedInitialMode
+  );
   const [collapsedNodeIds, setCollapsedNodeIds] = useState<Set<string>>(() => new Set());
   const [showTestingControls, setShowTestingControls] = useState<boolean>(
     initialPersistedState?.showTesting ?? false
@@ -1375,7 +1381,7 @@ const FuncScriptTester = ({
 
   useEffect(() => {
     if (!saveKey) {
-      setMode((prev) => (prev === 'standard' ? prev : 'standard'));
+      setMode((prev) => (prev === resolvedInitialMode ? prev : resolvedInitialMode));
       collapsedInitializedRef.current = false;
       initialAutoSelectRef.current = true;
       setCollapsedNodeIds((prev) => (prev.size === 0 ? prev : new Set<string>()));
@@ -1383,12 +1389,12 @@ const FuncScriptTester = ({
       return;
     }
     const stored = loadPersistedState(saveKey);
-    setMode((prev) => (prev === 'standard' ? prev : 'standard'));
+    setMode((prev) => (prev === resolvedInitialMode ? prev : resolvedInitialMode));
     setShowTestingControls(stored?.showTesting ?? false);
     collapsedInitializedRef.current = false;
     initialAutoSelectRef.current = true;
     setCollapsedNodeIds((prev) => (prev.size === 0 ? prev : new Set<string>()));
-  }, [saveKey]);
+  }, [saveKey, resolvedInitialMode]);
 
   useEffect(() => {
     if (!saveKey) {
@@ -1497,7 +1503,12 @@ const FuncScriptTester = ({
       hasSynchronizedExternalRef.current = true;
       return;
     }
+    const emittedMatch = serialized === lastEmittedVariablesRef.current;
     lastExternalVariablesRef.current = serialized;
+    if (emittedMatch) {
+      hasSynchronizedExternalRef.current = true;
+      return;
+    }
     const nextMap = createMapFromExternal(sanitized);
     let changed = false;
     setVariables((prev) => {

@@ -38,23 +38,24 @@ Thanks!"""
 Standard `'single'` and `"double"` literals remain available, and string templates still use the `f"..."` prefix to embed expressions.
 
 ## Function expressions
-Lambda-style functions use the `(parameters) => body` syntax. They can appear anywhere a value is expected, including inside key/value pairs. When you only need the function as a helper, use `return` to emit just the computed result:
+Lambda-style functions use the `(parameters) => body` syntax. They can appear anywhere a value is expected, including inside key/value pairs:
 
 ```funcscript
 {
   f: (x) => x * x + 2;
-  return f(3);
+  helper: (y) => f(y) + 4;
+  result: helper(3);
 }
 ```
 
-This evaluates to `11`, and the function itself is kept internal to the block.
+Functions are values themselves—store them in a variable, pass them to higher‑order helpers, or return them from other functions. Use key/value collections (see next section) when you need the block itself to evaluate to a different expression.
 
-## Key value collection with return expression
-When a block uses `return`, the overall value collapses to the expression that follows the keyword. The `return` directive can appear anywhere inside the block—the evaluation engine starts from that expression, resolves any referenced bindings regardless of their textual order, and ignores unrelated bindings:
+## Key value collection with eval expression
+Key/value collections normally evaluate to an object containing every binding. Marking one binding with `eval` turns the entire block into a special form that evaluates to that expression instead of the surrounding record. The `eval` directive can appear anywhere in the block—the evaluation engine starts from that expression, resolves only the referenced bindings (regardless of order), and ignores irrelevant ones. The older `return` keyword still works for backwards compatibility but is slated for deprecation, so prefer `eval` in new code:
 
 ```funcscript
 {
-  return net;
+  eval net;
   gross: 5200;
   rate: 0.13;
   net: gross * (1 - rate);

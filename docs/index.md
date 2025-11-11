@@ -5,8 +5,8 @@ an expression system so you can compute new values without changing the familiar
 chapter shows how FuncScript extends JSON into a programmable superset and sets the stage for the
 rest of the manual.
 
-## JSON, Upgraded
-Think of FuncScript as "JSON with superpowers." Every valid JSON document already parses:
+## JSON Extended
+Think of FuncScript as "JSON with superpowers." Every valid JSON document already parses as valid FuncScript:
 
 ```funcscript
 { a: 3; b: 4 }
@@ -47,4 +47,4 @@ back into JSON pipelines, APIs, or templating systems.
 
 ## Hosted Demos
 - [FuncScript Tester](web/funcscript-studio/)
-- [FuncDraw](https://funcdraw.com) — a separately maintained drawing application that uses FuncScript to define graphical models
+- [FuncDraw](https://www.funcdraw.app) — a separately maintained drawing application that uses FuncScript to define graphical models

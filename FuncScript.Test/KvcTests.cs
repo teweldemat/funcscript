@@ -39,6 +39,15 @@ namespace FuncScript.Test
         }
 
         [Test]
+        public void TestKvcEval()
+        {
+            var g = new DefaultFsDataProvider();
+            var res = FuncScriptRuntime.Evaluate(g, "{a:3,c:5,d:a*c,eval d}");
+            var expected = 15;
+            Assert.AreEqual(expected, res);
+        }
+
+        [Test]
         public void TestKvcIdenOnly()
         {
             var g = new DefaultFsDataProvider();

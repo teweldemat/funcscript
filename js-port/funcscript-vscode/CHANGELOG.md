@@ -1,5 +1,8 @@
 # Change Log
 
+## 0.2.1
+- Version alignment with the FuncScript 0.2.1 release.
+
 ## 0.2.0
 - Associate `.fs` files with the FuncScript language definition and icon theme.
 

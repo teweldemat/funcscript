@@ -104,6 +104,7 @@ namespace FuncScript.Core
             { new string[] { "!", NotFunction.SYMBOL }, new string[] { "-", NegateFunction.SYMBOL } };
 
         const string KW_RETURN = "return";
+        const string KW_EVAL = "eval";
         const string KW_CASE = "case";
         const string KW_SWITCH = "switch";
         private const string KW_ERROR = "fault";
@@ -114,6 +115,7 @@ namespace FuncScript.Core
         {
             s_KeyWords = new HashSet<string>();
             s_KeyWords.Add(KW_RETURN);
+            s_KeyWords.Add(KW_EVAL);
             s_KeyWords.Add(KW_ERROR);
             s_KeyWords.Add(KW_CASE);
             s_KeyWords.Add(KW_SWITCH);
