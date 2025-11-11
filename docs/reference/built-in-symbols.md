@@ -85,7 +85,7 @@ All numeric helpers belong to the `math` provider collection, so you can call th
 
 ## Diagnostics & Miscellaneous
 - `guid()` – Generate a GUID string.
-- `log(value)` – Emit diagnostics through the host logging pipeline.
+- `log(value, messageOrHandler?)` – Returns `value` after optionally printing `messageOrHandler` or, when it is a function, invoking it with `value`.
 - `error(message)` – Raise a runtime error and stop evaluation.
 
 ## Values & Constants

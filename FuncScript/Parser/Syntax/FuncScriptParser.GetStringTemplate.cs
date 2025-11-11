@@ -117,6 +117,9 @@ namespace FuncScript.Core
                         buffer.Clear();
                     }
 
+                    nodeParts.Add(new ParseNode(ParseNodeType.OpenBrace, currentIndex,
+                        afterExpressionStart - currentIndex));
+
                     var expressionIndex = afterExpressionStart;
                     var expressionResult = GetExpression(context, nodeParts, expressionIndex);
                     if (!expressionResult.HasProgress(expressionIndex) || expressionResult.ExpressionBlock == null)

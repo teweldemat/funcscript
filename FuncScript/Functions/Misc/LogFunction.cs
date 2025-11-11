@@ -1,10 +1,6 @@
 ﻿using FuncScript.Core;
 using FuncScript.Model;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace FuncScript.Functions.Misc
 {
@@ -35,7 +31,23 @@ namespace FuncScript.Functions.Misc
     }
     public class LogFunction : IFsFunction
     {
-        
+        class SingleValueParameterList : IParameterList
+        {
+            private readonly object _value;
+
+            public SingleValueParameterList(object value)
+            {
+                _value = value;
+            }
+
+            public override int Count => 1;
+
+            public override object GetParameter(IFsDataProvider provider, int index)
+            {
+                return index == 0 ? _value : null;
+            }
+        }
+
         public int MaxParsCount => 2;
 
         public CallType CallType => CallType.Infix;
@@ -49,41 +61,32 @@ namespace FuncScript.Functions.Misc
             if (pars.Count == 0)
                 throw new Error.EvaluationTimeException($"{this.Symbol} function: {this.ParName(0)} expected");
 
-            var tag = pars.Count > 1 ? $"({pars.GetParameter(parent, 1).ToString()})" : "";
-            var output = pars.Count > 2 ? (pars.GetParameter(parent, 2) is bool ? (bool)pars.GetParameter(parent, 2) : false) : true;
-            Fslogger.DefaultLogger.WriteLine($"FuncScript: Evaluating {tag}");
-            try
+            if (pars.Count > this.MaxParsCount)
+                throw new Error.EvaluationTimeException($"{this.Symbol} function: Invalid parameter count. Expected at most {this.MaxParsCount}, but got {pars.Count}");
+
+            var value = pars.GetParameter(parent, 0);
+
+            if (pars.Count > 1)
             {
-                var res = pars.GetParameter(parent, 0);
-                if (output)
+                var handlerOrMessage = pars.GetParameter(parent, 1);
+                if (handlerOrMessage is IFsFunction handler)
                 {
-                    Fslogger.DefaultLogger.WriteLine($"FuncScript: Result{tag}:\n{(res == null ? "<null>" : res.ToString())}");
-                    Fslogger.DefaultLogger.WriteLine($"End Result {tag}");
+                    handler.Evaluate(parent, new SingleValueParameterList(value));
                 }
                 else
-                    Fslogger.DefaultLogger.WriteLine($"Done {tag}");
-                return res;
-            }
-            catch (Exception ex)
-            {
-                Fslogger.DefaultLogger.WriteLine($"FuncScript: Error evaluating {tag}");
-                var thisEx = ex;
-                while (thisEx != null)
                 {
-                    Fslogger.DefaultLogger.WriteLine(thisEx.Message);
-                    Fslogger.DefaultLogger.WriteLine(thisEx.StackTrace);
-                    thisEx = thisEx.InnerException;
+                    Fslogger.DefaultLogger?.WriteLine(handlerOrMessage?.ToString() ?? "<null>");
                 }
-                throw;
             }
+
+            return value;
         }
         public string ParName(int index)
         {
             switch(index)
             {
-                case 0: return "expression";
-                case 1: return "tag";
-                case 2: return "output";
+                case 0: return "value";
+                case 1: return "messageOrHandler";
                 default:return null;
             }
         }

@@ -46,6 +46,17 @@ function asList(typedValue) {
   return new ArrayFsList([typedValue]);
 }
 
+function throwFromFsError(fsError) {
+  if (!fsError) {
+    throw new Error('Unsupported operand types for +');
+  }
+  const snippet = fsError.errorData && typeof fsError.errorData.expression === 'string' ? fsError.errorData.expression : null;
+  const trimmed = snippet ? snippet.trim() : null;
+  const suffix = trimmed ? ` (Evaluation error at '${trimmed}')` : '';
+  const base = fsError.errorMessage || fsError.toString() || 'Evaluation error';
+  throw new Error(`${base}${suffix}`);
+}
+
 class AddFunction extends BaseFunction {
   constructor() {
     super();
@@ -62,6 +73,10 @@ class AddFunction extends BaseFunction {
       const typed = ensureTyped(parameters.getParameter(provider, i));
       const currentType = typeOf(typed);
       const currentValue = valueOf(typed);
+
+      if (currentType === FSDataType.Error) {
+        throwFromFsError(currentValue);
+      }
 
       if (currentType === FSDataType.Null) {
         continue;

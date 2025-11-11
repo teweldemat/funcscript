@@ -138,18 +138,6 @@ function App(): JSX.Element {
     return `_var${fallbackIndex + 1}`;
   }, []);
 
-  const buildEvaluationScript = useCallback(() => {
-    const lines: string[] = [];
-    variables.forEach((variable, index) => {
-      const key = formatKeyName(variable.name, index);
-      const expr = variable.expression.trim().length > 0 ? variable.expression : 'null';
-      lines.push(`  ${key}: ${expr};`);
-    });
-    const target = expression.trim().length > 0 ? expression : 'null';
-    lines.push(`  eval (${target});`);
-    return '{\n' + lines.join('\n') + '\n}';
-  }, [variables, expression, formatKeyName]);
-
   const toPlainValue = useCallback((typed: unknown): unknown => {
     if (!typed) {
       return typed;
@@ -210,9 +198,17 @@ function App(): JSX.Element {
     setIsEvaluating(true);
     setEvaluationState((prev) => ({ ...prev, error: null }));
     try {
-      const script = buildEvaluationScript();
+      const targetExpression = expression.trim().length > 0 ? expression : 'null';
       const provider = new Engine.DefaultFsDataProvider();
-      const typed = Engine.evaluate(script, provider);
+
+      variables.forEach((variable, index) => {
+        const key = formatKeyName(variable.name, index).toLowerCase();
+        const expr = variable.expression.trim().length > 0 ? variable.expression : 'null';
+        const value = Engine.evaluate(expr, provider);
+        provider.set(key, value);
+      });
+
+      const typed = Engine.evaluate(targetExpression, provider);
       const typeName = Engine.getTypeName(Engine.typeOf(typed));
       const plain = toPlainValue(typed);
       if (!cancelled) {
@@ -231,7 +227,7 @@ function App(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [buildEvaluationScript, formatPlainValue, toPlainValue]);
+  }, [expression, variables, formatKeyName, formatPlainValue, toPlainValue]);
 
   return (
     <ThemeProvider theme={theme}>

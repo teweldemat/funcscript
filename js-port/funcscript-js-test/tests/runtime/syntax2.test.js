@@ -37,6 +37,20 @@ describe('Syntax2', () => {
       expect(valueOf(result)).to.equal("test''");
     });
 
+    it('TripleQuotedStringSkipsInitialNewline', () => {
+      const expression = '"""\nhello"""';
+      const result = evaluate(expression, builtinProvider());
+      expect(typeOf(result)).to.equal(FSDataType.String);
+      expect(valueOf(result)).to.equal('hello');
+    });
+
+    it('TripleQuotedStringKeepsFirstLineWhenNotNewline', () => {
+      const expression = '"""hello"""';
+      const result = evaluate(expression, builtinProvider());
+      expect(typeOf(result)).to.equal(FSDataType.String);
+      expect(valueOf(result)).to.equal('hello');
+    });
+
     it('ParseUnicodeString', () => {
       const expression = "'test\\u0020'";
       const result = evaluate(expression, builtinProvider());

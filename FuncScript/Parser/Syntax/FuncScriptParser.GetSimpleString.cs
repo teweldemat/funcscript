@@ -73,6 +73,21 @@ namespace FuncScript.Core
                 return new SimpleStringResult(index, null, index, 0, null);
 
             var i = nextIndex;
+            if (delimator == "\"\"\"" && i < context.Expression.Length)
+            {
+                var ch = context.Expression[i];
+                if (ch == '\r')
+                {
+                    if (i + 1 < context.Expression.Length && context.Expression[i + 1] == '\n')
+                        i += 2;
+                    else
+                        i += 1;
+                }
+                else if (ch == '\n')
+                {
+                    i += 1;
+                }
+            }
             int i2;
             var sb = new StringBuilder();
             while (true)

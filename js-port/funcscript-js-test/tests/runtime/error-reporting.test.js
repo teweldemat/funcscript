@@ -27,7 +27,7 @@ describe('ErrorReporting', () => {
   });
 
   it('reports nested function error span', () => {
-    expect(() => evaluate('10+length(a)', builtinProvider())).to.throw('Unsupported operand types for +');
+    expect(() => evaluate('10+length(a)', builtinProvider())).to.throw(/Length function:.*length\(a\)/);
   });
 
   it('reports type mismatch inside expression', () => {
@@ -35,11 +35,23 @@ describe('ErrorReporting', () => {
   });
 
   it('reports null member access', () => {
-    expect(() => evaluate('10+x.l', builtinProvider())).to.throw('Unsupported operand types for +');
+    expect(() => evaluate('10+x.l', builtinProvider())).to.throw(/x\.l/);
+  });
+
+  it('includes failing member access in error message', () => {
+    expect(() => evaluate('1+x.l', builtinProvider())).to.throw(/x\.l/);
   });
 
   it('reports member access on list', () => {
-    expect(() => evaluate('10+[5,6].l', builtinProvider())).to.throw('Unsupported operand types for +');
+    expect(() => evaluate('10+[5,6].l', builtinProvider())).to.throw(/\[5,6\]\.l/);
+  });
+
+  it('reports function call errors with original expression', () => {
+    expect(() => evaluate('1+z(a)', builtinProvider())).to.throw(/z\(a\)/);
+  });
+
+  it("spells out evaluation location for standalone call", () => {
+    expect(() => evaluate('f(a)', builtinProvider())).to.throw(/Evaluation error at 'f\(a\)'/);
   });
 
   it('reports member access nested inside KVC', () => {

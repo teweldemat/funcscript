@@ -209,6 +209,51 @@ namespace FuncScript.Test
 
         }
 
+        [Test]
+        public void StringTemplateParseNodes()
+        {
+            var provider = new DefaultFsDataProvider();
+            var expression = "f\"a{12}\"";
+            var errors = new List<FuncScriptParser.SyntaxErrorData>();
+
+            var result = ParseExpression(provider, expression, errors);
+            var node = result.ParseNode;
+
+            Assert.That(errors, Is.Empty, "Parsing a string template should not report errors");
+            Assert.That(result.ExpressionBlock, Is.Not.Null, "Parser should produce an expression block for string templates");
+            Assert.That(node, Is.Not.Null, "Parser should produce a parse node for string templates");
+
+            AssertRootNode(node, expression);
+            AssertTreeSpanConsitency(node);
+            Assert.That(result.NextIndex, Is.EqualTo(expression.Length));
+
+            AssertNodeSequence(node.Childs, 0,
+                (ParseNodeType.StringTemplate, expression.Length));
+
+            var templateNode = node.Childs[0];
+            Assert.That(templateNode.Childs, Has.Count.EqualTo(4), "String template should contain literal, open brace, expression, and close brace nodes");
+
+            var literalNode = templateNode.Childs[0];
+            Assert.That(literalNode.NodeType, Is.EqualTo(ParseNodeType.LiteralString));
+            Assert.That(literalNode.Pos, Is.EqualTo(2));
+            Assert.That(literalNode.Length, Is.EqualTo(1));
+
+            var openBraceNode = templateNode.Childs[1];
+            Assert.That(openBraceNode.NodeType, Is.EqualTo(ParseNodeType.OpenBrace));
+            Assert.That(openBraceNode.Pos, Is.EqualTo(3));
+            Assert.That(openBraceNode.Length, Is.EqualTo(1));
+
+            var expressionNode = templateNode.Childs[2];
+            Assert.That(expressionNode.NodeType, Is.EqualTo(ParseNodeType.LiteralInteger));
+            Assert.That(expressionNode.Pos, Is.EqualTo(4));
+            Assert.That(expressionNode.Length, Is.EqualTo(2));
+
+            var closeBraceNode = templateNode.Childs[3];
+            Assert.That(closeBraceNode.NodeType, Is.EqualTo(ParseNodeType.CloseBrance));
+            Assert.That(closeBraceNode.Pos, Is.EqualTo(6));
+            Assert.That(closeBraceNode.Length, Is.EqualTo(1));
+        }
+
         void AssertTreeSpanConsitency(ParseNode node)
         {
             var left = node.Pos;

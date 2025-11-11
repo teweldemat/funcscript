@@ -208,6 +208,18 @@ function getSimpleStringWithDelimiter(context, siblings, delimiter, index, error
     return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
   }
 
+  if (delimiter === '"""' && i < expression.length) {
+    if (expression[i] === '\r') {
+      if (i + 1 < expression.length && expression[i + 1] === '\n') {
+        i += 2;
+      } else {
+        i += 1;
+      }
+    } else if (expression[i] === '\n') {
+      i += 1;
+    }
+  }
+
   let text = '';
   while (true) {
     let next = getLiteralMatch(expression, i, '\\n');

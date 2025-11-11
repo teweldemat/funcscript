@@ -194,6 +194,42 @@ describe('ParseTreeTests', () => {
     );
   });
 
+  it('StringTemplateParseNodes', () => {
+    const provider = new DefaultFsDataProvider();
+    const expression = 'f"a{12}"';
+    const { block, parseNode, errors, nextIndex } = parseExpression(expression, provider);
+
+    expect(errors, 'Parsing a string template should not report errors').to.be.empty;
+    expect(block, 'Parser should produce an expression block for string templates').to.exist;
+    expect(parseNode, 'Parser should produce a parse node for string templates').to.exist;
+
+    assertRootNode(parseNode, expression);
+    assertTreeSpanConsistency(parseNode);
+    expect(nextIndex).to.equal(expression.length);
+
+    assertNodeSequence(parseNode.Childs, 0, [ParseNodeType.StringTemplate, expression.length]);
+
+    const templateNode = parseNode.Childs[0];
+    expect(templateNode.Childs).to.have.lengthOf(4);
+
+    const [literalNode, openBraceNode, expressionNode, closeBraceNode] = templateNode.Childs;
+    expect(literalNode.NodeType).to.equal(ParseNodeType.LiteralString);
+    expect(literalNode.Pos).to.equal(2);
+    expect(literalNode.Length).to.equal(1);
+
+    expect(openBraceNode.NodeType).to.equal(ParseNodeType.OpenBrace);
+    expect(openBraceNode.Pos).to.equal(3);
+    expect(openBraceNode.Length).to.equal(1);
+
+    expect(expressionNode.NodeType).to.equal(ParseNodeType.LiteralInteger);
+    expect(expressionNode.Pos).to.equal(4);
+    expect(expressionNode.Length).to.equal(2);
+
+    expect(closeBraceNode.NodeType).to.equal(ParseNodeType.CloseBrance);
+    expect(closeBraceNode.Pos).to.equal(6);
+    expect(closeBraceNode.Length).to.equal(1);
+  });
+
   it('TestColoring', () => {
     const provider = new DefaultFsDataProvider();
     const expression = '1+sin(45)';

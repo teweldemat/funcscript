@@ -97,6 +97,22 @@ namespace FuncScript.Test
                 Assert.AreEqual(typeof(Error.TypeMismatchError), ex.InnerException.GetType());
             }
         }
+
+        [Test]
+        public void LogErrorMessageContainsOriginalExpression()
+        {
+            var expression = "1+x.l";
+            var exception = Assert.Throws<Error.EvaluationException>(() => FuncScriptRuntime.Evaluate(expression));
+            Assert.That(exception!.Message, Does.Contain("x.l"));
+        }
+
+        [Test]
+        public void FunctionCallErrorMessageContainsOriginalExpression()
+        {
+            var expression = "1+z(a)";
+            var exception = Assert.Throws<Error.EvaluationException>(() => FuncScriptRuntime.Evaluate(expression));
+            Assert.That(exception!.Message, Does.Contain("z(a)"));
+        }
         [Test]
         public void TestListMemberAccessError()
         {

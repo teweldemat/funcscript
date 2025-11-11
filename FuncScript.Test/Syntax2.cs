@@ -46,6 +46,22 @@ namespace FuncScript.Test
         }
 
         [Test]
+        public void TripleQuotedStringSkipsInitialNewline()
+        {
+            var exp = "\"\"\"\nhello\"\"\"";
+            var res = FuncScriptRuntime.Evaluate(exp);
+            Assert.That(res, Is.EqualTo("hello"));
+        }
+
+        [Test]
+        public void TripleQuotedStringKeepsFirstLineWhenNotNewline()
+        {
+            var exp = "\"\"\"hello\"\"\"";
+            var res = FuncScriptRuntime.Evaluate(exp);
+            Assert.That(res, Is.EqualTo("hello"));
+        }
+
+        [Test]
         public void ParseUnicodeString()
         {
             var exp = @"'test\u0020'";

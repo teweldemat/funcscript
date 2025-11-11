@@ -1570,6 +1570,8 @@ function getStringTemplateWithDelimiter(context, siblings, delimiter, index) {
         buffer = '';
       }
 
+      nodeParts.push(new ParseNode(ParseNodeType.OpenBrace, currentIndex, afterExpressionStart - currentIndex));
+
       const expressionIndex = afterExpressionStart;
       const expressionResult = getExpression(context, nodeParts, expressionIndex);
       if (!expressionResult.hasProgress(expressionIndex) || !expressionResult.ExpressionBlock) {

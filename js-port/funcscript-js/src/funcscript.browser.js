@@ -28,6 +28,18 @@ const builtinSymbols = buildBrowserBuiltinMap();
 const builtinProvider = new MapDataProvider(builtinSymbols);
 const builtinCollections = {};
 
+function attachExpressionSource(provider, expression) {
+  if (!provider || typeof provider !== 'object') {
+    return;
+  }
+  const source = expression == null ? '' : String(expression);
+  let current = provider;
+  while (current && typeof current === 'object') {
+    current.__fsExpression = source;
+    current = current.parent || current.ParentProvider || null;
+  }
+}
+
 const rawCollections = builtinSymbols.__collections || {};
 for (const [collectionName, members] of Object.entries(rawCollections)) {
   const lowerCollection = collectionName.toLowerCase();
@@ -96,6 +108,7 @@ const test = createTestRunner({
 });
 
 function evaluate(expression, provider = new DefaultFsDataProvider()) {
+  attachExpressionSource(provider, expression);
   const { block } = FuncScriptParser.parse(provider, expression);
   if (!block) {
     throw new Error('Failed to parse expression');

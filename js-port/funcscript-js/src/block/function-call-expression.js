@@ -3,11 +3,82 @@ const { ParameterList } = require('../core/function-base');
 const { typeOf, valueOf, ensureTyped, typedNull } = require('../core/value');
 const { FSDataType } = require('../core/fstypes');
 
+function resolveExpressionSource(provider) {
+  let current = provider;
+  while (current) {
+    if (current.__fsExpression) {
+      return current.__fsExpression;
+    }
+    current = current.parent || current.ParentProvider || null;
+  }
+  return null;
+}
+
+function sliceExpression(expressionSource, expressionBlock) {
+  if (!expressionSource || !expressionBlock) {
+    return null;
+  }
+  const start =
+    typeof expressionBlock.position === 'number'
+      ? expressionBlock.position
+      : typeof expressionBlock.Pos === 'number'
+        ? expressionBlock.Pos
+        : 0;
+  const length =
+    typeof expressionBlock.length === 'number'
+      ? expressionBlock.length
+      : typeof expressionBlock.Length === 'number'
+        ? expressionBlock.Length
+        : 0;
+  if (length <= 0) {
+    return null;
+  }
+  return expressionSource.slice(start, start + length);
+}
+
+function normalizeSnippet(snippet) {
+  if (!snippet) {
+    return null;
+  }
+  const trimmed = snippet.trim();
+  const evalMatch = trimmed.match(/^eval\s*\((.*)\)\s*;?$/i);
+  if (evalMatch && evalMatch[1]) {
+    return evalMatch[1].trim();
+  }
+  return trimmed;
+}
+
+function annotateFsError(fsError, expressionSource, expressionBlock) {
+  if (!fsError || !expressionSource || !expressionBlock) {
+    return;
+  }
+  const snippet = sliceExpression(expressionSource, expressionBlock);
+  if (!snippet) {
+    return;
+  }
+  const cleaned = normalizeSnippet(snippet);
+  const data = fsError.errorData && typeof fsError.errorData === 'object' ? fsError.errorData : {};
+  fsError.errorData = {
+    ...data,
+    expression: cleaned || snippet
+  };
+}
+
+function formatEvaluationMessage(message, expressionSource, expressionBlock) {
+  const snippet = expressionSource ? sliceExpression(expressionSource, expressionBlock) : null;
+  const cleaned = snippet ? normalizeSnippet(snippet) : null;
+  if (!cleaned && !snippet) {
+    return message;
+  }
+  return `${message} (Evaluation error at '${cleaned || snippet}')`;
+}
+
 class FuncParameterList extends ParameterList {
   constructor(parentExpression, provider) {
     super();
     this.parentExpression = parentExpression;
     this.provider = provider;
+    this.expressionSource = resolveExpressionSource(provider);
   }
 
   get count() {
@@ -20,7 +91,12 @@ class FuncParameterList extends ParameterList {
       return typedNull();
     }
     const result = exp.evaluate(this.provider);
-    return ensureTyped(result);
+    const typed = ensureTyped(result);
+    if (typeOf(typed) === FSDataType.Error) {
+      const fsError = valueOf(typed);
+      annotateFsError(fsError, this.expressionSource, exp);
+    }
+    return typed;
   }
 }
 
@@ -34,6 +110,7 @@ class FunctionCallExpression extends ExpressionBlock {
   }
 
   evaluate(provider) {
+    const expressionSource = resolveExpressionSource(provider);
     const fnValue = ensureTyped(this.functionExpression.evaluate(provider));
     const fnType = typeOf(fnValue);
 
@@ -71,7 +148,13 @@ class FunctionCallExpression extends ExpressionBlock {
       return ensureTyped(result);
     }
 
-    throw new Error('Function call target is not a function, list, or key-value collection');
+    throw new Error(
+      formatEvaluationMessage(
+        'Function call target is not a function, list, or key-value collection',
+        expressionSource,
+        this
+      )
+    );
   }
 
   getChilds() {
