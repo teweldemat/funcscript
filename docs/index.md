@@ -19,9 +19,9 @@ punctuation:
 { a: 3; b: 5 + 6 }
 ```
 
-Evaluation preserves the JSON shape but resolves expressions to concrete data `<object>`:
+Evaluation preserves the JSON shape but resolves expressions to concrete data:
 
-```funcscript
+```json
 { a: 3; b: 11 }
 ```
 
@@ -32,8 +32,13 @@ feel natural for anyone fluent in JSON-shaped configuration:
 { principal: 2000; rate: 0.07; growth: principal * (1 + rate) }
 ```
 
-That snippet resolves to `<object> { principal: 2000; rate: 0.07; growth: 2140 }`. You are still shaping JSON,
-but now it reacts to the inputs around it.
+That snippet resolves to an object:
+
+```json
+{ principal: 2000; rate: 0.07; growth: 2140 }
+```
+
+You are still shaping JSON, but now it reacts to the inputs around it.
 
 ## Execution Model
 Scripts always collapse to a single JSON-compatible value—numbers, strings, booleans, arrays, and

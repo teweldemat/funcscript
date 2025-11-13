@@ -24,7 +24,11 @@ of the same key/value collection either way:
 
 ```funcscript
 { gross: 5200; rate: 0.13; net: gross * (1 - rate) }
-// equivalent to:
+```
+
+Equivalent to:
+
+```funcscript
 gross: 5200;
 rate: 0.13;
 net: gross * (1 - rate)
@@ -43,9 +47,9 @@ Thanks!
 }
 ```
 Note that the line break after the opening """ and before the closing """ are ignored. The example
-expression evaluates as `<string>`:
+expression evaluates as:
 
-```text
+```string
 Dear team,
 The build succeeded.
 Thanks!
@@ -79,7 +83,13 @@ Key/value collections normally evaluate to an object containing every binding. M
 }
 ```
 
-Evaluating the block above produces `<number> 4524`, because execution stops at the returned expression and only the bindings required to compute `net` are evaluated.
+Evaluating the block above produces:
+
+```number
+4524
+```
+
+because execution stops at the returned expression and only the bindings required to compute `net` are evaluated.
 
 ## Comments
 Use either `// inline` or `/* multi-line */` comments anywhere whitespace is permitted:
