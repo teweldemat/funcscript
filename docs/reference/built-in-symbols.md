@@ -35,13 +35,17 @@ All numeric helpers belong to the `math` provider collection, so you can call th
 - `math.Sign(number)` (`Sign`) – Return `-1`, `0`, or `1`.
 - `math.Clamp(value, min, max)` (`Clamp`) – Constrain to a range.
 - `math.Min(value1, value2, ...)` / `math.Max(...)` (`Min` / `Max`) – Extremes across numeric arguments.
-- `math.Pow(base, exponent)` (`Pow`) – Raise `base` to `exponent`.
-- `math.Sqrt(number)` (`Sqrt`) – Square root of non-negative input.
+- `math.Pow(base, exponent)` (`Pow`, alias `math.Power`, operator `^`) – Raise `base` to `exponent` or chain powers (`2 ^ 3 ^ 2`).
+- `math.Sqrt(number)` / `math.Cbrt(number)` (`Sqrt` / `Cbrt`) – Square or cube roots.
 - `math.Exp(number)` (`Exp`) – Euler's number raised to `number`.
 - `math.Ln(number, base?)` (`Ln`, alias `math.log`) – Natural logarithm, with optional custom base.
-- `math.Log10(number)` (`Log10`) – Base-10 logarithm.
+- `math.Log10(number)` / `math.Log2(number)` (`Log10` / `Log2`) – Base-10 or base-2 logarithms.
 - `math.Sin(number)` / `math.Cos(number)` / `math.Tan(number)` (`Sin` / `Cos` / `Tan`) – Trigonometric functions (radians).
 - `math.Asin(number)` / `math.Acos(number)` / `math.Atan(number)` (`Asin` / `Acos` / `Atan`) – Inverse trigonometric functions.
+- `math.Atan2(y, x)` (`Atan2`) – Two-argument arctangent preserving quadrant information.
+- `math.Sinh(number)` / `math.Cosh(number)` / `math.Tanh(number)` (`Sinh` / `Cosh` / `Tanh`) – Hyperbolic trig functions.
+- `math.Asinh(number)` / `math.Acosh(number)` / `math.Atanh(number)` (`Asinh` / `Acosh` / `Atanh`) – Inverse hyperbolic trig functions.
+- `math.DegToRad(degrees)` / `math.RadToDeg(radians)` (`DegToRad` / `RadToDeg`, aliases `deg2rad` / `rad2deg`) – Convert angles.
 - `math.Random()` (`Random`) – Random double in `[0, 1)`.
 - Constants exposed via provider collections are accessed without parentheses (e.g., `math.Pi`).
 
@@ -63,9 +67,12 @@ All numeric helpers belong to the `math` provider collection, so you can call th
 - `Select(record, keys...)` – Create a new record containing the provided keys.
 
 ## Text & Formatting
+- `upper(text)` – Convert `text` to uppercase (culture invariant); also accessible via `text.upper(...)`.
+- `lower(text)` – Convert `text` to lowercase (culture invariant); also accessible via `text.lower(...)`.
 - `join(list, separator)` – Concatenate list entries with `separator`.
 - `format(pattern, value1, value2, ...)` – Composite formatting using .NET format strings.
 - `find(text, value)` – Return the zero-based index of `value` or `-1` if not found.
+- `regex(text, pattern, flags?)` – Returns `true` when `pattern` matches `text`; optional `flags` accepts characters such as `i`, `m`, `s`, or `x` to toggle regex options.
 - `substring(text, start, length?)` – Slice from `text` starting at `start` with optional `length`.
 - `endswith(text, suffix)` – Returns `true` when `text` ends with `suffix`.
 - `isBlank(value)` – Returns `true` when a string is null, empty, or whitespace.

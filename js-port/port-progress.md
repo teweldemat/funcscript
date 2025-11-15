@@ -6,3 +6,5 @@
 - [ ] FuncScript Studio
   - [x] Enable Vercel preview deployments by adding SPA-friendly `vercel.json` routing (2024-11-24)
   - [x] Provide a reusable build script (within `funcscript-vscode`) for publishing the `/fsstudio` endpoint (2025-11-13)
+- [ ] Text Helpers
+  - [x] Port upper/lower/regex helpers to the JS runtime and expose them via the `text` collection (2025-11-15)

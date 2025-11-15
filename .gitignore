@@ -413,3 +413,4 @@ js-port/fd-player/dist
 js-port/funcscript-js/.npm-cache
 js-port/funcscript-vscode/dist
 .vercel
+docs/assets/generated

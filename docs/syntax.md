@@ -10,6 +10,10 @@ Operators support infix usage, including arithmetic and logical comparisons:
 { total: 42 + 8; isLarge: total > 40 }
 ```
 
+Keyword helpers such as `in`, `or`, and `and` behave like symbolic infix operators, so expressions
+like `value in [1, 2, 3]` or `flag1 and flag2` read naturally. Negation uses the unary `-` operator,
+for example `-balance`.
+
 ## List expression
 Lists use JSON square-bracket syntax and can embed expressions for elements:
 

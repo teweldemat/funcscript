@@ -1,12 +1,11 @@
-# Language Overview
+# Welcome to FuncScript
 
-FuncScript is a JSON-first expression language. It treats vanilla JSON as valid input and layers on
-an expression system so you can compute new values without changing the familiar syntax. This
-chapter shows how FuncScript extends JSON into a programmable superset and sets the stage for the
-rest of the manual.
+FuncScript is what you get if propeties where allowe to be expressions in JSON notations, eg. {x:1+2;} will be allowed.
+Such extension will not take JSON all they to JavaScript as sequential excution and stateful operations will be allowed.
 
-## JSON Extended
-Think of FuncScript as "JSON with superpowers." Every valid JSON document already parses as valid FuncScript:
+As such FuncScript is a supper set of JSON, in most way overlap with JavaScript but with some special twists that will make it not a proper subsect of JavaScript.
+
+So, one can think of FuncScript as "JSON with superpowers." Every valid JSON document already parses as valid FuncScript:
 
 ```funcscript
 { a: 3; b: 4 }
@@ -49,6 +48,7 @@ back into JSON pipelines, APIs, or templating systems.
 ## Where to Next
 - Explore hands-on [Examples](examples.md) of FuncScript in action.
 - Consult the [Built-in Symbols](reference/built-in-symbols.md) and [Types](reference/types.md) reference for details.
+- Dive into the full [Formal Syntax](funcscript-fromal-syntax.md) when you need exact grammar rules.
 
 ## Hosted Demos
 - [FuncScript Tester](/fsstudio/)

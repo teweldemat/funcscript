@@ -77,4 +77,22 @@ describe('FuncScript test runner', () => {
     expect(Array.isArray(legacySuite.cases[0].assertionResult)).toBe(true);
     expect(legacySuite.cases[0].assertionResult).toHaveLength(2);
   });
+
+  it('injects the assert helper collection into test expressions', () => {
+    const expression = 'if x>0 then x else -x';
+    const testExpression = `
+{
+  suite: {
+    name: "abs";
+    cases: [{"x": -5}, {"x": 7}];
+    test: (res, data) => assert.equal(res, math.abs(data.x))
+  };
+
+  return [suite];
+}`;
+
+    const result = runTests(expression, testExpression);
+    expect(result.summary.failed).toBe(0);
+    expect(result.summary.passed).toBe(2);
+  });
 });

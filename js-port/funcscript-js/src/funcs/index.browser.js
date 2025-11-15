@@ -75,6 +75,9 @@ const { FindTextFunction } = require('./text/find-text-function');
 const { ParseTextFunction } = require('./text/parse-text-function');
 const { FormatValueFunction } = require('./text/format-value-function');
 const { TemplateMergeFunction } = require('./text/template-merge-function');
+const { UpperTextFunction } = require('./text/upper-text-function');
+const { LowerTextFunction } = require('./text/lower-text-function');
+const { RegexFunction } = require('./text/regex-function');
 
 const { DateFunction } = require('./date/date-function');
 const { TicksToDateFunction } = require('./date/ticks-to-date-function');
@@ -84,6 +87,22 @@ const { HtmlEncodeFunction } = require('./html/html-encode-function');
 const { GuidFunction } = require('./misc/guid-function');
 const { LogFunction } = require('./misc/log-function');
 const { ErrorFunction } = require('./misc/error-function');
+
+const {
+  AssertEqualFunction,
+  AssertNotEqualFunction,
+  AssertGreaterFunction,
+  AssertLessFunction,
+  AssertTrueFunction,
+  AssertFalseFunction,
+  AssertApproxFunction,
+  AssertNoErrorFunction,
+  AssertIsErrorFunction,
+  AssertIsErrorTypeFunction,
+  AssertHasErrorMessageFunction,
+  AssertIsNullFunction,
+  AssertIsNotNullFunction
+} = require('./assert/assert-functions');
 
 module.exports = function buildBrowserBuiltinMap() {
   const entries = [
@@ -156,6 +175,22 @@ module.exports = function buildBrowserBuiltinMap() {
     { fn: new ParseTextFunction(), names: ['parse'] },
     { fn: new FormatValueFunction(), names: ['format'] },
     { fn: new TemplateMergeFunction(), names: ['_templatemerge'] },
+    { fn: new AssertEqualFunction(), names: [], collections: { assert: ['equal'] } },
+    { fn: new AssertNotEqualFunction(), names: [], collections: { assert: ['notEqual'] } },
+    { fn: new AssertGreaterFunction(), names: [], collections: { assert: ['greater'] } },
+    { fn: new AssertLessFunction(), names: [], collections: { assert: ['less'] } },
+    { fn: new AssertTrueFunction(), names: [], collections: { assert: ['true'] } },
+    { fn: new AssertFalseFunction(), names: [], collections: { assert: ['false'] } },
+    { fn: new AssertApproxFunction(), names: [], collections: { assert: ['approx'] } },
+    { fn: new AssertNoErrorFunction(), names: [], collections: { assert: ['noerror'] } },
+    { fn: new AssertIsErrorFunction(), names: [], collections: { assert: ['iserror'] } },
+    { fn: new AssertIsErrorTypeFunction(), names: [], collections: { assert: ['iserrortype'] } },
+    { fn: new AssertHasErrorMessageFunction(), names: [], collections: { assert: ['haserrormessage'] } },
+    { fn: new AssertIsNullFunction(), names: [], collections: { assert: ['isnull'] } },
+    { fn: new AssertIsNotNullFunction(), names: [], collections: { assert: ['isnotnull'] } },
+    { fn: new UpperTextFunction(), names: ['upper'], collections: { text: ['upper'] } },
+    { fn: new LowerTextFunction(), names: [], collections: { text: ['lower'] } },
+    { fn: new RegexFunction(), names: ['regex'], collections: { text: ['regex'] } },
     { fn: new DateFunction(), names: ['date'] },
     { fn: new TicksToDateFunction(), names: ['tickstoday'] },
     { fn: new HtmlEncodeFunction(), names: ['hencode'] },

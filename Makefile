@@ -1,7 +1,8 @@
 PYTHON ?= python3
 DOCS_VENV ?= .venv-docs
+DOCS_WIDGET_DIR ?= tools/live-examples-widget
 
-.PHONY: docs-install docs-build docs-serve docs-clean
+.PHONY: docs-install docs-build docs-serve docs-clean docs-widget
 
 $(DOCS_VENV)/bin/activate: docs/requirements.txt
 	$(PYTHON) -m venv $(DOCS_VENV)
@@ -12,11 +13,17 @@ $(DOCS_VENV)/bin/activate: docs/requirements.txt
 docs-install: $(DOCS_VENV)/bin/activate
 
 # Build static site into ./site/ using MkDocs Material.
+docs-widget:
+	cd $(DOCS_WIDGET_DIR) && npm install
+	cd $(DOCS_WIDGET_DIR) && npm run build
+
 docs-build: $(DOCS_VENV)/bin/activate
+	$(MAKE) docs-widget
 	. $(DOCS_VENV)/bin/activate && mkdocs build --strict
 
 # Serve documentation with live reload.
 docs-serve: $(DOCS_VENV)/bin/activate
+	$(MAKE) docs-widget
 	. $(DOCS_VENV)/bin/activate && mkdocs serve
 
 docs-clean:

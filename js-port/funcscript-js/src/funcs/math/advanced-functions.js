@@ -145,6 +145,40 @@ class PowerFunction extends BaseFunction {
   }
 }
 
+class PowerOperatorFunction extends BaseFunction {
+  constructor() {
+    super();
+    this.symbol = '^';
+    this.callType = CallType.Infix;
+  }
+
+  get maxParameters() {
+    return -1;
+  }
+
+  evaluate(provider, parameters) {
+    if (parameters.count < 2) {
+      return makeError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, `${this.symbol}: Expected at least 2 parameters, received ${parameters.count}`);
+    }
+
+    const first = ensureNumeric(this.symbol, parameters.getParameter(provider, 0), 'base');
+    if (!first.ok) {
+      return first.error;
+    }
+    let current = first.number;
+
+    for (let i = 1; i < parameters.count; i += 1) {
+      const exponent = ensureNumeric(this.symbol, parameters.getParameter(provider, i), `exponent${i}`);
+      if (!exponent.ok) {
+        return exponent.error;
+      }
+      current = Math.pow(current, exponent.number);
+    }
+
+    return makeValue(FSDataType.Float, current);
+  }
+}
+
 class ExponentialFunction extends BaseFunction {
   constructor() {
     super();
@@ -224,6 +258,29 @@ class Log10Function extends BaseFunction {
       return makeError(FsError.ERROR_TYPE_INVALID_PARAMETER, `${this.symbol}: value must be greater than 0`);
     }
     return makeValue(FSDataType.Float, Math.log10(result.number));
+  }
+}
+
+class Log2Function extends BaseFunction {
+  constructor() {
+    super();
+    this.symbol = 'log2';
+    this.callType = CallType.Prefix;
+  }
+
+  get maxParameters() {
+    return 1;
+  }
+
+  evaluate(provider, parameters) {
+    const result = ensureNumeric(this.symbol, parameters.getParameter(provider, 0), 'value');
+    if (!result.ok) {
+      return result.error;
+    }
+    if (result.number <= 0) {
+      return makeError(FsError.ERROR_TYPE_INVALID_PARAMETER, `${this.symbol}: value must be greater than 0`);
+    }
+    return makeValue(FSDataType.Float, Math.log2(result.number));
   }
 }
 
@@ -469,13 +526,75 @@ class RandomFunction extends BaseFunction {
   }
 }
 
+class CubeRootFunction extends BaseFunction {
+  constructor() {
+    super();
+    this.symbol = 'cbrt';
+    this.callType = CallType.Prefix;
+  }
+
+  get maxParameters() {
+    return 1;
+  }
+
+  evaluate(provider, parameters) {
+    const result = ensureNumeric(this.symbol, parameters.getParameter(provider, 0), 'value');
+    if (!result.ok) {
+      return result.error;
+    }
+    return makeValue(FSDataType.Float, Math.cbrt(result.number));
+  }
+}
+
+class DegreesToRadiansFunction extends BaseFunction {
+  constructor() {
+    super();
+    this.symbol = 'degtorad';
+    this.callType = CallType.Prefix;
+  }
+
+  get maxParameters() {
+    return 1;
+  }
+
+  evaluate(provider, parameters) {
+    const result = ensureNumeric(this.symbol, parameters.getParameter(provider, 0), 'degrees');
+    if (!result.ok) {
+      return result.error;
+    }
+    return makeValue(FSDataType.Float, (result.number * Math.PI) / 180);
+  }
+}
+
+class RadiansToDegreesFunction extends BaseFunction {
+  constructor() {
+    super();
+    this.symbol = 'radtodeg';
+    this.callType = CallType.Prefix;
+  }
+
+  get maxParameters() {
+    return 1;
+  }
+
+  evaluate(provider, parameters) {
+    const result = ensureNumeric(this.symbol, parameters.getParameter(provider, 0), 'radians');
+    if (!result.ok) {
+      return result.error;
+    }
+    return makeValue(FSDataType.Float, (result.number * 180) / Math.PI);
+  }
+}
+
 module.exports = {
   SquareRootFunction,
   AbsoluteValueFunction,
   PowerFunction,
+  PowerOperatorFunction,
   ExponentialFunction,
   NaturalLogFunction,
   Log10Function,
+  Log2Function,
   CeilingFunction,
   FloorFunction,
   RoundFunction,
@@ -484,5 +603,8 @@ module.exports = {
   MinFunction,
   MaxFunction,
   ClampFunction,
-  RandomFunction
+  RandomFunction,
+  CubeRootFunction,
+  DegreesToRadiansFunction,
+  RadiansToDegreesFunction
 };

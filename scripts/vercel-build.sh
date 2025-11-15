@@ -9,6 +9,12 @@ log() {
   echo "[vercel-build] $*"
 }
 
+log "Building interactive docs widget"
+pushd "${ROOT_DIR}/tools/live-examples-widget" >/dev/null
+npm ci
+npm run build
+popd >/dev/null
+
 log "Installing MkDocs dependencies"
 python3 -m pip install --upgrade pip --user
 python3 -m pip install --user -r docs/requirements.txt

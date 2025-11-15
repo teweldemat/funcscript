@@ -1,0 +1,21 @@
+{
+  "name": "@funcscript/docs-live-examples",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/index.tsx --bundle --format=esm --target=es2020 --jsx=automatic --jsx-import-source=react --tsconfig=tsconfig.json --outfile=../../docs/assets/generated/interactive-examples.js --sourcemap --minify"
+  },
+  "dependencies": {
+    "@tewelde/funcscript": "file:../../js-port/funcscript-js",
+    "@tewelde/funcscript-editor": "file:../../js-port/funcscript-editor",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.67",
+    "@types/react-dom": "^18.2.21",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.4.5"
+  }
+}

@@ -33,6 +33,7 @@ fs-cli --test 'a + b' '{ suite: { name: "adds"; cases: [{"a":1, "b":2}]; test: (
 ### Flags
 
 - `--test`, `-t` – Enable test mode and expect both an expression and a test expression.
+- `--scan <path>`, `-s <path>` – Traverse the provided folder, parse every `.fs`/`.fx` file, and run paired `<name>.test.fs` suites.
 - `--json` – Output JSON only.
 - `--compact` – Emit compact JSON (implies `--json`).
 - `--version`, `-v` – Show CLI version.

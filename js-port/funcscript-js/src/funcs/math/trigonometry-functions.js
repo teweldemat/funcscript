@@ -131,11 +131,168 @@ class ArcTangentFunction extends BaseFunction {
   }
 }
 
+class HyperbolicSineFunction extends BaseFunction {
+  constructor() {
+    super();
+    this.symbol = 'sinh';
+    this.callType = CallType.Prefix;
+  }
+
+  get maxParameters() {
+    return 1;
+  }
+
+  evaluate(provider, parameters) {
+    const result = ensureNumeric(this.symbol, parameters.getParameter(provider, 0));
+    if (!result.ok) {
+      return result.error;
+    }
+    return makeValue(FSDataType.Float, Math.sinh(result.value));
+  }
+}
+
+class HyperbolicCosineFunction extends BaseFunction {
+  constructor() {
+    super();
+    this.symbol = 'cosh';
+    this.callType = CallType.Prefix;
+  }
+
+  get maxParameters() {
+    return 1;
+  }
+
+  evaluate(provider, parameters) {
+    const result = ensureNumeric(this.symbol, parameters.getParameter(provider, 0));
+    if (!result.ok) {
+      return result.error;
+    }
+    return makeValue(FSDataType.Float, Math.cosh(result.value));
+  }
+}
+
+class HyperbolicTangentFunction extends BaseFunction {
+  constructor() {
+    super();
+    this.symbol = 'tanh';
+    this.callType = CallType.Prefix;
+  }
+
+  get maxParameters() {
+    return 1;
+  }
+
+  evaluate(provider, parameters) {
+    const result = ensureNumeric(this.symbol, parameters.getParameter(provider, 0));
+    if (!result.ok) {
+      return result.error;
+    }
+    return makeValue(FSDataType.Float, Math.tanh(result.value));
+  }
+}
+
+class InverseHyperbolicSineFunction extends BaseFunction {
+  constructor() {
+    super();
+    this.symbol = 'asinh';
+    this.callType = CallType.Prefix;
+  }
+
+  get maxParameters() {
+    return 1;
+  }
+
+  evaluate(provider, parameters) {
+    const result = ensureNumeric(this.symbol, parameters.getParameter(provider, 0));
+    if (!result.ok) {
+      return result.error;
+    }
+    return makeValue(FSDataType.Float, Math.asinh(result.value));
+  }
+}
+
+class InverseHyperbolicCosineFunction extends BaseFunction {
+  constructor() {
+    super();
+    this.symbol = 'acosh';
+    this.callType = CallType.Prefix;
+  }
+
+  get maxParameters() {
+    return 1;
+  }
+
+  evaluate(provider, parameters) {
+    const result = ensureNumeric(this.symbol, parameters.getParameter(provider, 0));
+    if (!result.ok) {
+      return result.error;
+    }
+    if (result.value < 1) {
+      return makeError(FsError.ERROR_TYPE_INVALID_PARAMETER, `${this.symbol}: number must be greater than or equal to 1`);
+    }
+    return makeValue(FSDataType.Float, Math.acosh(result.value));
+  }
+}
+
+class InverseHyperbolicTangentFunction extends BaseFunction {
+  constructor() {
+    super();
+    this.symbol = 'atanh';
+    this.callType = CallType.Prefix;
+  }
+
+  get maxParameters() {
+    return 1;
+  }
+
+  evaluate(provider, parameters) {
+    const result = ensureNumeric(this.symbol, parameters.getParameter(provider, 0));
+    if (!result.ok) {
+      return result.error;
+    }
+    if (result.value <= -1 || result.value >= 1) {
+      return makeError(FsError.ERROR_TYPE_INVALID_PARAMETER, `${this.symbol}: number must be between -1 and 1 (exclusive)`);
+    }
+    return makeValue(FSDataType.Float, Math.atanh(result.value));
+  }
+}
+
+class ArcTangent2Function extends BaseFunction {
+  constructor() {
+    super();
+    this.symbol = 'atan2';
+    this.callType = CallType.Prefix;
+  }
+
+  get maxParameters() {
+    return 2;
+  }
+
+  evaluate(provider, parameters) {
+    const y = ensureNumeric(this.symbol, parameters.getParameter(provider, 0), 'y');
+    if (!y.ok) {
+      return y.error;
+    }
+    const x = ensureNumeric(this.symbol, parameters.getParameter(provider, 1), 'x');
+    if (!x.ok) {
+      return x.error;
+    }
+    return makeValue(FSDataType.Float, Math.atan2(y.value, x.value));
+  }
+}
+
 module.exports = {
   SineFunction,
   CosineFunction,
   TangentFunction,
   ArcSineFunction,
   ArcCosineFunction,
-  ArcTangentFunction
+  ArcTangentFunction,
+  HyperbolicSineFunction,
+  HyperbolicCosineFunction,
+  HyperbolicTangentFunction,
+  InverseHyperbolicSineFunction,
+  InverseHyperbolicCosineFunction,
+  InverseHyperbolicTangentFunction,
+  ArcTangent2Function
 };

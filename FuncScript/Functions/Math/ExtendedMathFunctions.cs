@@ -158,6 +158,7 @@ namespace FuncScript.Functions.Math
     }
 
     [ProviderCollection("math")]
+    [FunctionAlias("Power")]
     public class PowerFunction : IFsFunction
     {
         public int MaxParsCount => 2;
@@ -173,6 +174,33 @@ namespace FuncScript.Functions.Math
             var baseValue = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "base");
             var exponent = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 1), "exponent");
             return System.Math.Pow(baseValue.Value, exponent.Value);
+        }
+
+        public string ParName(int index) => index == 0 ? "base" : "exponent";
+    }
+
+    public class PowerOperatorFunction : IFsFunction
+    {
+        public int MaxParsCount => -1;
+        public CallType CallType => CallType.Infix;
+        public string Symbol => "^";
+        public int Precedence => 0;
+
+        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        {
+            if (pars.Count < 2)
+                throw new TypeMismatchError($"{Symbol}: Expected at least 2 parameters, received {pars.Count}.");
+
+            var result = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "base");
+            double current = result.Value;
+
+            for (int i = 1; i < pars.Count; i++)
+            {
+                var exponent = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, i), $"exponent{i}");
+                current = System.Math.Pow(current, exponent.Value);
+            }
+
+            return current;
         }
 
         public string ParName(int index) => index == 0 ? "base" : "exponent";
@@ -452,5 +480,204 @@ namespace FuncScript.Functions.Math
         }
 
         public string ParName(int index) => string.Empty;
+    }
+
+    [ProviderCollection("math")]
+    public class HyperbolicSineFunction : IFsFunction
+    {
+        public int MaxParsCount => 1;
+        public CallType CallType => CallType.Prefix;
+        public string Symbol => "Sinh";
+        public int Precedence => 0;
+
+        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        {
+            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            return System.Math.Sinh(value.Value);
+        }
+
+        public string ParName(int index) => "number";
+    }
+
+    [ProviderCollection("math")]
+    public class HyperbolicCosineFunction : IFsFunction
+    {
+        public int MaxParsCount => 1;
+        public CallType CallType => CallType.Prefix;
+        public string Symbol => "Cosh";
+        public int Precedence => 0;
+
+        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        {
+            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            return System.Math.Cosh(value.Value);
+        }
+
+        public string ParName(int index) => "number";
+    }
+
+    [ProviderCollection("math")]
+    public class HyperbolicTangentFunction : IFsFunction
+    {
+        public int MaxParsCount => 1;
+        public CallType CallType => CallType.Prefix;
+        public string Symbol => "Tanh";
+        public int Precedence => 0;
+
+        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        {
+            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            return System.Math.Tanh(value.Value);
+        }
+
+        public string ParName(int index) => "number";
+    }
+
+    [ProviderCollection("math")]
+    public class InverseHyperbolicSineFunction : IFsFunction
+    {
+        public int MaxParsCount => 1;
+        public CallType CallType => CallType.Prefix;
+        public string Symbol => "Asinh";
+        public int Precedence => 0;
+
+        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        {
+            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            return System.Math.Asinh(value.Value);
+        }
+
+        public string ParName(int index) => "number";
+    }
+
+    [ProviderCollection("math")]
+    public class InverseHyperbolicCosineFunction : IFsFunction
+    {
+        public int MaxParsCount => 1;
+        public CallType CallType => CallType.Prefix;
+        public string Symbol => "Acosh";
+        public int Precedence => 0;
+
+        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        {
+            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            if (value.Value < 1)
+                throw new TypeMismatchError($"{Symbol}: number must be greater than or equal to 1.");
+            return System.Math.Acosh(value.Value);
+        }
+
+        public string ParName(int index) => "number";
+    }
+
+    [ProviderCollection("math")]
+    public class InverseHyperbolicTangentFunction : IFsFunction
+    {
+        public int MaxParsCount => 1;
+        public CallType CallType => CallType.Prefix;
+        public string Symbol => "Atanh";
+        public int Precedence => 0;
+
+        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        {
+            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            if (value.Value <= -1 || value.Value >= 1)
+                throw new TypeMismatchError($"{Symbol}: number must be between -1 and 1 (exclusive).");
+            return System.Math.Atanh(value.Value);
+        }
+
+        public string ParName(int index) => "number";
+    }
+
+    [ProviderCollection("math")]
+    public class ArcTangent2Function : IFsFunction
+    {
+        public int MaxParsCount => 2;
+        public CallType CallType => CallType.Prefix;
+        public string Symbol => "Atan2";
+        public int Precedence => 0;
+
+        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        {
+            if (pars.Count != 2)
+                throw new TypeMismatchError($"{Symbol}: Expected 2 parameters, received {pars.Count}.");
+
+            var y = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "y");
+            var x = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 1), "x");
+            return System.Math.Atan2(y.Value, x.Value);
+        }
+
+        public string ParName(int index) => index == 0 ? "y" : "x";
+    }
+
+    [ProviderCollection("math")]
+    public class Log2Function : IFsFunction
+    {
+        public int MaxParsCount => 1;
+        public CallType CallType => CallType.Prefix;
+        public string Symbol => "Log2";
+        public int Precedence => 0;
+
+        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        {
+            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "value");
+            if (value.Value <= 0)
+                throw new TypeMismatchError($"{Symbol}: value must be greater than 0.");
+            return System.Math.Log2(value.Value);
+        }
+
+        public string ParName(int index) => "value";
+    }
+
+    [ProviderCollection("math")]
+    public class CubeRootFunction : IFsFunction
+    {
+        public int MaxParsCount => 1;
+        public CallType CallType => CallType.Prefix;
+        public string Symbol => "Cbrt";
+        public int Precedence => 0;
+
+        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        {
+            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "value");
+            return System.Math.Cbrt(value.Value);
+        }
+
+        public string ParName(int index) => "value";
+    }
+
+    [ProviderCollection("math")]
+    [FunctionAlias("Deg2Rad")]
+    public class DegreesToRadiansFunction : IFsFunction
+    {
+        public int MaxParsCount => 1;
+        public CallType CallType => CallType.Prefix;
+        public string Symbol => "DegToRad";
+        public int Precedence => 0;
+
+        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        {
+            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "degrees");
+            return value.Value * System.Math.PI / 180.0;
+        }
+
+        public string ParName(int index) => "degrees";
+    }
+
+    [ProviderCollection("math")]
+    [FunctionAlias("Rad2Deg")]
+    public class RadiansToDegreesFunction : IFsFunction
+    {
+        public int MaxParsCount => 1;
+        public CallType CallType => CallType.Prefix;
+        public string Symbol => "RadToDeg";
+        public int Precedence => 0;
+
+        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        {
+            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "radians");
+            return value.Value * 180.0 / System.Math.PI;
+        }
+
+        public string ParName(int index) => "radians";
     }
 }

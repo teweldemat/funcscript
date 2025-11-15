@@ -15,8 +15,6 @@ namespace FuncScript.Core
             if (candidates == null)
                 throw new ArgumentNullException(nameof(candidates));
 
-            var exp = context.Expression;
-            var errors = context.ErrorsList;
             var buffer = CreateNodeBuffer(siblings);
 
             ParseBlockResult operandResult;
@@ -74,33 +72,14 @@ namespace FuncScript.Core
                 var startPos = operands[0].Pos;
                 var endPos = operands[^1].Pos + operands[^1].Length;
 
-                ExpressionBlock combined;
-                if (symbol == "|")
+                var function = context.Provider.Get(symbol);
+                var combined = new FunctionCallExpression
                 {
-                    if (operands.Count > 2)
-                    {
-                        errors.Add(new SyntaxErrorData(currentIndex, 0, "Only two parameters expected for | "));
-                        return ParseBlockResult.NoAdvance(indexBeforeOperator);
-                    }
-
-                    combined = new ListExpression
-                    {
-                        ValueExpressions = operands.ToArray(),
-                        Pos = startPos,
-                        Length = endPos - startPos
-                    };
-                }
-                else
-                {
-                    var function = context.Provider.Get(symbol);
-                    combined = new FunctionCallExpression
-                    {
-                        Function = new LiteralBlock(function),
-                        Parameters = operands.ToArray(),
-                        Pos = startPos,
-                        Length = endPos - startPos
-                    };
-                }
+                    Function = new LiteralBlock(function),
+                    Parameters = operands.ToArray(),
+                    Pos = startPos,
+                    Length = endPos - startPos
+                };
 
                 var nodeStart = operandNodes.Count > 0 ? operandNodes[0].Pos : startPos;
                 var nodeLength = endPos - nodeStart;

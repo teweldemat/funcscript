@@ -48,9 +48,7 @@ const OPERATOR_SYMBOLS = [
   ['+', '-'],
   ['>=', '<=', '!=', '>', '<', 'in'],
   ['==', '=', '??', '?!', '?.'],
-  ['or', 'and'],
-  ['|'],
-  ['>>']
+  ['or', 'and']
 ];
 
 // Mirrors FuncScript/Parser/FuncScriptParser.Main.cs :: s_prefixOp
@@ -121,7 +119,6 @@ function getInfixExpressionSingleLevel(context, siblings, level, candidates, ind
     throw new Error('candidates are required');
   }
 
-  const errors = context.ErrorsList;
   const nodes = [];
 
   let operandResult;
@@ -194,26 +191,13 @@ function getInfixExpressionSingleLevel(context, siblings, level, candidates, ind
     const last = operands[operands.length - 1];
     const endPos = last.Pos + last.Length;
 
-    let combined;
-    if (symbol === '|') {
-      if (operands.length > 2) {
-        errors.push(new SyntaxErrorData(currentIndex, 0, 'Only two parameters expected for | '));
-        return ParseResult.noAdvance(indexBeforeOperator);
-      }
-      const list = new ListExpression();
-      list.ValueExpressions = operands.slice();
-      list.Pos = startPos;
-      list.Length = endPos - startPos;
-      combined = list;
-    } else {
-      const fnValue = context.Provider.get(symbol);
-      const fnLiteral = new LiteralBlock(fnValue);
-      if (operatorNode) {
-        fnLiteral.Pos = operatorNode.Pos;
-        fnLiteral.Length = operatorNode.Length;
-      }
-      combined = new FunctionCallExpression(fnLiteral, operands.slice(), startPos, endPos - startPos);
+    const fnValue = context.Provider.get(symbol);
+    const fnLiteral = new LiteralBlock(fnValue);
+    if (operatorNode) {
+      fnLiteral.Pos = operatorNode.Pos;
+      fnLiteral.Length = operatorNode.Length;
     }
+    const combined = new FunctionCallExpression(fnLiteral, operands.slice(), startPos, endPos - startPos);
 
     currentExpression = combined;
   }
@@ -234,7 +218,6 @@ function getInfixExpressionSingleOp(context, siblings, level, candidates, index)
     throw new Error('candidates are required');
   }
 
-  const errors = context.ErrorsList;
   const buffer = createNodeBuffer(siblings);
 
   let operandResult;
@@ -307,22 +290,9 @@ function getInfixExpressionSingleOp(context, siblings, level, candidates, index)
     const last = operands[operands.length - 1];
     const endPos = last.Pos + last.Length;
 
-    let combined;
-    if (symbol === '|') {
-      if (operands.length > 2) {
-        errors.push(new SyntaxErrorData(currentIndex, 0, 'Only two parameters expected for | '));
-        return ParseResult.noAdvance(indexBeforeOperator);
-      }
-      const list = new ListExpression();
-      list.ValueExpressions = operands.slice();
-      list.Pos = startPos;
-      list.Length = endPos - startPos;
-      combined = list;
-    } else {
-      const fnValue = context.Provider.get(symbol);
-      const fnLiteral = new LiteralBlock(fnValue);
-      combined = new FunctionCallExpression(fnLiteral, operands.slice(), startPos, endPos - startPos);
-    }
+    const fnValue = context.Provider.get(symbol);
+    const fnLiteral = new LiteralBlock(fnValue);
+    const combined = new FunctionCallExpression(fnLiteral, operands.slice(), startPos, endPos - startPos);
 
     currentExpression = combined;
   }

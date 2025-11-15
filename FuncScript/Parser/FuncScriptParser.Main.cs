@@ -95,9 +95,7 @@ namespace FuncScript.Core
             new[] { "+", "-" },
             new[] { ">=", "<=", "!=", ">", "<", "in" },
             new[] { "==", "=", "??", "?!", "?." },
-            new[] { "or", "and" },
-            new[] { "|" },
-            new[] { ">>" },
+            new[] { "or", "and" }
         };
 
         private static string[][] s_prefixOp =

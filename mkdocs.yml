@@ -12,6 +12,7 @@ nav:
   - Syntax: syntax.md
   - Developers:
       - FuncScript Test Framework: developers/test-framework.md
+      - FuncScript CLI: developers/fs-cli.md
 theme:
   name: material
   features:
@@ -35,3 +36,7 @@ markdown_extensions:
       toc_depth: 3
 plugins:
   - search
+extra_css:
+  - assets/styles/interactive-examples.css
+extra_javascript:
+  - assets/generated/interactive-examples.js

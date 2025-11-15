@@ -14,7 +14,6 @@ namespace FuncScript.Core
             if (candidates == null)
                 throw new ArgumentNullException(nameof(candidates));
 
-            var errors = context.ErrorsList;
             var nodes = new List<ParseNode>();
 
             ParseBlockResult operandResult;
@@ -72,40 +71,21 @@ namespace FuncScript.Core
                 var startPos = operands[0].Pos;
                 var endPos = operands[^1].Pos + operands[^1].Length;
 
-                ExpressionBlock combined;
-                if (symbol == "|")
+                var function = context.Provider.Get(symbol);
+                var functionLiteral = new LiteralBlock(function);
+                if (operatorNode != null)
                 {
-                    if (operands.Count > 2)
-                    {
-                        errors.Add(new SyntaxErrorData(currentIndex, 0, "Only two parameters expected for | "));
-                        return ParseBlockResult.NoAdvance(indexBeforeOperator);
-                    }
-
-                    combined = new ListExpression
-                    {
-                        ValueExpressions = operands.ToArray(),
-                        Pos = startPos,
-                        Length = endPos - startPos
-                    };
+                    functionLiteral.Pos = operatorNode.Pos;
+                    functionLiteral.Length = operatorNode.Length;
                 }
-                else
+
+                var combined = new FunctionCallExpression
                 {
-                    var function = context.Provider.Get(symbol);
-                    var functionLiteral = new LiteralBlock(function);
-                    if (operatorNode != null)
-                    {
-                        functionLiteral.Pos = operatorNode.Pos;
-                        functionLiteral.Length = operatorNode.Length;
-                    }
-
-                    combined = new FunctionCallExpression
-                    {
-                        Function = functionLiteral,
-                        Parameters = operands.ToArray(),
-                        Pos = startPos,
-                        Length = endPos - startPos
-                    };
-                }
+                    Function = functionLiteral,
+                    Parameters = operands.ToArray(),
+                    Pos = startPos,
+                    Length = endPos - startPos
+                };
 
                 currentExpression = combined;
             }

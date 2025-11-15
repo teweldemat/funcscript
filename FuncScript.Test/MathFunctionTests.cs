@@ -39,6 +39,8 @@ namespace FuncScript.Test
         [TestCase("math.log(math.e)", 1.0)]
         [TestCase("math.log(8,2)", 3.0)]
         [TestCase("math.log10(1000)", 3.0)]
+        [TestCase("math.log2(8)", 3.0)]
+        [TestCase("math.cbrt(27)", 3.0)]
         [TestCase("math.abs(-5.0)", 5.0)]
         [TestCase("math.round(2.345,2)", 2.35)]
         [TestCase("math.trunc(2.9)", 2.0)]
@@ -68,10 +70,18 @@ namespace FuncScript.Test
         public void PowerAndClampReturnExpectedResults()
         {
             var pow = Engine.Evaluate("math.pow(2,3)");
+            var powerAlias = Engine.Evaluate("math.power(2,4)");
+            var infixPow = Engine.Evaluate("2 ^ 5");
             var clamp = Engine.Evaluate("math.clamp(10, 0, 5)");
 
             Assert.That(pow, Is.TypeOf<double>());
             Assert.That((double)pow, Is.EqualTo(8.0).Within(1e-10));
+
+            Assert.That(powerAlias, Is.TypeOf<double>());
+            Assert.That((double)powerAlias, Is.EqualTo(16.0).Within(1e-10));
+
+            Assert.That(infixPow, Is.TypeOf<double>());
+            Assert.That((double)infixPow, Is.EqualTo(32.0).Within(1e-10));
 
             Assert.That(System.Convert.ToDouble(clamp), Is.EqualTo(5.0).Within(1e-10));
         }
@@ -113,6 +123,36 @@ namespace FuncScript.Test
 
             Assert.That(e, Is.TypeOf<double>());
             Assert.That((double)e, Is.EqualTo(System.Math.E).Within(1e-10));
+        }
+
+        [Test]
+        public void HyperbolicAndInverseHyperbolicFunctions()
+        {
+            var sinh = Engine.Evaluate("math.sinh(0)");
+            var cosh = Engine.Evaluate("math.cosh(0)");
+            var tanh = Engine.Evaluate("math.tanh(1)");
+            var asinh = Engine.Evaluate("math.asinh(1)");
+            var acosh = Engine.Evaluate("math.acosh(2)");
+            var atanh = Engine.Evaluate("math.atanh(0.5)");
+
+            Assert.That((double)sinh, Is.EqualTo(0.0).Within(1e-10));
+            Assert.That((double)cosh, Is.EqualTo(1.0).Within(1e-10));
+            Assert.That((double)tanh, Is.EqualTo(System.Math.Tanh(1)).Within(1e-10));
+            Assert.That((double)asinh, Is.EqualTo(System.Math.Asinh(1)).Within(1e-10));
+            Assert.That((double)acosh, Is.EqualTo(System.Math.Acosh(2)).Within(1e-10));
+            Assert.That((double)atanh, Is.EqualTo(System.Math.Atanh(0.5)).Within(1e-10));
+        }
+
+        [Test]
+        public void Atan2AndConversionHelpers()
+        {
+            var atan2 = Engine.Evaluate("math.atan2(0, 1)");
+            var degToRad = Engine.Evaluate("math.degtorad(180)");
+            var radToDeg = Engine.Evaluate("math.radtodeg(math.pi)");
+
+            Assert.That((double)atan2, Is.EqualTo(0).Within(1e-10));
+            Assert.That((double)degToRad, Is.EqualTo(System.Math.PI).Within(1e-10));
+            Assert.That((double)radToDeg, Is.EqualTo(180).Within(1e-10));
         }
         
         [Test]
