@@ -5,21 +5,21 @@ FuncScript registers every built-in helper under the symbols documented below. T
 ## Arithmetic Operators
 - `+`, `-`, `*`, `/`, `%` – Standard arithmetic on integers, long integers, and floats. Pure integer chains stay integral as long as each division is exact; otherwise values promote to floating point automatically.
 - `div` – Integer-only division; accepts only 32/64-bit integers (or their long forms) and truncates toward zero. Mixing with non-integers raises a type mismatch error.
-- `neg(value)` – Unary negation for numeric values.
+- `- value` – Unary negation for numeric values.
 
 ## Comparison & Membership
 - `=`, `==`, `!=`, `<`, `<=`, `>`, `>=` – Comparisons returning `Boolean` values (`==` is an alias for `=`).
-- `in(value, listOrText)` – Membership test for lists and strings.
+- `value in listOrText` – Membership test for lists and strings.
 
 ## Null & Safe Access Operators
 - `value ?? fallback` – Returns `fallback` when `value` is null.
 - `kvc?.key` – Safe member access; returns null when the target or key is missing.
 - `test-val?!expr` – Evaluates `expr` if `test-val` is not null; otherwise, defaults to null. This is typically used when `expr` depends on a non-null `test-val`.
-- `.(record, key)` – Direct member access (throws on missing keys or non-records).
+- `kvc.key` – Direct member access (throws on missing keys or non-records).
 
 ## Logical & Control Flow
 - `if condition then value else other` – Branching expression (keywords are required).
-- `and(a, b)` / `or(a, b)` – Logical conjunction/disjunction with short-circuit evaluation.
+- `a and b` / `a or b` – Logical conjunction/disjunction with short-circuit evaluation.
 - `not value` – Logical negation (alias: `!value`).
 - `switch selector, condition1: result1, condition2: result2, defaultCondition: defaultResult` – Switch over a selector; commas or semicolons separate branches.
 - `case condition: result` – Case helper written with `condition: result` pairs separated by commas or semicolons; add a `true: fallback` arm for defaults.
@@ -64,11 +64,11 @@ All numeric helpers belong to the `math` provider collection, so you can call th
 - `Reverse(list)` – Reverse the order of elements.
 
 ## Key-Value & Record Helpers
-- `Select(record, keys...)` – Create a new record containing the provided keys.
+- Member access uses dot syntax (`record.key`). For selecting a subset of fields, see the selector syntax described in [Syntax](../syntax.md).
 
 ## Text & Formatting
-- `upper(text)` – Convert `text` to uppercase (culture invariant); also accessible via `text.upper(...)`.
-- `lower(text)` – Convert `text` to lowercase (culture invariant); also accessible via `text.lower(...)`.
+- `text.upper(text)` – Convert `text` to uppercase (culture invariant).
+- `text.lower(text)` – Convert `text` to lowercase (culture invariant).
 - `join(list, separator)` – Concatenate list entries with `separator`.
 - `format(pattern, value1, value2, ...)` – Composite formatting using .NET format strings.
 - `find(text, value)` – Return the zero-based index of `value` or `-1` if not found.
@@ -93,7 +93,7 @@ All numeric helpers belong to the `math` provider collection, so you can call th
 ## Diagnostics & Miscellaneous
 - `guid()` – Generate a GUID string.
 - `log(value, messageOrHandler?)` – Returns `value` after optionally printing `messageOrHandler` or, when it is a function, invoking it with `value`.
-- `error(message)` – Raise a runtime error and stop evaluation.
+- `error(message)` – Constructs an `Error` value. Most built-in functions propagate an `Error` result, which aborts evaluation when consumed without handling.
 
 ## Values & Constants
 - `math.Pi` – π constant.

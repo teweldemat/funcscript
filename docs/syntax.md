@@ -95,6 +95,19 @@ Evaluating the block above produces:
 
 because execution stops at the returned expression and only the bindings required to compute `net` are evaluated.
 
+### Record Selection
+
+Selectors can also project a subset of keys from a record. List the fields you want inside braces immediately after the record value:
+
+```funcscript
+{
+  person: { name: "Ada"; age: 42; city: "London" };
+  summary: person { name; city }
+}
+```
+
+In the example above, `summary` evaluates to `{ name: "Ada", city: "London" }`.
+
 ## Comments
 Use either `// inline` or `/* multi-line */` comments anywhere whitespace is permitted:
 

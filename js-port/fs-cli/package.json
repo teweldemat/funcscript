@@ -1,6 +1,6 @@
 {
   "name": "@tewelde/fs-cli",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Command line interface for evaluating and testing FuncScript expressions.",
   "license": "MIT",
   "type": "commonjs",
