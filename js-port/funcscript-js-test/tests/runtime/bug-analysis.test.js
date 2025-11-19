@@ -5,9 +5,11 @@ const {
   evaluate,
   FuncScriptParser,
   DefaultFsDataProvider,
-  valueOf
+  valueOf,
+  SimpleKeyValueCollection,
+  ArrayFsList
 } = require('@tewelde/funcscript');
-const { toPlain } = require('../helpers/runtime');
+const { toPlain, evaluateWithVars } = require('../helpers/runtime');
 
 // Mirrors key scenarios from FuncScript.Test/BugAnalysis.cs
 
@@ -53,6 +55,28 @@ describe('BugAnalysis', () => {
     const exp = '4/*3*/\n +5;';
     const result = evaluate(exp, new DefaultFsDataProvider());
     expect(valueOf(result)).to.equal(9);
+  });
+
+  it('preserves selector scope inside map iterations (Bug20251120 parity)', () => {
+    const query = `
+testData.Samples map (sample) => sample 
+{
+    z: utils.TheLambda(3)
+}
+`;
+
+    const sample = new SimpleKeyValueCollection(null, [['r', 32]]);
+    const samplesList = new ArrayFsList([sample]);
+    const testData = new SimpleKeyValueCollection(null, [['Samples', samplesList]]);
+    const utils = new SimpleKeyValueCollection(null, [['TheLambda', (x) => 12]]);
+    const vars = { testData, utils };
+
+    const result = evaluateWithVars(query, vars);
+    const plain = toPlain(result);
+
+    expect(plain).to.be.an('array').with.lengthOf(1);
+    expect(plain[0]).to.be.an('object');
+    expect(plain[0]).to.have.property('z', 12);
   });
 
 });
