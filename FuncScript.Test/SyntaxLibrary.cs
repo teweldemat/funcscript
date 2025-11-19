@@ -326,6 +326,16 @@ namespace FuncScript.Test
             Assert.AreEqual(expected, res);
 
         }
+
+        [Test]
+        [Ignore("Abandoned feature")]
+        public void FormatFunctionInJsonDoesNotError()
+        {
+            var exp = "format({x:(a)=>1},'json')";
+            var res = (string)BasicTests.AssertSingleResultType(exp, typeof(string));
+            var normalized = res.Replace(" ", "").Replace("\n", "").Replace("\r", "").Replace("\t", "");
+            Assert.AreEqual("{\"x\":(a)=>1}", normalized);
+        }
         [Test]
         public void TestRangeFunction()
         {

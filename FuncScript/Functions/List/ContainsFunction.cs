@@ -14,13 +14,15 @@ namespace FuncScript.Functions.List
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != this.MaxParsCount)
-                throw new Error.TypeMismatchError($"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Count}");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            var container = pars.GetParameter(parent,0);
-            var item = pars.GetParameter(parent,1);
+            if (pars.Length != this.MaxParsCount)
+                throw new Error.TypeMismatchError($"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Length}");
+
+            var container = pars[0];
+            var item = pars[1];
 
 
             return EvaluateInternal(container, item);

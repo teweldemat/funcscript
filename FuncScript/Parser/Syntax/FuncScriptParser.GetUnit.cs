@@ -6,14 +6,15 @@ namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        static ParseBlockResult GetUnit(ParseContext context, List<ParseNode> siblings, int index)
+        static ParseBlockResult GetUnit(ParseContext context, List<ParseNode> siblings, ReferenceMode referenceMode,
+            int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
 
             var errors = context.ErrorsList;
             // String template
-            var stringTemplateResult = GetStringTemplate(context, siblings, index);
+            var stringTemplateResult = GetStringTemplate(context, siblings, referenceMode, index);
             if (stringTemplateResult.HasProgress(index) && stringTemplateResult.ExpressionBlock != null)
             {
                 return stringTemplateResult;
@@ -44,28 +45,28 @@ namespace FuncScript.Core
             }
 
             // List expression
-            var listResult = GetListExpression(context, siblings, index);
+            var listResult = GetListExpression(context, siblings, referenceMode, index);
             if (listResult.HasProgress(index) && listResult.ExpressionBlock != null)
                 return listResult;
 
             // Key-value collection or selector definition
-            var kvcResult = GetKvcExpression(context, siblings, false, index);
+            var kvcResult = GetKvcExpression(context, siblings, referenceMode, false, index);
             if (kvcResult.HasProgress(index) && kvcResult.ExpressionBlock != null) return kvcResult;
 
             // If-then-else
-            var ifResult = GetIfThenElseExpression(context, siblings, index);
+            var ifResult = GetIfThenElseExpression(context, siblings, referenceMode, index);
             if (ifResult.HasProgress(index) && ifResult.ExpressionBlock != null) return ifResult;
 
             // Case expression
-            var caseResult = GetCaseExpression(context, siblings, index);
+            var caseResult = GetCaseExpression(context, siblings, referenceMode, index);
             if (caseResult.HasProgress(index) && caseResult.ExpressionBlock != null) return caseResult;
 
             // Switch expression
-            var switchResult = GetSwitchExpression(context, siblings, index);
+            var switchResult = GetSwitchExpression(context, siblings, referenceMode, index);
             if (switchResult.HasProgress(index) && switchResult.ExpressionBlock != null) return switchResult;
 
             // Lambda expression
-            var lambdaResult = GetLambdaExpression(context, siblings, index);
+            var lambdaResult = GetLambdaExpression(context, siblings, referenceMode, index);
             if (lambdaResult.HasProgress(index) && lambdaResult.Value != null)
             {
                 var block = new LiteralBlock(lambdaResult.Value)
@@ -95,7 +96,7 @@ namespace FuncScript.Core
             var identifierIndex = iden.NextIndex;
             if (identifierIndex > index)
             {
-                var reference = new ReferenceBlock(iden.Iden)
+                var reference = new ReferenceBlock( iden.Iden,iden.IdenLower,referenceMode)
                 {
                     Pos = iden.StartIndex,
                     Length = iden.Length
@@ -104,12 +105,12 @@ namespace FuncScript.Core
             }
 
             // Expression in parenthesis
-            var parenthesisResult = GetExpInParenthesis(context, siblings, index);
+            var parenthesisResult = GetExpInParenthesis(context, siblings, referenceMode, index);
             if (parenthesisResult.HasProgress(index) && parenthesisResult.ExpressionBlock != null)
                 return parenthesisResult;
             
             // Prefix operator
-            var prefixResult = GetPrefixOperator(context, siblings, index);
+            var prefixResult = GetPrefixOperator(context, siblings, referenceMode, index);
             if (prefixResult.HasProgress(index) && prefixResult.ExpressionBlock != null) return prefixResult;
 
             return ParseBlockResult.NoAdvance(index);

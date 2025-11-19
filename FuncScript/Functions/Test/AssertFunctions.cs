@@ -104,7 +104,10 @@ namespace FuncScript.Functions.Test
         public virtual CallType CallType => CallType.Prefix;
         public virtual int Precedence => 0;
 
-        public abstract object Evaluate(IFsDataProvider parent, IParameterList pars);
+        public abstract object Evaluate(object par);
+
+        protected FsList ExpectParameters(object par)
+            => FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
         protected FsError Failure(string message)
             => new FsError(FsError.ERROR_DEFAULT, $"{Symbol}: {message}");
@@ -121,13 +124,14 @@ namespace FuncScript.Functions.Test
 
         public override int MaxParsCount => 2;
 
-        public override object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public override object Evaluate(object par)
         {
-            if (pars.Count != 2)
+            var pars = ExpectParameters(par);
+            if (pars.Length != 2)
                 throw new Error.TypeMismatchError($"{Symbol}: expected two parameters");
 
-            var left = pars.GetParameter(parent, 0);
-            var right = pars.GetParameter(parent, 1);
+            var left = pars[0];
+            var right = pars[1];
 
             if (AssertHelpers.AreEqual(left, right))
                 return true;
@@ -145,13 +149,14 @@ namespace FuncScript.Functions.Test
 
         public override int MaxParsCount => 2;
 
-        public override object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public override object Evaluate(object par)
         {
-            if (pars.Count != 2)
+            var pars = ExpectParameters(par);
+            if (pars.Length != 2)
                 throw new Error.TypeMismatchError($"{Symbol}: expected two parameters");
 
-            var left = pars.GetParameter(parent, 0);
-            var right = pars.GetParameter(parent, 1);
+            var left = pars[0];
+            var right = pars[1];
 
             if (AssertHelpers.AreEqual(left, right))
                 return Failure("Values should not be equal but they are.");
@@ -169,13 +174,14 @@ namespace FuncScript.Functions.Test
 
         public override int MaxParsCount => 2;
 
-        public override object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public override object Evaluate(object par)
         {
-            if (pars.Count != 2)
+            var pars = ExpectParameters(par);
+            if (pars.Length != 2)
                 throw new Error.TypeMismatchError($"{Symbol}: expected two parameters");
 
-            var left = pars.GetParameter(parent, 0);
-            var right = pars.GetParameter(parent, 1);
+            var left = pars[0];
+            var right = pars[1];
 
             if (!AssertHelpers.TryCompare(left, right, Symbol, out var cmp, out var error))
                 return error;
@@ -196,13 +202,14 @@ namespace FuncScript.Functions.Test
 
         public override int MaxParsCount => 2;
 
-        public override object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public override object Evaluate(object par)
         {
-            if (pars.Count != 2)
+            var pars = ExpectParameters(par);
+            if (pars.Length != 2)
                 throw new Error.TypeMismatchError($"{Symbol}: expected two parameters");
 
-            var left = pars.GetParameter(parent, 0);
-            var right = pars.GetParameter(parent, 1);
+            var left = pars[0];
+            var right = pars[1];
 
             if (!AssertHelpers.TryCompare(left, right, Symbol, out var cmp, out var error))
                 return error;
@@ -223,12 +230,13 @@ namespace FuncScript.Functions.Test
     {
         public override string Symbol => "assert.true";
 
-        public override object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public override object Evaluate(object par)
         {
-            if (pars.Count != 1)
+            var pars = ExpectParameters(par);
+            if (pars.Length != 1)
                 throw new Error.TypeMismatchError($"{Symbol}: boolean argument expected");
 
-            var value = pars.GetParameter(parent, 0);
+            var value = pars[0];
             if (value is bool boolValue)
                 return boolValue ? true : Failure($"Expected true but was {AssertHelpers.FormatValue(value)}");
 
@@ -243,12 +251,13 @@ namespace FuncScript.Functions.Test
     {
         public override string Symbol => "assert.false";
 
-        public override object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public override object Evaluate(object par)
         {
-            if (pars.Count != 1)
+            var pars = ExpectParameters(par);
+            if (pars.Length != 1)
                 throw new Error.TypeMismatchError($"{Symbol}: boolean argument expected");
 
-            var value = pars.GetParameter(parent, 0);
+            var value = pars[0];
             if (value is bool boolValue)
                 return !boolValue ? true : Failure($"Expected false but was {AssertHelpers.FormatValue(value)}");
 
@@ -265,14 +274,15 @@ namespace FuncScript.Functions.Test
 
         public override int MaxParsCount => 3;
 
-        public override object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public override object Evaluate(object par)
         {
-            if (pars.Count != 3)
+            var pars = ExpectParameters(par);
+            if (pars.Length != 3)
                 throw new Error.TypeMismatchError($"{Symbol}: expected 3 parameters");
 
-            var left = AssertHelpers.ToDouble(Symbol, pars.GetParameter(parent, 0), "left");
-            var right = AssertHelpers.ToDouble(Symbol, pars.GetParameter(parent, 1), "right");
-            var epsilon = System.Math.Abs(AssertHelpers.ToDouble(Symbol, pars.GetParameter(parent, 2), "epsilon"));
+            var left = AssertHelpers.ToDouble(Symbol, pars[0], "left");
+            var right = AssertHelpers.ToDouble(Symbol, pars[1], "right");
+            var epsilon = System.Math.Abs(AssertHelpers.ToDouble(Symbol, pars[2], "epsilon"));
             var difference = System.Math.Abs(left - right);
 
             if (difference <= epsilon)
@@ -295,12 +305,13 @@ namespace FuncScript.Functions.Test
     {
         public override string Symbol => "assert.noerror";
 
-        public override object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public override object Evaluate(object par)
         {
-            if (pars.Count != 1)
+            var pars = ExpectParameters(par);
+            if (pars.Length != 1)
                 throw new Error.TypeMismatchError($"{Symbol}: argument expected");
 
-            var value = pars.GetParameter(parent, 0);
+            var value = pars[0];
             if (value is FsError error)
                 return Failure($"Expected non-error result but received {error.ErrorType}: {error.ErrorMessage}");
 
@@ -315,12 +326,13 @@ namespace FuncScript.Functions.Test
     {
         public override string Symbol => "assert.iserror";
 
-        public override object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public override object Evaluate(object par)
         {
-            if (pars.Count != 1)
+            var pars = ExpectParameters(par);
+            if (pars.Length != 1)
                 throw new Error.TypeMismatchError($"{Symbol}: argument expected");
 
-            if (pars.GetParameter(parent, 0) is FsError)
+            if (pars[0] is FsError)
                 return true;
 
             return Failure("Expected an error result but received a non-error value.");
@@ -336,13 +348,14 @@ namespace FuncScript.Functions.Test
 
         public override int MaxParsCount => 2;
 
-        public override object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public override object Evaluate(object par)
         {
-            if (pars.Count != 2)
+            var pars = ExpectParameters(par);
+            if (pars.Length != 2)
                 throw new Error.TypeMismatchError($"{Symbol}: expected value and type name");
 
-            var first = pars.GetParameter(parent, 0);
-            var typeName = pars.GetParameter(parent, 1) as string
+            var first = pars[0];
+            var typeName = pars[1] as string
                 ?? throw new Error.TypeMismatchError($"{Symbol}: type name must be a string");
 
             if (!AssertHelpers.IsError(first, out var error))
@@ -364,13 +377,14 @@ namespace FuncScript.Functions.Test
 
         public override int MaxParsCount => 2;
 
-        public override object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public override object Evaluate(object par)
         {
-            if (pars.Count != 2)
+            var pars = ExpectParameters(par);
+            if (pars.Length != 2)
                 throw new Error.TypeMismatchError($"{Symbol}: expected value and message");
 
-            var first = pars.GetParameter(parent, 0);
-            var message = pars.GetParameter(parent, 1) as string
+            var first = pars[0];
+            var message = pars[1] as string
                 ?? throw new Error.TypeMismatchError($"{Symbol}: message must be a string");
 
             if (!AssertHelpers.IsError(first, out var error))
@@ -393,12 +407,13 @@ namespace FuncScript.Functions.Test
     {
         public override string Symbol => "assert.isnull";
 
-        public override object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public override object Evaluate(object par)
         {
-            if (pars.Count != 1)
+            var pars = ExpectParameters(par);
+            if (pars.Length != 1)
                 throw new Error.TypeMismatchError($"{Symbol}: argument expected");
 
-            if (pars.GetParameter(parent, 0) == null)
+            if (pars[0] == null)
                 return true;
 
             return Failure("Expected null but received a non-null value.");
@@ -412,12 +427,13 @@ namespace FuncScript.Functions.Test
     {
         public override string Symbol => "assert.isnotnull";
 
-        public override object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public override object Evaluate(object par)
         {
-            if (pars.Count != 1)
+            var pars = ExpectParameters(par);
+            if (pars.Length != 1)
                 throw new Error.TypeMismatchError($"{Symbol}: argument expected");
 
-            if (pars.GetParameter(parent, 0) != null)
+            if (pars[0] != null)
                 return true;
 
             return Failure("Expected a non-null value but received null.");

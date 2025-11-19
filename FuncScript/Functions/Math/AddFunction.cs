@@ -20,7 +20,7 @@ namespace FuncScript.Functions.Math
             this._length = lists.Sum(l => l.Length);
         }
 
-        public override object this[int index]
+        public object this[int index]
         {
             get
             {
@@ -37,13 +37,18 @@ namespace FuncScript.Functions.Math
             }
         }
 
-        public override int Length => _length;
-        public override IEnumerator<object> GetEnumerator()
+        public  int Length => _length;
+        public IEnumerator<object> GetEnumerator()
         {
             for (int i = 0; i < _length; i++)
             {
                 yield return this[i];
             }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
         }
     }
     public class AddFunction : IFsFunction
@@ -56,16 +61,14 @@ namespace FuncScript.Functions.Math
 
         public int Precedence => 100;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var ret = EvaluateInteral(pars, (i) =>
-            {
-                var ret = pars.GetParameter(parent, i);
-                return (true, ret);
-            });
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var ret = EvaluateInteral(pars);
             return ret;
         }
-        object EvaluateInteral(IParameterList pars,Func<int,(bool,object)> getPar)
+        object EvaluateInteral(FsList pars)
         {
             bool isNull=true, isInt=false,isLong=false,isDouble=false,isString=false,isList=false;
             bool isKv = false;
@@ -76,13 +79,10 @@ namespace FuncScript.Functions.Math
             StringBuilder stringTotal = null;
             KeyValueCollection kvTotal = null;
             List<FsList> listTotal= new List<FsList>();
-            int c = pars.Count;
+            int c = pars.Length;
             for(int i=0;i<c;i++)
             {
-                var p = getPar( i);
-                if (!p.Item1)
-                    return null;
-                var d = p.Item2;
+                var d = pars[i];
                 if(isNull)
                 {
                     if (d is int)

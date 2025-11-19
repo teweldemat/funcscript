@@ -20,14 +20,16 @@ namespace FuncScript.Functions.Logic
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != this.MaxParsCount)
-                if (pars.Count != MaxParsCount)
-                    return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
-                        $"{this.Symbol}: expected {this.MaxParsCount} paramters got {pars.Count}");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            var par0 = pars.GetParameter(parent, 0);
+            if (pars.Length != this.MaxParsCount)
+                if (pars.Length != MaxParsCount)
+                    return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                        $"{this.Symbol}: expected {this.MaxParsCount} paramters got {pars.Length}");
+
+            var par0 = pars[0];
 
             if (par0 == null)
                 return new FsError(FsError.ERROR_TYPE_MISMATCH,

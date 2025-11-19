@@ -6,7 +6,8 @@ namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        static ParseBlockResult GetPrefixOperator(ParseContext context, IList<ParseNode> siblings, int index)
+        static ParseBlockResult GetPrefixOperator(ParseContext context, IList<ParseNode> siblings,
+            ReferenceMode referenceMode, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -42,7 +43,7 @@ namespace FuncScript.Core
             }
 
             var childNodes = new List<ParseNode>();
-            var operandResult = GetCallAndMemberAccess(context, childNodes, currentIndex);
+            var operandResult = GetCallAndMemberAccess(context, childNodes, referenceMode, currentIndex);
             if (!operandResult.HasProgress(currentIndex) || operandResult.ExpressionBlock == null)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, 0,
@@ -53,9 +54,11 @@ namespace FuncScript.Core
             currentIndex = operandResult.NextIndex;
 
             var expression = new FunctionCallExpression
+            (
+                new LiteralBlock(function),
+                new ListExpression(new[] { operandResult.ExpressionBlock })
+                )
             {
-                Function = new LiteralBlock(function),
-                Parameters = new[] { operandResult.ExpressionBlock },
                 Pos = index,
                 Length = currentIndex - index
             };

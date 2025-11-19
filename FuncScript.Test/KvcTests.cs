@@ -26,7 +26,7 @@ namespace FuncScript.Test
             var g = new DefaultFsDataProvider();
             var res = FuncScriptRuntime.Evaluate(g, "{a:3,c:5,d:a*c}");
             var expected = new ObjectKvc(new { a = 3, c = 5, d = 15 });
-            Assert.AreEqual(expected, res);
+            Assert.AreEqual(Engine.FormatToJson(expected),Engine.FormatToJson(res));
         }
 
         [Test]
@@ -89,7 +89,7 @@ namespace FuncScript.Test
             var g = new DefaultFsDataProvider();
             var res = FuncScriptRuntime.Evaluate(g, "{a:4}{a:a}");
             var expected = new ObjectKvc(new { a = 4});
-            Assert.AreEqual(expected, res);
+            Assert.AreEqual(Engine.FormatToJson(expected),Engine.FormatToJson(res));
         }
         [Test]
         public void TestSelectorStackOverflowBug2()
@@ -304,33 +304,35 @@ return Map(z,(x)=>x*x);
         [Test]
         public void TestDelegateRejectOut()
         {
-            Assert.Throws(typeof(Error.TypeMismatchError)
-                , () =>
+            var ex = Assert.Throws<Error.EvaluationException>(() =>
+            {
+                var vars = new
                 {
-                    var vars = new
+                    f = new DelegateWithOut((int x, out int y) =>
                     {
-                        f = new DelegateWithOut((int x, out int y) =>
-                        {
-                            y = 2;
-                            return x + 1;
-                        }
-                        )
-                    };
-                    var ret = FuncScriptRuntime.EvaluateWithVars("f(3)", vars);
-                });
+                        y = 2;
+                        return x + 1;
+                    }
+                    )
+                };
+                var ret = FuncScriptRuntime.EvaluateWithVars("f(3)", vars);
+            });
+
+            Assert.That(ex!.InnerException, Is.TypeOf<Error.TypeMismatchError>());
         }
         [Test]
         public void TestDelegateRejectVoid()
         {
-            Assert.Throws(typeof(Error.TypeMismatchError)
-                , () =>
+            var ex = Assert.Throws<Error.EvaluationException>(() =>
+            {
+                var vars = new
                 {
-                    var vars = new
-                    {
-                        f = new VoidDelegate((x) => { })
-                    };
-                    var ret = FuncScriptRuntime.EvaluateWithVars("f(3)", vars);
-                });
+                    f = new VoidDelegate((x) => { })
+                };
+                var ret = FuncScriptRuntime.EvaluateWithVars("f(3)", vars);
+            });
+
+            Assert.That(ex!.InnerException, Is.TypeOf<Error.TypeMismatchError>());
         }
         [Test]
         public void ByteArray()
@@ -385,7 +387,7 @@ d";
 
             var res = FuncScriptRuntime.FromJson(json);
 
-            Assert.AreEqual(expected, res);
+            Assert.AreEqual(Engine.FormatToJson(expected),Engine.FormatToJson(res));
         }
 
         [Test]

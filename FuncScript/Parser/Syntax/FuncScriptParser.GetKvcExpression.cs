@@ -7,7 +7,7 @@ namespace FuncScript.Core
     public partial class FuncScriptParser
     {
         static ParseBlockResult GetKvcExpression(ParseContext context, IList<ParseNode> siblings,
-            bool nakedMode, int index)
+            ReferenceMode referenceMode,bool nakedMode, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -32,7 +32,7 @@ namespace FuncScript.Core
             while (true)
             {
 
-                var itemResult = GetKvcItem(context, nodeItems, nakedMode, currentIndex);
+                var itemResult = GetKvcItem(context, nodeItems,referenceMode, nakedMode, currentIndex);
                 if (!itemResult.HasProgress(currentIndex))
                     break;
 
@@ -76,8 +76,7 @@ namespace FuncScript.Core
                 return new ParseBlockResult(index, null);
             }
 
-            var kvcExpression = new KvcExpression();
-            var validationError = kvcExpression.SetKeyValues(keyValues.ToArray(), returnExpression);
+            var (validationError,kvcExpression) = KvcExpression.CreateKvcExpression( keyValues.ToArray(),returnExpression);
             if (validationError != null)
             {
                 errors.Add(new SyntaxErrorData(index, currentIndex - index, validationError));

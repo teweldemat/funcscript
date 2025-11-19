@@ -7,7 +7,8 @@ namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        static ParseBlockResult GetCaseExpression(ParseContext context, IList<ParseNode> siblings, int index)
+        static ParseBlockResult GetCaseExpression(ParseContext context, IList<ParseNode> siblings,
+            ReferenceMode referenceMode, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -27,7 +28,7 @@ namespace FuncScript.Core
             {
                 if (parameters.Count == 0)
                 {
-                    var conditionResult = GetExpression(context, childNodes, currentIndex);
+                    var conditionResult = GetExpression(context, childNodes, referenceMode, currentIndex);
                     if (!conditionResult.HasProgress(currentIndex) || conditionResult.ExpressionBlock == null)
                     {
                         errors.Add(new SyntaxErrorData(currentIndex, 1, "Case condition expected"));
@@ -45,7 +46,7 @@ namespace FuncScript.Core
 
                     currentIndex = afterSeparator;
 
-                    var nextCondition = GetExpression(context, childNodes, currentIndex);
+                    var nextCondition = GetExpression(context, childNodes, referenceMode, currentIndex);
                     if (!nextCondition.HasProgress(currentIndex) || nextCondition.ExpressionBlock == null)
                         break;
 
@@ -59,7 +60,7 @@ namespace FuncScript.Core
 
                 var valueIndex = afterColon;
 
-                var valueResult = GetExpression(context, childNodes, valueIndex);
+                var valueResult = GetExpression(context, childNodes, referenceMode, valueIndex);
                 if (!valueResult.HasProgress(valueIndex) || valueResult.ExpressionBlock == null)
                 {
                     errors.Add(new SyntaxErrorData(valueIndex, 1, "Case value expected"));
@@ -70,12 +71,13 @@ namespace FuncScript.Core
                 currentIndex = valueResult.NextIndex;
             }
 
-            var functionCall = new FunctionCallExpression
+            var functionCall = new FunctionCallExpression(
+                new LiteralBlock(context.Provider.Get(KW_CASE)),
+             new ListExpression(parameters.ToArray()))
             {
-                Function = new LiteralBlock(context.Provider.Get(KW_CASE)),
                 Pos = index,
                 Length = currentIndex - index,
-                Parameters = parameters.ToArray()
+                
             };
 
             var parseNode = new ParseNode(ParseNodeType.Case, index, currentIndex - index, childNodes);

@@ -1,69 +1,38 @@
 ﻿using System.Collections;
 using System.Collections.Specialized;
+using System.Linq;
 using FuncScript.Core;
 
 namespace FuncScript.Model
 {
 
-    /// <summary>
-    /// Abstract base class for KeyValueCollection FuncScript data type
-    /// </summary>
-    public abstract class  KeyValueCollection:IFsDataProvider
+    public interface  KeyValueCollection
     {
-        /// <summary>
-        /// Gets value for a given key
-        /// </summary>
-        /// <param name="key">key in small letters</param>
-        /// <returns></returns>
-        public abstract object Get(string key);
-
-        public abstract IFsDataProvider ParentProvider { get; }
-
-        /// <summary>
-        /// Checks if key exists
-        /// </summary>
-        /// <param name="key">Key in small letters</param>
-        /// <returns></returns>
-        public abstract bool IsDefined(string key);
-        /// <summary>
-        /// Converts the KVC to a .net type
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
+        public object Get(string key);
+        public KeyValueCollection ParentProvider { get; }
+        public bool IsDefined(string key);
+        
+        
         public T ConvertTo<T>()
         {
             return Newtonsoft.Json.JsonConvert.DeserializeObject<T>(Engine.FormatToJson(this));
         }
-        /// <summary>
-        /// Converst a KVC to a .net type
-        /// </summary>
-        /// <param name="t"></param>
-        /// <returns></returns>
         public object ConvertTo(Type t)
         {
             var json = Engine.FormatToJson(this);
             return Newtonsoft.Json.JsonConvert.DeserializeObject(json,t);
         }
-        /// <summary>
-        /// Returns list of all Key-Value-Pairs in the KVC
-        /// </summary>
-        /// <returns></returns>
         public abstract IList<KeyValuePair<String, object>> GetAll();
-        /// <summary>
-        /// Checks if the KVC equals with another object
-        /// </summary>
-        /// <param name="otherkv"></param>
-        /// <returns></returns>
-        public override bool Equals(object otherkv)
+        public static bool Equals( KeyValueCollection thisKvc, object otherkv)
         {
             var other = otherkv as KeyValueCollection;
             if (other == null)
                 return false;
             foreach(var k in other.GetAll())
             {
-                if (!this.IsDefined(k.Key.ToLowerInvariant()))
+                if (!thisKvc.IsDefined(k.Key.ToLowerInvariant()))
                     return false;
-                var thisVal= this.Get(k.Key);
+                var thisVal= thisKvc.Get(k.Key);
                 var otherVal= other.Get(k.Key);
                 if (thisVal == null && otherVal == null)
                     return true;
@@ -75,17 +44,26 @@ namespace FuncScript.Model
             return true;
         }
         
-        /// <summary>
-        /// Merges to key value pairs. The merged KVC will have keys from both collections
-        /// If a key exists in both KVCs the value in the merged KVC is determined as follows
-        ///     if both values are KVCs themselves, the values are themselves merged
-        ///     Otherwise the value from the second KVC is taken
-        /// </summary>
-        /// <param name="col1">First KVC</param>
-        /// <param name="col2">Second KVC</param>
-        /// <returns></returns>
+        static KeyValueCollection NormalizeForMerge(KeyValueCollection col)
+        {
+            if (col == null)
+                return null;
+
+            if (col.ParentProvider == null)
+                return col;
+
+            var normalized = col.GetAll()
+                .Select(kv => KeyValuePair.Create(kv.Key, kv.Value))
+                .ToArray();
+
+            return new SimpleKeyValueCollection(null, normalized);
+        }
+
         public static KeyValueCollection Merge(KeyValueCollection col1,KeyValueCollection col2)
         {
+            col1 = NormalizeForMerge(col1);
+            col2 = NormalizeForMerge(col2);
+
             if (col1 == null && col2 == null)
                 return null;
             if (col1 == null)
@@ -124,10 +102,10 @@ namespace FuncScript.Model
                     "Key value collections from different contexts can't be merged");
             return new SimpleKeyValueCollection(col1.ParentProvider,kvs);
         }
-        public override int GetHashCode()
+        public static int GetHashCode(KeyValueCollection kvc)
         {
             int hash = 0;
-            foreach(var kv in this.GetAll())
+            foreach(var kv in kvc.GetAll())
             {
                 var thisHash = kv.Value == null ? kv.Key.GetHashCode() : HashCode.Combine(kv.Key.GetHashCode(), kv.Value.GetHashCode());
                 if (hash == 0)

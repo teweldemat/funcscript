@@ -9,6 +9,7 @@ using FuncScript.Block;
 using Newtonsoft.Json.Serialization;
 using static FuncScript.Core.FuncScriptParser;
 using System.Diagnostics.Tracing;
+using FuncScript.Functions;
 
 namespace FuncScript
 {
@@ -16,6 +17,8 @@ namespace FuncScript
     {
         static HashSet<Type> _useJson;
         static Newtonsoft.Json.JsonSerializerSettings _nsSetting;
+        private static object target;
+
         static Engine()
         {
             _nsSetting = new Newtonsoft.Json.JsonSerializerSettings
@@ -641,7 +644,7 @@ namespace FuncScript
         {
             return Evaluate(expression, new DefaultFsDataProvider(), vars, ParseMode.Standard);
         }
-        public static object Evaluate(IFsDataProvider providers, string expression)
+        public static object Evaluate(KeyValueCollection providers, string expression)
         {
             return Evaluate(expression, providers, null, ParseMode.Standard);
         }
@@ -651,7 +654,7 @@ namespace FuncScript
             SpaceSeparatedList,
             FsTemplate
         }
-        public static object Evaluate(string expression, IFsDataProvider provider, object vars, ParseMode mode)
+        public static object Evaluate(string expression, KeyValueCollection provider, object vars, ParseMode mode)
         {
             if (vars != null)
             {
@@ -678,11 +681,17 @@ namespace FuncScript
                 throw new Error.SyntaxError(expression,serrors);
             return Evaluate(exp, expression, provider, vars);
         }
-        public static object Evaluate(ExpressionBlock exp, string expression, IFsDataProvider provider, object vars)
+        public static object Evaluate(ExpressionBlock exp, string expression, KeyValueCollection provider, object vars)
         {
             try
             {
                 var ret = exp.Evaluate(provider);
+
+                if (ret is Block.KvcExpression.KvcExpressionCollection kvc)
+                {
+                    kvc.GetAll();
+                }
+
                 return ret;
             }
             catch (EvaluationException ex)
@@ -742,6 +751,40 @@ namespace FuncScript
                 ret.Add(new ParseNode(node.NodeType, i , (node.Pos+node.Length)-(i)));
 
             return ret;
+        }
+
+        public static object Apply(object target, object input)
+        {
+
+            if (target == null)
+                throw new Error.TypeMismatchError($"null target not supported");
+
+            if (target is KeyValueCollection kvc)
+            {
+                if(input is string key)
+                    return kvc.Get(key.ToLower());
+                if(input is FsList lst && lst.Length>0 && lst[0] is string lstkey)
+                    return kvc.Get(lstkey.ToLower());
+
+                throw new Error.TypeMismatchError($"Only string key can be applied to a key-value collection");
+            }
+
+            if (target is IFsFunction func)
+                return func.Evaluate(input);
+
+            if (target is FsList list)
+            {
+                if (input is FsList lst && lst.Length>0)
+                {
+                    input = lst[0];
+                }
+                if (input is int intIndex)
+                    return list[intIndex];
+                if (input is long lngIndex)
+                    return list[(int)lngIndex];
+                throw new Error.TypeMismatchError($"Only integer index can be applied to a key-value collection");
+            }
+            throw new Error.TypeMismatchError("Unsupported target type");
         }
     }
 }

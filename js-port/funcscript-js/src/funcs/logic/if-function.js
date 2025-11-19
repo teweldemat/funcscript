@@ -1,6 +1,7 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
-const { ensureTyped, typeOf, valueOf } = require('../../core/value');
+const { ensureTyped, typeOf, valueOf, makeValue } = require('../../core/value');
 const { FSDataType } = require('../../core/fstypes');
+const { FsError } = require('../../model/fs-error');
 
 class IFFunction extends BaseFunction {
   constructor() {
@@ -15,7 +16,20 @@ class IFFunction extends BaseFunction {
 
   evaluate(provider, parameters) {
     const condition = ensureTyped(parameters.getParameter(provider, 0));
-    const conditionValue = this.toBoolean(condition);
+    const conditionType = typeOf(condition);
+
+    if (conditionType === FSDataType.Error) {
+      return condition;
+    }
+
+    if (conditionType !== FSDataType.Boolean) {
+      return makeValue(
+        FSDataType.Error,
+        new FsError(FsError.ERROR_TYPE_MISMATCH, `${this.symbol}: The first parameter must be a boolean value.`)
+      );
+    }
+
+    const conditionValue = valueOf(condition);
 
     if (conditionValue) {
       if (parameters.count > 1) {
@@ -30,23 +44,6 @@ class IFFunction extends BaseFunction {
     return ensureTyped(condition);
   }
 
-  toBoolean(value) {
-    const type = typeOf(value);
-    switch (type) {
-      case FSDataType.Boolean:
-        return valueOf(value);
-      case FSDataType.Null:
-        return false;
-      case FSDataType.Integer:
-      case FSDataType.Float:
-      case FSDataType.BigInteger:
-        return valueOf(value) !== 0 && valueOf(value) !== 0n;
-      case FSDataType.String:
-        return valueOf(value).length > 0;
-      default:
-        return true;
-    }
-  }
 }
 
 module.exports = {

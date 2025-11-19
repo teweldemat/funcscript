@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EditorView } from '@codemirror/view';
-import FuncScriptTester from '../FuncScriptTester.js';
+import FuncScriptTester, { type FuncScriptTesterVariableInput } from '../FuncScriptTester.js';
 
 type TesterHarnessProps = {
   initialValue?: string;
@@ -21,6 +21,25 @@ const TesterHarness = ({ initialValue = 'sin(x)', saveKey, mode = 'standard' }: 
       style={{ height: 240 }}
       saveKey={saveKey}
       initialMode={mode}
+    />
+  );
+};
+
+type VariablesHarnessProps = {
+  initialVariables: FuncScriptTesterVariableInput[];
+};
+
+const VariablesHarness = ({ initialVariables }: VariablesHarnessProps) => {
+  const [value, setValue] = useState('foo');
+  const [variables, setVariables] = useState<FuncScriptTesterVariableInput[]>(() => initialVariables);
+  return (
+    <FuncScriptTester
+      value={value}
+      onChange={setValue}
+      minHeight={160}
+      style={{ height: 240 }}
+      variables={variables}
+      onVariablesChange={setVariables}
     />
   );
 };
@@ -288,5 +307,58 @@ describe('FuncScriptTester tree workflow', () => {
     await waitFor(() => {
       expect(screen.queryByText('Variables will appear here when referenced.')).toBeNull();
     });
+  });
+});
+
+describe('FuncScriptTester variable controls', () => {
+  it('clears all variables via toolbar control', async () => {
+    const user = userEvent.setup();
+    render(
+      <VariablesHarness
+        initialVariables={[
+          { name: 'alpha', expression: '1' },
+          { name: 'beta', expression: '2' }
+        ]}
+      />
+    );
+
+    await user.click(screen.getAllByRole('button', { name: 'Test' })[0]);
+
+    const clearButton = await screen.findByRole('button', { name: 'Clear variables' });
+    expect(clearButton).not.toBeDisabled();
+
+    await screen.findByText('alpha');
+    await screen.findByText('beta');
+
+    await user.click(clearButton);
+
+    await waitFor(() => {
+      expect(clearButton).toBeDisabled();
+    });
+
+    await screen.findByText('Variables will appear here when referenced.');
+  });
+
+  it('removes individual variables from the list', async () => {
+    const user = userEvent.setup();
+    render(
+      <VariablesHarness
+        initialVariables={[
+          { name: 'alpha', expression: '1' },
+          { name: 'beta', expression: '2' }
+        ]}
+      />
+    );
+
+    await user.click(screen.getAllByRole('button', { name: 'Test' })[0]);
+
+    const deleteBeta = await screen.findByRole('button', { name: 'Delete variable beta' });
+    await user.click(deleteBeta);
+
+    await waitFor(() => {
+      expect(screen.queryByText('beta')).toBeNull();
+    });
+
+    expect(screen.getByText('alpha')).toBeInTheDocument();
   });
 });

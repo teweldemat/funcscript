@@ -145,10 +145,12 @@ function printHelp() {
     'Usage:',
     "  fs-cli '<expr>'",
     "  fs-cli --test '<expr>' '<test-expr>'",
+    '  fs-cli -i script.fs --test script.test.fs',
     '  fs-cli --scan <path>',
     '',
     'Flags:',
-    '  --test, -t        Run the given test expression against the expression output.',
+    '  -i <file>         Read the expression from a FuncScript file when running tests.',
+    '  --test, -t        Run a test expression or, when used with -i, point to a test file.',
     '  --scan, -s        Recursively parse .fs/.fx files under the provided path and run paired tests.',
     '  --json            Print JSON output only.',
     '  --compact         Use compact JSON output.',
@@ -173,12 +175,15 @@ function parseArgs(rawArgs) {
     pretty: true,
     expression: null,
     testExpression: null,
-    scanPath: null
+    scanPath: null,
+    inputFile: null,
+    testFile: null
   };
 
   const positionals = [];
 
-  for (const arg of rawArgs) {
+  for (let i = 0; i < rawArgs.length; i += 1) {
+    const arg = rawArgs[i];
     switch (arg) {
       case '--help':
       case '-h':
@@ -188,9 +193,25 @@ function parseArgs(rawArgs) {
         return { ...options, mode: 'version' };
       case '--self-test':
         return { ...options, mode: 'self-test' };
+      case '--input':
+      case '-i':
+        options.mode = 'test';
+        if (i + 1 >= rawArgs.length) {
+          throw new Error('Missing value for --input flag.');
+        }
+        options.inputFile = rawArgs[++i];
+        break;
       case '--test':
       case '-t':
         options.mode = 'test';
+        if (i + 1 >= rawArgs.length) {
+          throw new Error('Missing value for --test flag.');
+        }
+        if (options.inputFile) {
+          options.testFile = rawArgs[++i];
+        } else {
+          options.testExpression = rawArgs[++i];
+        }
         break;
       case '--scan':
       case '-s':
@@ -211,7 +232,18 @@ function parseArgs(rawArgs) {
   }
 
   if (options.mode === 'test') {
-    [options.expression, options.testExpression] = positionals;
+    if (options.inputFile) {
+      if (!options.testFile && positionals.length > 0) {
+        [options.testFile] = positionals.splice(0, 1);
+      }
+    } else {
+      if (!options.expression && positionals.length > 0) {
+        [options.expression] = positionals.splice(0, 1);
+      }
+      if (!options.testExpression && positionals.length > 0) {
+        [options.testExpression] = positionals.splice(0, 1);
+      }
+    }
   } else if (options.mode === 'scan') {
     [options.scanPath] = positionals;
   } else {
@@ -226,6 +258,17 @@ function ensureExpression(value, label) {
     throw new Error(`Missing ${label}.`);
   }
   return value;
+}
+
+function ensureFileContents(pathValue, label) {
+  if (!pathValue || typeof pathValue !== 'string') {
+    throw new Error(`Missing ${label} path.`);
+  }
+  const resolved = path.resolve(pathValue);
+  if (!fs.existsSync(resolved)) {
+    throw new Error(`${label} not found: ${resolved}`);
+  }
+  return fs.readFileSync(resolved, 'utf8');
 }
 
 function ensureScanPath(value) {
@@ -254,6 +297,10 @@ function printEvaluation(expression, options) {
   if (json) {
     console.log(formatJson(result, pretty));
     return;
+  }
+  if (result.type === 'Error') {
+    const label = options.inputFile || expression || 'expression';
+    console.log(`Evaluation error at '${label}'`);
   }
   console.log(`Type: ${result.type}`);
   console.log('Value:');
@@ -454,13 +501,20 @@ function processScriptFile(filePath, aggregate) {
 
   const errors = [];
   let parseException = null;
+  let parseResult = null;
   try {
-    FuncScriptParser.parse(new DefaultFsDataProvider(), contents, errors);
+    parseResult = FuncScriptParser.parse(new DefaultFsDataProvider(), contents, errors);
   } catch (error) {
     parseException = error;
   }
 
-  if (parseException || errors.length > 0) {
+  const parseFailed =
+    parseException ||
+    !parseResult ||
+    !parseResult.block ||
+    parseResult.nextIndex === 0;
+
+  if (parseFailed) {
     aggregate.parseFailures += 1;
     const errorList = errors.length > 0 ? errors : [{ Message: parseException?.message || String(parseException) }];
     aggregate.parseErrors.push({
@@ -716,8 +770,20 @@ function runCli(rawArgs) {
         break;
       }
       case 'test': {
-        const expression = ensureExpression(options.expression, 'expression');
-        const testExpression = ensureExpression(options.testExpression, 'test expression');
+        let expression;
+        let testExpression;
+        if (options.inputFile) {
+          expression = ensureFileContents(options.inputFile, 'expression file');
+        } else {
+          expression = ensureExpression(options.expression, 'expression');
+        }
+
+        if (options.testFile) {
+          testExpression = ensureFileContents(options.testFile, 'test file');
+        } else {
+          testExpression = ensureExpression(options.testExpression, 'test expression');
+        }
+
         printTestResults(expression, testExpression, options);
         break;
       }
@@ -730,9 +796,6 @@ function runCli(rawArgs) {
     }
   } catch (error) {
     console.error(error?.message || error);
-    if (error?.stack) {
-      console.error(error.stack);
-    }
     process.exitCode = 1;
   }
 }

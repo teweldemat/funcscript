@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FuncScript.Block;
 
 namespace FuncScript.Core
 {
@@ -13,7 +14,7 @@ namespace FuncScript.Core
             var nodes = new List<ParseNode>();
             var kvcErrors = new List<SyntaxErrorData>();
             var kvcContext = context.CreateChild(context.Expression, kvcErrors);
-            var kvcResult = GetKvcExpression(kvcContext, nodes, true, index);
+            var kvcResult = GetKvcExpression(kvcContext, nodes,ReferenceMode.Standard, true, index);
             if (kvcResult.HasProgress(index) && kvcResult.ExpressionBlock != null)
             {
                 context.ErrorsList.AddRange(kvcErrors);
@@ -28,7 +29,7 @@ namespace FuncScript.Core
                 return new ParseBlockResultWithNode(last, kvcExpression,new ParseNode(ParseNodeType.RootExpression,index,last - index,nodes));
             }
 
-            var expressionResult = GetExpression(context, nodes, index);
+            var expressionResult = GetExpression(context, nodes, ReferenceMode.Standard, index);
             if (expressionResult.HasProgress(index) && expressionResult.ExpressionBlock != null)
             {
                 var expression = expressionResult.ExpressionBlock;

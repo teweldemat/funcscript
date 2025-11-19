@@ -15,11 +15,13 @@ namespace FuncScript.Functions.Text
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count == 0)
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            if (pars.Length == 0)
                 throw new Error.TypeMismatchError($"{this.Symbol} requires at least one parameter");
-            var par0 = pars.GetParameter(parent, 0);
+            var par0 = pars[0];
             
             if (par0 == null)
                 return null;
@@ -27,9 +29,9 @@ namespace FuncScript.Functions.Text
             var str = par0.ToString();
             object par1;
             string format = null;
-            if (pars.Count > 1)
+            if (pars.Length > 1)
             {
-                par1 = pars.GetParameter(parent, 1);
+                par1 = pars[1];
                 format = par1?.ToString();
             }
 
@@ -51,7 +53,7 @@ namespace FuncScript.Functions.Text
                 case "l":
                     return Convert.ToInt64(str);
                 case "fs":
-                    return Engine.Evaluate(this, str); // Assuming parent context is not needed or it is correctly handled within Engine.Evaluate
+                    return Engine.Evaluate(str); // Assuming parent context is not needed or it is correctly handled within Engine.Evaluate
                 default:
                     return str;
             }

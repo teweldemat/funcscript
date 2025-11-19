@@ -11,7 +11,9 @@ class LiteralBlock extends ExpressionBlock {
   evaluate(provider) {
     const raw = this.value[1];
     if (raw instanceof ExpressionFunction) {
-      raw.setContext(provider);
+      const instance = raw.clone();
+      instance.setContext(provider);
+      return ensureTyped(instance);
     }
     return this.value;
   }

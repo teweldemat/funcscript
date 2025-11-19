@@ -55,7 +55,7 @@ namespace FuncScript.Model
             this._val = val;
         }
         public object GetUnderlyingValue() => _val;
-        public override bool IsDefined(string key)
+        public bool IsDefined(string key)
         {
             if (_val == null)
                 return false;
@@ -63,7 +63,7 @@ namespace FuncScript.Model
             return GetTypeInfo(t).Properties.ContainsKey(key);
         }
 
-        public override object Get(string key)
+        public object Get(string key)
         {
             if (_val == null)
                 return null;
@@ -76,9 +76,9 @@ namespace FuncScript.Model
             return Engine.NormalizeDataType(val.Field.GetValue(_val));
         }
 
-        public override IFsDataProvider ParentProvider => null;
+        public KeyValueCollection ParentProvider => null;
 
-        public override IList<KeyValuePair<string, object>> GetAll()
+        public IList<KeyValuePair<string, object>> GetAll()
         {
             var list = new List<KeyValuePair<string, object>>();
             if (_val == null)
@@ -93,6 +93,16 @@ namespace FuncScript.Model
                 list.Add(KeyValuePair.Create(prop.Value.Name, val));
             }
             return list;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return KeyValueCollection.Equals(this, obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return KeyValueCollection.GetHashCode(this);
         }
         
     }

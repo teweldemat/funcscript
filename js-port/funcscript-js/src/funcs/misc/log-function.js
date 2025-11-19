@@ -1,6 +1,16 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
 const helpers = require('../helpers');
 
+function formatLogValue(input) {
+  const typed = helpers.ensureTyped(input);
+  const value = helpers.valueOf(typed);
+  return value === null || typeof value === 'undefined' ? '<null>' : value;
+}
+
+function writeLog(input) {
+  console.log('FuncScript:', formatLogValue(input));
+}
+
 class LogFunction extends BaseFunction {
   constructor() {
     super();
@@ -31,10 +41,10 @@ class LogFunction extends BaseFunction {
       const fn = helpers.ensureFunction(handlerParam);
       if (fn) {
         const args = new helpers.ArrayParameterList([value]);
-        fn.evaluate(provider, args);
+        const result = fn.evaluate(provider, args);
+        writeLog(typeof result === 'undefined' ? helpers.typedNull() : result);
       } else {
-        const message = helpers.ensureTyped(handlerParam);
-        console.log('FuncScript:', helpers.valueOf(message));
+        writeLog(handlerParam);
       }
     }
 

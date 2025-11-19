@@ -7,18 +7,18 @@ namespace FuncScript.Core
     public partial class FuncScriptParser
     {
         static ParseBlockResult GetFunctionCallParametersList(ParseContext context, IList<ParseNode> siblings,
-            ExpressionBlock function, int index)
+            ReferenceMode referenceMode, ExpressionBlock function, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
             if (function == null)
                 throw new ArgumentNullException(nameof(function));
 
-            var roundResult = ParseParameters(context, siblings, function, index, "(", ")");
+            var roundResult = ParseParameters(context, siblings, referenceMode, function, index, "(", ")");
             if (roundResult.HasProgress(index))
                 return roundResult;
 
-            var squareResult = ParseParameters(context, siblings, function, index, "[", "]");
+            var squareResult = ParseParameters(context, siblings, referenceMode, function, index, "[", "]");
             if (squareResult.HasProgress(index))
                 return squareResult;
 
@@ -26,7 +26,7 @@ namespace FuncScript.Core
         }
 
         static ParseBlockResult ParseParameters(ParseContext context, IList<ParseNode> siblings,
-            ExpressionBlock function, int index, string openToken, string closeToken)
+            ReferenceMode referenceMode, ExpressionBlock function, int index, string openToken, string closeToken)
         {
             var nodeItems = new List<ParseNode>();
             var currentIndex = GetToken(context, index, nodeItems, ParseNodeType.OpenBrace, openToken);
@@ -35,7 +35,7 @@ namespace FuncScript.Core
 
             var parameters = new List<ExpressionBlock>();
 
-            var parameterResult = GetExpression(context, nodeItems, currentIndex);
+            var parameterResult = GetExpression(context, nodeItems, referenceMode, currentIndex);
             if (parameterResult.HasProgress(currentIndex) && parameterResult.ExpressionBlock != null)
             {
                 parameters.Add(parameterResult.ExpressionBlock);
@@ -47,7 +47,7 @@ namespace FuncScript.Core
                     if (afterComma == currentIndex)
                         break;
 
-                    var nextParameter = GetExpression(context, nodeItems, afterComma);
+                    var nextParameter = GetExpression(context, nodeItems, referenceMode, afterComma);
                     if (!nextParameter.HasProgress(afterComma) || nextParameter.ExpressionBlock == null)
                     {
                         context.ErrorsList.Add(new SyntaxErrorData(afterComma, 0, "Parameter for call expected"));
@@ -74,9 +74,11 @@ namespace FuncScript.Core
             siblings.Add(parseNode);
 
             var callExpression = new FunctionCallExpression
+            (
+                function,
+                new ListExpression(parameters.ToArray())
+                )
             {
-                Function = function,
-                Parameters = parameters.ToArray(),
                 Pos = function.Pos,
                 Length = currentIndex - function.Pos
             };

@@ -8,7 +8,7 @@ namespace FuncScript.Core
     public partial class FuncScriptParser
     {
         static ParseBlockResult GetInfixExpressionSingleOp(ParseContext context, IList<ParseNode> siblings,
-            int level, string[] candidates, int index)
+            ReferenceMode referenceMode, int level, string[] candidates, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -20,9 +20,10 @@ namespace FuncScript.Core
             ParseBlockResult operandResult;
             var currentIndex = index;
             if (level == 0)
-                operandResult = GetCallAndMemberAccess(context, new List<ParseNode>(), currentIndex);
+                operandResult = GetCallAndMemberAccess(context, new List<ParseNode>(), referenceMode, currentIndex);
             else
-                operandResult = GetInfixExpressionSingleOp(context, new List<ParseNode>(), level - 1, s_operatorSymols[level - 1],
+                operandResult = GetInfixExpressionSingleOp(context, new List<ParseNode>(), referenceMode, level - 1,
+                    s_operatorSymols[level - 1],
                     currentIndex);
 
             if (!operandResult.HasProgress(currentIndex) || operandResult.ExpressionBlock == null)
@@ -48,9 +49,9 @@ namespace FuncScript.Core
                 {
                     ParseBlockResult nextOperand;
                     if (level == 0)
-                        nextOperand = GetCallAndMemberAccess(context, operandNodes, currentIndex);
+                        nextOperand = GetCallAndMemberAccess(context, operandNodes, referenceMode, currentIndex);
                     else
-                        nextOperand = GetInfixExpressionSingleOp(context, operandNodes, level - 1,
+                        nextOperand = GetInfixExpressionSingleOp(context, operandNodes, referenceMode, level - 1,
                             s_operatorSymols[level - 1], currentIndex);
 
                     if (!nextOperand.HasProgress(currentIndex) || nextOperand.ExpressionBlock == null)
@@ -74,9 +75,10 @@ namespace FuncScript.Core
 
                 var function = context.Provider.Get(symbol);
                 var combined = new FunctionCallExpression
+                (
+                   new LiteralBlock(function),
+                     new ListExpression(operands.ToArray()))
                 {
-                    Function = new LiteralBlock(function),
-                    Parameters = operands.ToArray(),
                     Pos = startPos,
                     Length = endPos - startPos
                 };

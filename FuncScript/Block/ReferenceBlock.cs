@@ -1,64 +1,58 @@
-﻿using FuncScript.Core;
+﻿using System.Data;
+using FuncScript.Core;
+using FuncScript.Error;
+using FuncScript.Model;
 
 namespace FuncScript.Block
 {
+
+    public enum ReferenceMode
+    {
+        Standard,
+        SkipSiblings,
+        ParentsThenSiblings
+    }
     public class ReferenceBlock : ExpressionBlock
     {
-        string _name, _nameLower;
-        private bool _fromParent;
-        public string Name
+        private string _name, _nameLower;
+        private ReferenceMode _referenceMode;
+            
+        public string Name => _name;
+        public ReferenceBlock( string name, string nameLower, ReferenceMode referenceMode)
         {
-            get
-            {
-                return _name;
-            }
-            set
-            {
-                if (value == null)
-                {
-                    _name = _nameLower = null;
-                }
-                else
-                {
-                    _name = value;
-                    _nameLower = _name.ToLower();
-                }
-            }
-        }
-        public ReferenceBlock(string name)
-        {
-            Name = name;
-            _fromParent = false;
-        }
-        public ReferenceBlock(string name, string nameLower)
-        {
-            Name = name;
+            _name = name;
             _nameLower = nameLower;
-            _fromParent = false;
-        }
-        public ReferenceBlock(string name, string nameLower,bool fromParent)
-        {
-            Name = name;
-            _nameLower = nameLower;
-            _fromParent =fromParent;
-        }
-        public override object Evaluate(IFsDataProvider provider)
-        {
-            if (_fromParent)
-                return provider.ParentProvider?.Get(_nameLower);
-            return provider.Get(_nameLower);
+            this._referenceMode = referenceMode;
         }
 
-        public override IList<ExpressionBlock> GetChilds()
+
+        public override object Evaluate(KeyValueCollection provider)
         {
-            return new ExpressionBlock[0];
+            switch (_referenceMode)
+            {
+                case ReferenceMode.Standard:
+                    return provider.Get(_nameLower);
+                case ReferenceMode.SkipSiblings:
+                    return provider.ParentProvider?.Get(_nameLower);    
+                case ReferenceMode.ParentsThenSiblings:
+                    if (provider.ParentProvider!=null && provider.ParentProvider.IsDefined(_nameLower))
+                        return provider.ParentProvider.Get(_nameLower);
+                    return provider.Get(_nameLower);    
+            }
+
+            throw new EvaluationTimeException("Unsupported reference mode " + _referenceMode);
+
         }
+
+        public override IEnumerable<ExpressionBlock> GetChilds() => Array.Empty<ExpressionBlock>();
+
+
         public override string ToString()
         {
             return Name;
         }
 
-        public override string AsExpString(IFsDataProvider provider)
+        public override string AsExpString()
         {
             return Name;
         }

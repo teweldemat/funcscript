@@ -1,6 +1,6 @@
 {
   "name": "funcscript-editor",
-  "version": "0.1.4",
+  "version": "0.2.12",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",

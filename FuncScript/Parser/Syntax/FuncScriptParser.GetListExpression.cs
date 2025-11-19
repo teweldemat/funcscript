@@ -7,7 +7,7 @@ namespace FuncScript.Core
     public partial class FuncScriptParser
     {
         static ParseBlockResult GetListExpression(ParseContext context, IList<ParseNode> siblings,
-            int index)
+            ReferenceMode referenceMode, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -26,7 +26,7 @@ namespace FuncScript.Core
 
             var items = new List<ExpressionBlock>();
 
-            var firstResult = GetExpression(context, nodes, currentIndex);
+            var firstResult = GetExpression(context, nodes, referenceMode, currentIndex);
             if (firstResult.HasProgress(currentIndex))
             {
                 if (firstResult.ExpressionBlock != null)
@@ -40,7 +40,7 @@ namespace FuncScript.Core
                         break;
                     
                     currentIndex = afterComma;
-                    var nextResult = GetExpression(context, nodes, currentIndex);
+                    var nextResult = GetExpression(context, nodes, referenceMode, currentIndex);
                     if (!nextResult.HasProgress(currentIndex))
                         break;
 
@@ -58,12 +58,10 @@ namespace FuncScript.Core
             }
 
             currentIndex = afterClose;
-            var listExpression = new ListExpression
-            {
-                ValueExpressions = items.ToArray(),
-                Pos = listStart,
-                Length = currentIndex - listStart
-            };
+            var listExpression = new ListExpression(items.ToArray());
+            ((ExpressionBlock)listExpression).Pos = listStart;
+            ((ExpressionBlock)listExpression).Length = currentIndex - listStart;
+
             var parseNode = new ParseNode(ParseNodeType.List, listStart, currentIndex - listStart, nodes);
             siblings.Add(parseNode);
             return new ParseBlockResult(currentIndex, listExpression);

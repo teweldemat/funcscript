@@ -6,7 +6,8 @@ namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        static ParseBlockResult GetIfThenElseExpression(ParseContext context, IList<ParseNode> siblings, int index)
+        static ParseBlockResult GetIfThenElseExpression(ParseContext context, IList<ParseNode> siblings,
+            ReferenceMode referenceMode, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -24,14 +25,15 @@ namespace FuncScript.Core
             if (i2==index)
                 return ParseBlockResult.NoAdvance(index);
             var keywordStart = Math.Max(index, i2 - keyword.Length);
-            var functionBlock = new ReferenceBlock(exp.Substring(keywordStart, i2 - keywordStart))
+            var name = exp.Substring(keywordStart, i2 - keywordStart);
+            var functionBlock = new ReferenceBlock(name,name.ToLower(),ReferenceMode.Standard)
             {
                 Pos = keywordStart,
                 Length = i2 - keywordStart
             };
             currentIndex = i2;
             
-            var condition = GetExpression(context, childNodes, currentIndex);
+            var condition = GetExpression(context, childNodes, referenceMode, currentIndex);
             
             if (!condition.HasProgress(currentIndex))
                 return ParseBlockResult.NoAdvance(index);
@@ -43,7 +45,7 @@ namespace FuncScript.Core
                 return ParseBlockResult.NoAdvance(index);
             currentIndex = i2;
 
-            var trueValue = GetExpression(context, childNodes, currentIndex);
+            var trueValue = GetExpression(context, childNodes, referenceMode, currentIndex);
 
             if(!trueValue.HasProgress(currentIndex))
                 return ParseBlockResult.NoAdvance(index);
@@ -54,16 +56,17 @@ namespace FuncScript.Core
                 return ParseBlockResult.NoAdvance(index);
             currentIndex = i2;
 
-            var elseValue = GetExpression(context, childNodes, currentIndex);
+            var elseValue = GetExpression(context, childNodes, referenceMode, currentIndex);
 
             if(!elseValue.HasProgress(currentIndex))
                 return ParseBlockResult.NoAdvance(index);
             currentIndex = elseValue.NextIndex;
 
             var functionCall = new FunctionCallExpression
-            {
-                Function = functionBlock,
-                Parameters = new[] { condition.ExpressionBlock, trueValue.ExpressionBlock, elseValue.ExpressionBlock },
+            (
+                functionBlock,
+                new ListExpression( new[] { condition.ExpressionBlock, trueValue.ExpressionBlock, elseValue.ExpressionBlock })
+                ){
                 Pos = index,
                 Length = currentIndex - index
             };

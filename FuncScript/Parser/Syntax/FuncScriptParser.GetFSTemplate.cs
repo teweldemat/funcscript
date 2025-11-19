@@ -8,7 +8,8 @@ namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        static ParseBlockResult GetFSTemplate(ParseContext context, IList<ParseNode> siblings, int index)
+        static ParseBlockResult GetFSTemplate(ParseContext context, IList<ParseNode> siblings,
+            ReferenceMode referenceMode, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -45,7 +46,7 @@ namespace FuncScript.Core
                     }
 
                     var expressionIndex = interpolationStart;
-                    var expressionResult = GetExpression(context, nodeParts, expressionIndex);
+                    var expressionResult = GetExpression(context, nodeParts, referenceMode, expressionIndex);
                     if (!expressionResult.HasProgress(expressionIndex) || expressionResult.ExpressionBlock == null)
                     {
                         errors.Add(new SyntaxErrorData(expressionIndex, 0, "expression expected"));
@@ -93,10 +94,10 @@ namespace FuncScript.Core
             else
             {
                 expression = new FunctionCallExpression
-                {
-                    Function = new LiteralBlock(context.Provider.Get(TemplateMergeMergeFunction.SYMBOL)),
-                    Parameters = parts.ToArray()
-                };
+                (
+                    new LiteralBlock(context.Provider.Get(TemplateMergeMergeFunction.SYMBOL)),
+                    new ListExpression( parts.ToArray())
+                );
                 parseNode = new ParseNode(ParseNodeType.StringTemplate, index, currentIndex - index, nodeParts);
             }
 

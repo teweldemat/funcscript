@@ -14,9 +14,11 @@ namespace FuncScript.Functions.Math
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var val = pars.GetParameter(parent, 0);
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var val = pars[0];
 
             if (val is int)
             {
@@ -53,9 +55,11 @@ namespace FuncScript.Functions.Math
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var val = pars.GetParameter(parent,0);
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var val = pars[0];
             if (val is int)
             {
                 return System.Math.Cos((double)(int)val);

@@ -9,20 +9,20 @@ class ReplaceIfNullFunction extends BaseFunction {
     this.precidence = 0;
   }
 
-  get maxParameters() {
-    return 2;
-  }
-
   evaluate(provider, parameters) {
-    const error = helpers.expectParamCount(this.symbol, parameters, this.maxParameters);
-    if (error) {
-      return error;
+    if (parameters.count < 2) {
+      return helpers.makeError(helpers.FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+        `${this.symbol}: expected at least 2 parameters but got ${parameters.count}`);
     }
-    const first = parameters.getParameter(provider, 0);
-    if (helpers.typeOf(first) !== helpers.FSDataType.Null) {
-      return first;
+
+    for (let i = 0; i < parameters.count; i += 1) {
+      const candidate = parameters.getParameter(provider, i);
+      if (helpers.typeOf(candidate) !== helpers.FSDataType.Null) {
+        return candidate;
+      }
     }
-    return parameters.getParameter(provider, 1);
+
+    return helpers.typedNull();
   }
 }
 

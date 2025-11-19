@@ -1,5 +1,6 @@
 using FuncScript.Core;
 using FuncScript.Error;
+using FuncScript.Model;
 
 namespace FuncScript.Functions.Math
 {
@@ -13,30 +14,24 @@ namespace FuncScript.Functions.Math
 
         public int Precedence => 50;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            return EvaluateInternal(pars, i =>
-            {
-                var value = pars.GetParameter(parent, i);
-                return (true, value);
-            });
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            return EvaluateInternal(pars);
         }
 
-        object EvaluateInternal(IParameterList pars, Func<int, (bool, object)> getPar)
+        object EvaluateInternal(FsList pars)
         {
             bool isInt = false, isLong = false;
             int intTotal = 0;
             long longTotal = 0;
-            int count = pars.Count;
+            int count = pars.Length;
 
             if (count == 0)
                 return null;
 
-            var first = getPar(0);
-            if (!first.Item1)
-                return null;
-
-            var firstValue = first.Item2;
+            var firstValue = pars[0];
             if (firstValue is int firstInt)
             {
                 isInt = true;
@@ -54,11 +49,7 @@ namespace FuncScript.Functions.Math
 
             for (int i = 1; i < count; i++)
             {
-                var parameter = getPar(i);
-                if (!parameter.Item1)
-                    return null;
-
-                var divisor = parameter.Item2;
+                var divisor = pars[i];
                 if (divisor is int intDivisor)
                 {
                     if (isInt)

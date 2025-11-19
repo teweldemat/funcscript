@@ -238,6 +238,13 @@ describe('SyntaxLibrary', () => {
     expect(normalized).to.equal('[1,2,3]');
   });
 
+  it('formats functions inside json output', () => {
+    const result = evaluate("format({x:(a)=>1},'json')", provider);
+    expect(typeOf(result)).to.equal(FSDataType.String);
+    const normalized = valueOf(result).replace(/[\s]/g, '');
+    expect(normalized).to.equal('{"x":(a)=>1}');
+  });
+
   it('produces expected range output', () => {
     const result = evaluate('range(1,5)', provider);
     expect(toPlain(result)).to.deep.equal([1, 2, 3, 4, 5]);
@@ -260,6 +267,18 @@ describe('SyntaxLibrary', () => {
     const result = evaluate('x.a', provider);
     expect(typeOf(result)).to.equal(FSDataType.Error);
     expect(valueOf(result).errorType).to.equal(FsError.ERROR_TYPE_MISMATCH);
+  });
+
+  it('returns FsError when member access occurs in if condition', () => {
+    const result = evaluate('if a.b then true else false', provider);
+    expect(typeOf(result)).to.equal(FSDataType.Error);
+    expect(valueOf(result).errorType).to.equal(FsError.ERROR_TYPE_MISMATCH);
+  });
+
+  it('short-circuits logical condition before member access', () => {
+    const result = evaluate("if false and a.b then 'x' else 'y'", provider);
+    expect(typeOf(result)).to.equal(FSDataType.String);
+    expect(valueOf(result)).to.equal('y');
   });
 
   it('parses if-then-else syntax to a function call', () => {

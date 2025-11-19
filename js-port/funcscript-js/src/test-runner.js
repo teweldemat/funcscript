@@ -247,6 +247,37 @@ const createTestRunner = ({
   function runSingleTest(testFn, caseProvider, args) {
     try {
       const typedResult = invokeFunction(testFn, caseProvider, args);
+      if (typeOf(typedResult) === FSDataType.List) {
+        const list = valueOf(typedResult);
+        const details = [];
+        let aggregateFailure = null;
+        let passed = true;
+        let index = 0;
+        for (const entry of list) {
+          index += 1;
+          const typedEntry = ensureTyped(entry);
+          const { passed: childPassed, failure } = interpretAssertionOutcome(typedEntry);
+          const detail = {
+            index,
+            passed: childPassed,
+            result: convertValue(typedEntry)
+          };
+          if (!childPassed) {
+            passed = false;
+            if (failure) {
+              detail.error = failure;
+              aggregateFailure = aggregateFailure || failure;
+            }
+          }
+          details.push(detail);
+        }
+        return {
+          passed,
+          failure: aggregateFailure,
+          plainResult: convertValue(typedResult),
+          details
+        };
+      }
       const plainResult = convertValue(typedResult);
       const { passed, failure } = interpretAssertionOutcome(typedResult);
       return { passed, failure, plainResult };
@@ -305,7 +336,7 @@ const createTestRunner = ({
     const args = [expressionValue, caseData.typed];
     if (suite.singleTest) {
       const outcome = runSingleTest(suite.singleTest, caseProvider, args);
-      caseResult.assertionResult = outcome.plainResult;
+      caseResult.assertionResult = outcome.details ?? outcome.plainResult;
       if (outcome.error) {
         caseResult.error = outcome.error;
         caseResult.passed = false;

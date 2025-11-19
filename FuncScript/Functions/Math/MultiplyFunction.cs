@@ -10,17 +10,19 @@ namespace FuncScript.Functions.Math
 
         public string Symbol => "*";
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
             bool isNull = true, isInt = false, isLong = false, isDouble = false;
             int intTotal = 1;
             long longTotal = 1;
             double doubleTotal = 1;
-            int count = pars.Count;
+            int count = pars.Length;
 
             for (int i = 0; i < count; i++)
             {
-                var d = pars.GetParameter(parent, i);
+                var d = pars[i];
 
                 if (isNull)
                 {

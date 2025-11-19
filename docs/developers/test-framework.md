@@ -26,7 +26,7 @@ Script under test:
 ```funcscript
 {
   z:b * b - 4 * a * c;
-  return if z<0 then Error('Equation not solvable') 
+  eval if z<0 then Error('Equation not solvable') 
     else 
       { 
         r1:(-b + math.sqrt(z)) / (2 * a),
@@ -45,17 +45,17 @@ Test script:
       { "a": 1.0, "b": 2.0, "c": -1.0 },
       { "a": 1.0, "b": 4.0, "c": 2.0 }
     ],
-    test: (resData, caseData) => assert.isNotError(resData)
+    test: (resData, caseData) => assert.isnotnull(resData)
   },
   shouldBeError: {
     name: "Returns an error result for non-solvable quadratic equations";
     cases: [
       { "a": 1.0, "b": 1.0, "c": 2 }
     ],
-    test: (resData, caseData) => assert.isError(resData)
+    test: (resData, caseData) => assert.iserror(resData)
   }
 
-  return [shouldBeOk, shouldBeError];
+  eval [shouldBeOk, shouldBeError];
 }
 ```
 
@@ -75,10 +75,10 @@ The framework provides a collection of built-in predicates under the `assert` na
 | --- | --- |
 | `assert.equal(a, b)` | Passes if `a` is equal to `b`. |
 | `assert.notEqual(a, b)` | Passes if `a` is not equal to `b`. |
-| `assert.true(expr)` | Passes if `expr` is `true`. |
-| `assert.false(expr)` | Passes if `expr` is `false`. |
 | `assert.greater(a, b)` | Passes if `a > b`. |
 | `assert.less(a, b)` | Passes if `a < b`. |
+| `assert.true(expr)` | Passes if `expr` is `true`. |
+| `assert.false(expr)` | Passes if `expr` is `false`. |
 | `assert.approx(a, b, eps)` | Passes if the absolute difference between `a` and `b` is less than or equal to `eps`. |
 
 ### Error and Null Handling Assertions
@@ -104,8 +104,8 @@ These predicates make it easy to validate both normal and exceptional results fr
 
 ## Return Structure
 
-Each test script must return an array of `testSuit` objects:
+Each test script must evaluate to an array of `testSuit` objects:
 
 ```javascript
-return [testSuit1, testSuit2, ...];
+eval [testSuit1, testSuit2, ...];
 ```

@@ -188,7 +188,7 @@ module.exports = function buildBuiltinMap() {
     { fn: new AnyMatchFunction(), names: ['any'] },
     { fn: new ContainsFunction(), names: ['contains'] },
     { fn: new SortListFunction(), names: ['sort'] },
-    { fn: new LengthFunction(), names: ['length'] },
+    { fn: new LengthFunction(), names: ['length', 'len'] },
     { fn: new RangeFunction(), names: ['range', 'series'] },
     { fn: new TakeFunction(), names: ['take'] },
     { fn: new SkipFunction(), names: ['skip'] },

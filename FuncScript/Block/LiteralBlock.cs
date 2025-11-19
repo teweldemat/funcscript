@@ -1,5 +1,7 @@
-﻿using System.Text;
+﻿using System.Reflection;
+using System.Text;
 using FuncScript.Core;
+using FuncScript.Model;
 
 namespace FuncScript.Block
 {
@@ -11,28 +13,24 @@ namespace FuncScript.Block
             Value = val;
         }
 
-        public override string AsExpString(IFsDataProvider provider)
+        
+
+        public override string AsExpString()
         {
             var sb = new StringBuilder();
             Engine.Format(sb, Value, null, true, false);
             return sb.ToString();
         }
 
-        public override object Evaluate(IFsDataProvider provider)
+        public override object Evaluate(KeyValueCollection provider)
         {
-            if (Value is ExpressionFunction exp)
-            {
-                lock (exp)
-                {
-                    exp.SetContext(provider);
-                }
-            }
+            if(Value is ExpressionFunction expFunc)
+                return new ExpressionFunction.ExpressionFunctionCaller(provider, expFunc);
             return Value;
         }
-        public override IList<ExpressionBlock> GetChilds()
-        {
-            return new ExpressionBlock[0];
-        }
+
+        public override IEnumerable<ExpressionBlock> GetChilds() => Array.Empty<ExpressionBlock>();
+
         public override string ToString()
         {
             if (Value == null)

@@ -1,5 +1,6 @@
 ﻿using FuncScript.Core;
 using FuncScript.Model;
+using System.Collections.Generic;
 
 namespace FuncScript.Functions.List
 {
@@ -14,15 +15,16 @@ namespace FuncScript.Functions.List
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            var par0 = pars.GetParameter(parent,0);
+            var par0 = pars[0];
             if (!(par0 is int))
                 throw new Error.TypeMismatchError($"{this.Symbol}: {ParName(0)} must be an integer");
 
             int start = (int)par0;
-            var par1 = pars.GetParameter(parent,1);
+            var par1 = pars[1];
 
             if (!(par1 is int))
                 throw new Error.TypeMismatchError($"{this.Symbol}: {ParName(1)} must be an integer");

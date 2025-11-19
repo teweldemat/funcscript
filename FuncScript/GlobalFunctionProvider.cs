@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace FuncScript
 {
-    public class DefaultFsDataProvider : IFsDataProvider
+    public class DefaultFsDataProvider : KeyValueCollection
     {
         static readonly Dictionary<string, IFsFunction> s_funcByName = new Dictionary<string, IFsFunction>();
         static readonly Dictionary<string, Dictionary<string, object>> s_providerCollections = new Dictionary<string, Dictionary<string, object>>(StringComparer.OrdinalIgnoreCase);
@@ -17,7 +17,6 @@ namespace FuncScript
         {
             LoadFromAssembly(Assembly.GetExecutingAssembly()); //always load builtin functions. May be we don't need this
         }
-        public IFsDataProvider ParentProvider => null;
         public bool IsDefined(string key)
         {
             if (key == null)
@@ -30,6 +29,11 @@ namespace FuncScript
             if (s_providerCollections.ContainsKey(normalized))
                 return true;
             return false;
+        }
+
+        public IList<KeyValuePair<string, object>> GetAll()
+        {
+            throw new NotImplementedException();
         }
 
         public static void LoadFromAssembly(Assembly a)
@@ -117,6 +121,8 @@ namespace FuncScript
             }
             return null;
         }
+
+        public KeyValueCollection ParentProvider { get; }
 
         static void RegisterProviderCollections(ProviderCollectionAttribute attribute, IList<string> names, object member)
         {
@@ -207,14 +213,11 @@ namespace FuncScript
         }
     }
 
-    /// <summary>
-    /// IFSDataProvider backed by KeyValueCollection
-    /// </summary>
-    public class KvcProvider : IFsDataProvider
+    public class KvcProvider :KeyValueCollection
     {
-        IFsDataProvider _kvc;
-        IFsDataProvider _parent;
-        public KvcProvider(IFsDataProvider kvc, IFsDataProvider parent)
+        KeyValueCollection _kvc;
+        KeyValueCollection _parent;
+        public KvcProvider(KeyValueCollection kvc, KeyValueCollection parent)
         {
             _kvc = kvc;
             _parent = parent;
@@ -228,7 +231,9 @@ namespace FuncScript
                 return null;
             return _parent.Get(name);
         }
-        public IFsDataProvider ParentProvider => _parent;
+
+        public KeyValueCollection ParentProvider { get; }
+        public KeyValueCollection Pare => _parent;
         public bool IsDefined(string key)
         {
             if (_kvc.IsDefined(key))
@@ -236,6 +241,11 @@ namespace FuncScript
             if (_parent != null)
                 return _parent.IsDefined(key);
             return false;
+        }
+
+        public IList<KeyValuePair<string, object>> GetAll()
+        {
+            throw new NotImplementedException();
         }
     }
 

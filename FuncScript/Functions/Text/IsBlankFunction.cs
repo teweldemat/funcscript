@@ -13,15 +13,17 @@ namespace FuncScript.Functions.Text
 
         public int Precedence => 100;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count < 1)
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            if (pars.Length < 1)
                 throw new Error.TypeMismatchError($"{this.Symbol}: argument expected");
 
-            if (pars.GetParameter(parent, 0) == null)
+            if (pars[0] == null)
                 return true;
 
-            if (pars.GetParameter(parent, 0) is not string str)
+            if (pars[0] is not string str)
                 throw new Error.TypeMismatchError($"{this.Symbol}: string expected");
 
             return string.IsNullOrEmpty(str.Trim());

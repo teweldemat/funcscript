@@ -31,23 +31,6 @@ namespace FuncScript.Functions.Misc
     }
     public class LogFunction : IFsFunction
     {
-        class SingleValueParameterList : IParameterList
-        {
-            private readonly object _value;
-
-            public SingleValueParameterList(object value)
-            {
-                _value = value;
-            }
-
-            public override int Count => 1;
-
-            public override object GetParameter(IFsDataProvider provider, int index)
-            {
-                return index == 0 ? _value : null;
-            }
-        }
-
         public int MaxParsCount => 2;
 
         public CallType CallType => CallType.Infix;
@@ -56,22 +39,24 @@ namespace FuncScript.Functions.Misc
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count == 0)
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            if (pars.Length == 0)
                 throw new Error.EvaluationTimeException($"{this.Symbol} function: {this.ParName(0)} expected");
 
-            if (pars.Count > this.MaxParsCount)
-                throw new Error.EvaluationTimeException($"{this.Symbol} function: Invalid parameter count. Expected at most {this.MaxParsCount}, but got {pars.Count}");
+            if (pars.Length > this.MaxParsCount)
+                throw new Error.EvaluationTimeException($"{this.Symbol} function: Invalid parameter count. Expected at most {this.MaxParsCount}, but got {pars.Length}");
 
-            var value = pars.GetParameter(parent, 0);
+            var value = pars[0];
 
-            if (pars.Count > 1)
+            if (pars.Length > 1)
             {
-                var handlerOrMessage = pars.GetParameter(parent, 1);
+                var handlerOrMessage = pars[1];
                 if (handlerOrMessage is IFsFunction handler)
                 {
-                    handler.Evaluate(parent, new SingleValueParameterList(value));
+                    Fslogger.DefaultLogger?.WriteLine(handler.Evaluate(FunctionArgumentHelper.Create(value))?.ToString()??"<null>");
                 }
                 else
                 {

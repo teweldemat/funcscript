@@ -55,9 +55,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Tan";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var input = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var input = MathFunctionHelper.RequireNumber(this, pars[0], "number");
             return System.Math.Tan(input.Value);
         }
 
@@ -72,9 +74,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Asin";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var input = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var input = MathFunctionHelper.RequireNumber(this, pars[0], "number");
             return System.Math.Asin(input.Value);
         }
 
@@ -89,9 +93,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Acos";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var input = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var input = MathFunctionHelper.RequireNumber(this, pars[0], "number");
             return System.Math.Acos(input.Value);
         }
 
@@ -106,9 +112,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Atan";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var input = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var input = MathFunctionHelper.RequireNumber(this, pars[0], "number");
             return System.Math.Atan(input.Value);
         }
 
@@ -123,9 +131,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Sqrt";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var input = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var input = MathFunctionHelper.RequireNumber(this, pars[0], "number");
             if (input.Value < 0)
                 throw new TypeMismatchError($"{Symbol}: number must be non-negative.");
             return System.Math.Sqrt(input.Value);
@@ -142,9 +152,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Abs";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var value = pars.GetParameter(parent, 0);
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var value = pars[0];
             return value switch
             {
                 int i => System.Math.Abs(i),
@@ -166,13 +178,15 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Pow";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != 2)
-                throw new TypeMismatchError($"{Symbol}: Expected 2 parameters, received {pars.Count}.");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            var baseValue = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "base");
-            var exponent = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 1), "exponent");
+            if (pars.Length != 2)
+                throw new TypeMismatchError($"{Symbol}: Expected 2 parameters, received {pars.Length}.");
+
+            var baseValue = MathFunctionHelper.RequireNumber(this, pars[0], "base");
+            var exponent = MathFunctionHelper.RequireNumber(this, pars[1], "exponent");
             return System.Math.Pow(baseValue.Value, exponent.Value);
         }
 
@@ -186,17 +200,19 @@ namespace FuncScript.Functions.Math
         public string Symbol => "^";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count < 2)
-                throw new TypeMismatchError($"{Symbol}: Expected at least 2 parameters, received {pars.Count}.");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            var result = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "base");
+            if (pars.Length < 2)
+                throw new TypeMismatchError($"{Symbol}: Expected at least 2 parameters, received {pars.Length}.");
+
+            var result = MathFunctionHelper.RequireNumber(this, pars[0], "base");
             double current = result.Value;
 
-            for (int i = 1; i < pars.Count; i++)
+            for (int i = 1; i < pars.Length; i++)
             {
-                var exponent = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, i), $"exponent{i}");
+                var exponent = MathFunctionHelper.RequireNumber(this, pars[i], $"exponent{i}");
                 current = System.Math.Pow(current, exponent.Value);
             }
 
@@ -214,9 +230,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Exp";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var input = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var input = MathFunctionHelper.RequireNumber(this, pars[0], "number");
             return System.Math.Exp(input.Value);
         }
 
@@ -231,19 +249,21 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Ln";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count == 0 || pars.Count > 2)
-                throw new TypeMismatchError($"{Symbol}: Expecting 1 or 2 parameters, received {pars.Count}.");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "value");
+            if (pars.Length == 0 || pars.Length > 2)
+                throw new TypeMismatchError($"{Symbol}: Expecting 1 or 2 parameters, received {pars.Length}.");
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
             if (value.Value <= 0)
                 throw new TypeMismatchError($"{Symbol}: value must be greater than 0.");
 
-            if (pars.Count == 1)
+            if (pars.Length == 1)
                 return System.Math.Log(value.Value);
 
-            var baseValue = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 1), "base");
+            var baseValue = MathFunctionHelper.RequireNumber(this, pars[1], "base");
             if (baseValue.Value <= 0 || System.Math.Abs(baseValue.Value - 1.0) < double.Epsilon)
                 throw new TypeMismatchError($"{Symbol}: base must be greater than 0 and not equal to 1.");
 
@@ -261,9 +281,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Log10";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "value");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
             if (value.Value <= 0)
                 throw new TypeMismatchError($"{Symbol}: value must be greater than 0.");
             return System.Math.Log10(value.Value);
@@ -281,9 +303,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Ceiling";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "value");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
             return System.Math.Ceiling(value.Value);
         }
 
@@ -298,9 +322,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Floor";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "value");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
             return System.Math.Floor(value.Value);
         }
 
@@ -315,16 +341,18 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Round";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count == 0 || pars.Count > 2)
-                throw new TypeMismatchError($"{Symbol}: Expecting 1 or 2 parameters, received {pars.Count}.");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "value");
-            if (pars.Count == 1)
+            if (pars.Length == 0 || pars.Length > 2)
+                throw new TypeMismatchError($"{Symbol}: Expecting 1 or 2 parameters, received {pars.Length}.");
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
+            if (pars.Length == 1)
                 return System.Math.Round(value.Value);
 
-            var digitsParam = pars.GetParameter(parent, 1);
+            var digitsParam = pars[1];
             if (digitsParam is not int digits)
                 throw new TypeMismatchError($"{Symbol}: digits must be an integer.");
 
@@ -342,9 +370,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Trunc";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "value");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
             return System.Math.Truncate(value.Value);
         }
 
@@ -359,9 +389,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Sign";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "value");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
             return System.Math.Sign(value.Value);
         }
 
@@ -376,18 +408,20 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Min";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count == 0)
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            if (pars.Length == 0)
                 throw new TypeMismatchError($"{Symbol}: At least one parameter is required.");
 
-            var first = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "value");
+            var first = MathFunctionHelper.RequireNumber(this, pars[0], "value");
             double best = first.Value;
             NumericKind kind = first.Kind;
 
-            for (int i = 1; i < pars.Count; i++)
+            for (int i = 1; i < pars.Length; i++)
             {
-                var current = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, i), $"value{i + 1}");
+                var current = MathFunctionHelper.RequireNumber(this, pars[i], $"value{i + 1}");
                 kind = MathFunctionHelper.Promote(kind, current.Kind);
                 if (current.Value < best)
                     best = current.Value;
@@ -407,18 +441,20 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Max";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count == 0)
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            if (pars.Length == 0)
                 throw new TypeMismatchError($"{Symbol}: At least one parameter is required.");
 
-            var first = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "value");
+            var first = MathFunctionHelper.RequireNumber(this, pars[0], "value");
             double best = first.Value;
             NumericKind kind = first.Kind;
 
-            for (int i = 1; i < pars.Count; i++)
+            for (int i = 1; i < pars.Length; i++)
             {
-                var current = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, i), $"value{i + 1}");
+                var current = MathFunctionHelper.RequireNumber(this, pars[i], $"value{i + 1}");
                 kind = MathFunctionHelper.Promote(kind, current.Kind);
                 if (current.Value > best)
                     best = current.Value;
@@ -438,14 +474,16 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Clamp";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != 3)
-                throw new TypeMismatchError($"{Symbol}: Expected 3 parameters, received {pars.Count}.");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "value");
-            var min = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 1), "min");
-            var max = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 2), "max");
+            if (pars.Length != 3)
+                throw new TypeMismatchError($"{Symbol}: Expected 3 parameters, received {pars.Length}.");
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
+            var min = MathFunctionHelper.RequireNumber(this, pars[1], "min");
+            var max = MathFunctionHelper.RequireNumber(this, pars[2], "max");
 
             if (min.Value > max.Value)
                 throw new TypeMismatchError($"{Symbol}: min cannot be greater than max.");
@@ -472,9 +510,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Random";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != 0)
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            if (pars.Length != 0)
                 throw new TypeMismatchError($"{Symbol}: This function does not accept parameters.");
             return System.Random.Shared.NextDouble();
         }
@@ -490,9 +530,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Sinh";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "number");
             return System.Math.Sinh(value.Value);
         }
 
@@ -507,9 +549,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Cosh";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "number");
             return System.Math.Cosh(value.Value);
         }
 
@@ -524,9 +568,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Tanh";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "number");
             return System.Math.Tanh(value.Value);
         }
 
@@ -541,9 +587,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Asinh";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "number");
             return System.Math.Asinh(value.Value);
         }
 
@@ -558,9 +606,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Acosh";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "number");
             if (value.Value < 1)
                 throw new TypeMismatchError($"{Symbol}: number must be greater than or equal to 1.");
             return System.Math.Acosh(value.Value);
@@ -577,9 +627,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Atanh";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "number");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "number");
             if (value.Value <= -1 || value.Value >= 1)
                 throw new TypeMismatchError($"{Symbol}: number must be between -1 and 1 (exclusive).");
             return System.Math.Atanh(value.Value);
@@ -596,13 +648,15 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Atan2";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != 2)
-                throw new TypeMismatchError($"{Symbol}: Expected 2 parameters, received {pars.Count}.");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            var y = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "y");
-            var x = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 1), "x");
+            if (pars.Length != 2)
+                throw new TypeMismatchError($"{Symbol}: Expected 2 parameters, received {pars.Length}.");
+
+            var y = MathFunctionHelper.RequireNumber(this, pars[0], "y");
+            var x = MathFunctionHelper.RequireNumber(this, pars[1], "x");
             return System.Math.Atan2(y.Value, x.Value);
         }
 
@@ -617,9 +671,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Log2";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "value");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
             if (value.Value <= 0)
                 throw new TypeMismatchError($"{Symbol}: value must be greater than 0.");
             return System.Math.Log2(value.Value);
@@ -636,9 +692,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "Cbrt";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "value");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
             return System.Math.Cbrt(value.Value);
         }
 
@@ -654,9 +712,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "DegToRad";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "degrees");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "degrees");
             return value.Value * System.Math.PI / 180.0;
         }
 
@@ -672,9 +732,11 @@ namespace FuncScript.Functions.Math
         public string Symbol => "RadToDeg";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var value = MathFunctionHelper.RequireNumber(this, pars.GetParameter(parent, 0), "radians");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var value = MathFunctionHelper.RequireNumber(this, pars[0], "radians");
             return value.Value * 180.0 / System.Math.PI;
         }
 

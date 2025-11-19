@@ -10,14 +10,16 @@ namespace FuncScript.Functions.Text
         public string Symbol => "substring";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count == 0)
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            if (pars.Length == 0)
                 throw new Error.EvaluationTimeException($"{this.Symbol} requires at least one parameter.");
 
-            var par0 = pars.GetParameter(parent, 0);
-            var par1 = pars.Count > 1 ? pars.GetParameter(parent, 1) : null;
-            var par2 = pars.Count > 2 ? pars.GetParameter(parent, 2) : null;
+            var par0 = pars[0];
+            var par1 = pars.Length > 1 ? pars[1] : null;
+            var par2 = pars.Length > 2 ? pars[2] : null;
 
             var str = par0 as string;
             if (str == null)

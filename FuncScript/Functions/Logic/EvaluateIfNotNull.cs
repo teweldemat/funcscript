@@ -14,17 +14,19 @@ namespace FuncScript.Functions.Logic
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != MaxParsCount)
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            if (pars.Length != MaxParsCount)
                 throw new Error.TypeMismatchError($"{Symbol} function expects exactly two parameters.");
 
-            var val = pars.GetParameter(parent, 0);
+            var val = pars[0];
 
             if (val == null)
                 return null;
 
-            var val2 = pars.GetParameter(parent, 1);
+            var val2 = pars[1];
             return val2;
         }
 

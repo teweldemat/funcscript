@@ -97,12 +97,31 @@ const test = createTestRunner({
 });
 
 function evaluate(expression, provider = new DefaultFsDataProvider()) {
-  attachExpressionSource(provider, expression);
-  const { block } = FuncScriptParser.parse(provider, expression);
+  const source = expression == null ? '' : String(expression);
+  attachExpressionSource(provider, source);
+  const parseOutcome = FuncScriptParser.parse(provider, source);
+  const block = parseOutcome?.block;
   if (!block) {
-    throw new Error('Failed to parse expression');
+    const firstError = Array.isArray(parseOutcome?.errors) && parseOutcome.errors.length > 0
+      ? parseOutcome.errors[0]
+      : null;
+    const message = firstError
+      ? `Failed to parse expression (pos ${firstError.Loc}): ${firstError.Message}`
+      : 'Failed to parse expression';
+    throw new Error(message);
   }
-  return ensureTyped(block.evaluate(provider));
+
+  try {
+    return ensureTyped(block.evaluate(provider));
+  } catch (error) {
+    if (error instanceof Error && error.message) {
+      const position = parseOutcome?.parseNode?.Pos;
+      if (typeof position === 'number') {
+        error.message = `${error.message} (at position ${position})`;
+      }
+    }
+    throw error;
+  }
 }
 
 function appendTemplateValue(parts, value) {

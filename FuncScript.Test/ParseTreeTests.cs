@@ -16,7 +16,7 @@ namespace FuncScript.Test
 {
     internal class ParseTreeTests
     {
-        static ParseBlockResultWithNode ParseExpression(IFsDataProvider provider, string expression,
+        static ParseBlockResultWithNode ParseExpression(KeyValueCollection provider, string expression,
             List<FuncScriptParser.SyntaxErrorData> errors)
         {
             var context = new ParseContext(provider, expression, errors);
@@ -132,11 +132,12 @@ namespace FuncScript.Test
             Assert.That(function.Function.CodeLocation.Position, Is.EqualTo(1));
             Assert.That(function.Function.CodeLocation.Length, Is.EqualTo(1));
 
-            var leftExp = function.Parameters[0];
-            Assert.That(leftExp.CodeLocation.Position, Is.EqualTo(0));
-            Assert.That(leftExp.CodeLocation.Length, Is.EqualTo(1));
+            var pars = function.Parameter as ListExpression;
+            var leftExp =pars.GetItemExpression(0);
+            Assert.That(leftExp.Pos, Is.EqualTo(0));
+            Assert.That(leftExp.Length, Is.EqualTo(1));
 
-            var rightExp = function.Parameters[1];
+            var rightExp = pars.GetItemExpression(1);
             Assert.That(rightExp.CodeLocation.Position, Is.EqualTo(2));
             Assert.That(rightExp.CodeLocation.Length, Is.EqualTo(1));
 
@@ -510,19 +511,20 @@ namespace FuncScript.Test
             var func = (FunctionCallExpression)block;
             Assert.That(func.Pos,Is.EqualTo(0));
             Assert.That(func.Length,Is.EqualTo(expression.Length));
-            
-            Assert.That(func.Parameters.Length,Is.EqualTo(2));
+
+            var pars = (ListExpression)func.Parameter;
+            Assert.That(pars.Length,Is.EqualTo(2));
 
             Assert.That(func.Function.Pos,Is.EqualTo(1+part1.Length+1));
             Assert.That(func.Function.Length,Is.EqualTo(part2.Length));
 
 
             
-            Assert.That(func.Parameters[0].Pos,Is.EqualTo(0));
-            Assert.That(func.Parameters[0].Length,Is.EqualTo(1+part1.Length));
+            Assert.That(pars.GetItemExpression(0).Pos,Is.EqualTo(0));
+            Assert.That(pars.GetItemExpression(0).Length,Is.EqualTo(1+part1.Length));
 
-            Assert.That(func.Parameters[1].Pos,Is.EqualTo(1+part1.Length+1+part2.Length+1));
-            Assert.That(func.Parameters[1].Length,Is.EqualTo(part3.Length));
+            Assert.That(pars.GetItemExpression(1).Pos,Is.EqualTo(1+part1.Length+1+part2.Length+1));
+            Assert.That(pars.GetItemExpression(1).Length,Is.EqualTo(part3.Length));
 
         }
 

@@ -69,9 +69,10 @@ namespace FuncScript.Core
             };
 
             var expression = new FunctionCallExpression
-            {
-                Function = new LiteralBlock(function),
-                Parameters = new ExpressionBlock[] { source, memberLiteral },
+            (
+                new LiteralBlock(function),
+                new ListExpression(new ExpressionBlock[] { source, memberLiteral }))
+            { 
                 Pos = source.Pos,
                 Length = currentIndex - source.Pos
             };

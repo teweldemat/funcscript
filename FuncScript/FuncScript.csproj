@@ -7,11 +7,12 @@
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <AssemblyName>FuncScript</AssemblyName>
     <RootNamespace>FuncScript</RootNamespace>
+    <LangVersion>12</LangVersion>
   </PropertyGroup>
 
   <PropertyGroup>
     <PackageId>Tewelde.FuncScript</PackageId>
-    <Version>0.2.5</Version>
+    <Version>0.2.12</Version>
     <Authors>Tewelde Ma. Tegegne</Authors>
     <Company>FuncScript</Company>
     <Description>Expression-oriented scripting language runtime for .NET applications.</Description>

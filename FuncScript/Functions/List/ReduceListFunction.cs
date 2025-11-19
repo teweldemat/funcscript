@@ -17,35 +17,17 @@ namespace FuncScript.Functions.List
         public string Symbol => "Reduce";
 
         public int Precedence => 0;
-        class DoListFuncPar : IParameterList
+        public object Evaluate(object par)
         {
-            public object S;
-            public object X;
-            public object I;
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            public override int Count => 3;
-
-            public override object GetParameter(IFsDataProvider provider, int index)
-            {
-                return index switch
-                {
-                    0 => X,
-                    1 => S,
-                    2 => I,
-                    _ => null,
-                };
-            }
+            var par0 = pars[0];
+            var par1 = pars[1];
+            var par2 = pars[2];
+            return EvaluateInternal(par0, par1, par2);
         }
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
-        {
-            var par0 = pars.GetParameter(parent,0);
-            var par1 = pars.GetParameter(parent,1);
-            var par2 = pars.GetParameter(parent,2);
-            return EvaluateInternal(parent, par0, par1, par2);
-        }
-
-        private object EvaluateInternal(IFsDataProvider parent, object par0, object par1, object par2)
+        private object EvaluateInternal(object par0, object par1, object par2)
         {
             if (par0 == null)
                 return null;
@@ -66,8 +48,8 @@ namespace FuncScript.Functions.List
 
             for (int i = 0; i < lst.Length; i++)
             {
-                
-                total = func.Evaluate(parent, new DoListFuncPar { S = total, X = lst[i], I = i });
+
+                total = func.Evaluate(FunctionArgumentHelper.Create(lst[i], total, i));
             }
 
             return Engine.NormalizeDataType(total);

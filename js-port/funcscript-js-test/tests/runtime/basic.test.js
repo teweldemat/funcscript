@@ -33,6 +33,10 @@ describe('Basic', () => {
     expect(toPlain(evalExpression('false'))).to.equal(false);
   });
 
+  it('coalesces chained null expressions', () => {
+    expect(toPlain(evalExpression('null??null??null??5'))).to.equal(5);
+  });
+
   it('evaluates lambda expressions', () => {
     expect(toPlain(evalExpression('((a)=>a*a+a)(3)'))).to.equal(12);
   });

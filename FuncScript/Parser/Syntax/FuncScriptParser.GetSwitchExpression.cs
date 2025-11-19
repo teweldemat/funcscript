@@ -6,7 +6,8 @@ namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        static ParseBlockResult GetSwitchExpression(ParseContext context, IList<ParseNode> siblings, int index)
+        static ParseBlockResult GetSwitchExpression(ParseContext context, IList<ParseNode> siblings,
+            ReferenceMode referenceMode, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -22,7 +23,7 @@ namespace FuncScript.Core
             var currentIndex = keywordResult;
             var parameters = new List<ExpressionBlock>();
 
-            var selectorResult = GetExpression(context, childNodes, currentIndex);
+            var selectorResult = GetExpression(context, childNodes, referenceMode, currentIndex);
             if (!selectorResult.HasProgress(currentIndex) || selectorResult.ExpressionBlock == null)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, 1, "Switch selector expected"));
@@ -39,7 +40,7 @@ namespace FuncScript.Core
                     break;
 
                 var branchConditionIndex = afterSeparator;
-                var branchCondition = GetExpression(context, childNodes, branchConditionIndex);
+                var branchCondition = GetExpression(context, childNodes, referenceMode, branchConditionIndex);
                 if (!branchCondition.HasProgress(branchConditionIndex) || branchCondition.ExpressionBlock == null)
                     break;
 
@@ -52,7 +53,7 @@ namespace FuncScript.Core
 
                 var branchResultIndex = afterColon;
 
-                var branchResult = GetExpression(context, childNodes, branchResultIndex);
+                var branchResult = GetExpression(context, childNodes, referenceMode, branchResultIndex);
                 if (!branchResult.HasProgress(branchResultIndex) || branchResult.ExpressionBlock == null)
                 {
                     errors.Add(new SyntaxErrorData(branchResultIndex, 1, "Selector result expected"));
@@ -64,11 +65,13 @@ namespace FuncScript.Core
             }
 
             var functionCall = new FunctionCallExpression
-            {
-                Function = new LiteralBlock(context.Provider.Get(KW_SWITCH)),
+                (
+                new LiteralBlock(context.Provider.Get(KW_SWITCH)),
+                new ListExpression(parameters.ToArray())
+                ){
                 Pos = index,
                 Length = currentIndex - index,
-                Parameters = parameters.ToArray()
+                
             };
 
             var parseNode = new ParseNode(ParseNodeType.Case, index, currentIndex - index, childNodes);

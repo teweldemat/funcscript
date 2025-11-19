@@ -6,7 +6,8 @@ namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        static ParseBlockResult GetCallAndMemberAccess(ParseContext context, IList<ParseNode> siblings, int index)
+        static ParseBlockResult GetCallAndMemberAccess(ParseContext context, IList<ParseNode> siblings,
+            ReferenceMode referenceMode, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -15,7 +16,7 @@ namespace FuncScript.Core
 
             var currentIndex = index;
             var unitNodes = new List<ParseNode>();
-            var unitResult = GetUnit(context, unitNodes, currentIndex);
+            var unitResult = GetUnit(context, unitNodes, referenceMode, currentIndex);
             if (!unitResult.HasProgress(currentIndex) || unitResult.ExpressionBlock == null)
                 return ParseBlockResult.NoAdvance(index);
 
@@ -30,7 +31,7 @@ namespace FuncScript.Core
             while (true)
             {
                 var callChildren = new List<ParseNode>();
-                var callResult = GetFunctionCallParametersList(context, callChildren, expression, currentIndex);
+                var callResult = GetFunctionCallParametersList(context, callChildren, referenceMode, expression, currentIndex);
                 if (callResult.HasProgress(currentIndex) && callResult.ExpressionBlock != null)
                 {
                     expression = callResult.ExpressionBlock;
@@ -56,13 +57,11 @@ namespace FuncScript.Core
                 }
 
                 var selectorChildren = new List<ParseNode>();
-                var selectorResult = GetKvcExpression(context, selectorChildren, false, currentIndex);
+                var selectorResult = GetKvcExpression(context, selectorChildren, ReferenceMode.ParentsThenSiblings,false, currentIndex);
                 if (selectorResult.HasProgress(currentIndex) && selectorResult.ExpressionBlock is KvcExpression kvc)
                 {
-                    var selector = new SelectorExpression
+                    var selector = new SelectorExpression(expression,kvc)
                     {
-                        Source = expression,
-                        Selector = kvc,
                         Pos = expression.Pos,
                         Length = selectorResult.NextIndex - expression.Pos
                     };

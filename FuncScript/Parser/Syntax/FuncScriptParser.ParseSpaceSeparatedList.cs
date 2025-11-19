@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+using FuncScript.Model;
 
 namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        public static IReadOnlyList<string> ParseSpaceSeparatedList(IFsDataProvider provider, string expression,
+        public static IReadOnlyList<string> ParseSpaceSeparatedList(KeyValueCollection provider, string expression,
             List<SyntaxErrorData> errors)
         {
             if (provider == null)

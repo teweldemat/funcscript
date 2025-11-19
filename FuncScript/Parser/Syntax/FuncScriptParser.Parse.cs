@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using FuncScript.Functions.Text;
+using FuncScript.Model;
 
 namespace FuncScript.Core
 {
@@ -13,7 +14,7 @@ namespace FuncScript.Core
             return GetRootExpression(context, 0);
         }
 
-        public static ExpressionBlock Parse(IFsDataProvider provider, String exp, List<SyntaxErrorData> serrors)
+        public static ExpressionBlock Parse(KeyValueCollection provider, String exp, List<SyntaxErrorData> serrors)
         {
             var context = new ParseContext(provider, exp, serrors);
             return Parse(context).ExpressionBlock;

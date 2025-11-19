@@ -40,9 +40,12 @@ namespace FuncScript.Model
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            return this.f.DynamicInvoke(Enumerable.Range(0, pars.Count).Select(x => pars.GetParameter(parent, x)).ToArray());
+            if (par is not FsList pars)
+                throw new Error.EvaluationTimeException("Delegate function: List expected");
+
+            return this.f.DynamicInvoke(Enumerable.Range(0, pars.Length).Select(x => pars[x]).ToArray());
         }
 
         public string ParName(int index)

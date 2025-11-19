@@ -18,9 +18,11 @@ namespace FuncScript.Functions.Html
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var str = pars.GetParameter(parent, 0);
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var str = pars[0];
             return str == null ? null : System.Web.HttpUtility.HtmlEncode(str);
         }
 

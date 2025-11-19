@@ -167,6 +167,8 @@ const App = (): JSX.Element => {
   const [testerVariablesPayload, setTesterVariablesPayload] = useState<
     FuncScriptTesterVariableInput[] | undefined
   >(undefined);
+  const [editorError, setEditorError] = useState<string | null>(null);
+  const [evaluationError, setEvaluationError] = useState<string | null>(null);
   const latestTesterVariablesRef = useRef<FuncScriptTesterVariableInput[]>([]);
   const initialTestCasesSignatureRef = useRef('[]');
 
@@ -344,6 +346,48 @@ const persistedTestCasesSignature = useMemo(
     setSavedTestCases(sortedCases);
     initialTestCasesSignatureRef.current = createTestCasesSignature(sortedCases);
   }, [expression, savedTestCases, selectedFormulaId, getUniqueFormulaName]);
+
+  const handleDuplicateFormula = useCallback(() => {
+    if (!selectedFormula || typeof window === 'undefined') {
+      return;
+    }
+    const defaultName = getUniqueFormulaName(`${selectedFormula.name} Copy`);
+    const proposed = window.prompt('Name for the duplicated formula', defaultName);
+    if (proposed === null) {
+      return;
+    }
+    const trimmed = proposed.trim();
+    if (!trimmed) {
+      return;
+    }
+    const name = getUniqueFormulaName(trimmed);
+    const timestamp = new Date().toISOString();
+    const clonedTestCases = sortTestCases(
+      (selectedFormula.testCases ?? []).map((testCase) => ({
+        id: createTestCaseId(),
+        name: testCase.name,
+        variables: cloneVariables(testCase.variables),
+        updatedAt: timestamp
+      }))
+    );
+    const duplicated: StoredFormula = {
+      id: createFormulaId(),
+      name,
+      expression: selectedFormula.expression,
+      updatedAt: timestamp,
+      testCases: clonedTestCases
+    };
+    setSavedFormulas((previous) => sortFormulas([...previous, duplicated]));
+    setSelectedFormulaId(duplicated.id);
+    setExpression(duplicated.expression);
+    setSavedTestCases(clonedTestCases);
+    const firstCase = clonedTestCases[0];
+    setSelectedTestCaseId(firstCase?.id ?? '');
+    const baseVariables = cloneVariables(firstCase?.variables ?? []);
+    latestTesterVariablesRef.current = baseVariables;
+    setTesterVariablesPayload(baseVariables.length > 0 ? baseVariables : []);
+    initialTestCasesSignatureRef.current = createTestCasesSignature(clonedTestCases);
+  }, [selectedFormula, getUniqueFormulaName]);
   const handleRenameFormula = useCallback(() => {
     if (!selectedFormula || typeof window === 'undefined') {
       return;
@@ -476,7 +520,31 @@ const persistedTestCasesSignature = useMemo(
     [savedTestCases]
   );
 
-  
+  useEffect(() => {
+    if (!expression.trim()) {
+      return;
+    }
+    if (selectedTestCaseId || testCaseCount > 0) {
+      return;
+    }
+    const name = getUniqueTestCaseName('New Test Case');
+    if (!name) {
+      return;
+    }
+    const timestamp = new Date().toISOString();
+    const variables = cloneVariables(latestTesterVariablesRef.current);
+    const newTestCase: StoredTestCase = {
+      id: createTestCaseId(),
+      name,
+      variables,
+      updatedAt: timestamp
+    };
+    setSavedTestCases([newTestCase]);
+    setSelectedTestCaseId(newTestCase.id);
+    latestTesterVariablesRef.current = variables;
+    setTesterVariablesPayload(variables.length > 0 ? variables : []);
+  }, [expression, selectedTestCaseId, testCaseCount, getUniqueTestCaseName]);
+
   const handleCreateTestCase = useCallback(() => {
     if (typeof window === 'undefined') {
       return;
@@ -632,6 +700,16 @@ const handleDeleteTestCase = useCallback(() => {
           <button
             type="button"
             className="header-icon-button"
+            onClick={handleDuplicateFormula}
+            disabled={!selectedFormulaId}
+            title="Duplicate formula"
+            aria-label="Duplicate formula"
+          >
+            ⧉
+          </button>
+          <button
+            type="button"
+            className="header-icon-button"
             onClick={handleRenameFormula}
             disabled={!selectedFormulaId}
             title="Rename formula"
@@ -653,13 +731,33 @@ const handleDeleteTestCase = useCallback(() => {
       </header>
       <div className="tester-wrapper">
         <div className="tester-shell">
-          <FuncScriptTester
-            value={expression}
-            onChange={handleExpressionChange}
-            saveKey={testerSaveKey}
-            variables={testerVariablesPayload}
-            onVariablesChange={handleVariablesChange}
-          />
+          <div className="tester-shell__body">
+            {editorError ? (
+              <div className="tester-error-banner" role="alert">
+                <div className="tester-error-banner__title">Syntax error</div>
+                <pre className="tester-error-banner__message">{editorError}</pre>
+              </div>
+            ) : null}
+            {evaluationError ? (
+              <div className="tester-error-banner" role="alert">
+                <div className="tester-error-banner__title">
+                  Evaluation error at '{expression.trim().length > 0 ? expression : 'expression'}'
+                </div>
+                <pre className="tester-error-banner__message">{evaluationError}</pre>
+              </div>
+            ) : null}
+            <div className="tester-shell__editor">
+              <FuncScriptTester
+                value={expression}
+                onChange={handleExpressionChange}
+                saveKey={testerSaveKey}
+                variables={testerVariablesPayload}
+                onVariablesChange={handleVariablesChange}
+                onError={setEditorError}
+                onEvaluationError={setEvaluationError}
+              />
+            </div>
+          </div>
         </div>
         <aside className="testcase-panel">
           <div className="testcase-panel__header">

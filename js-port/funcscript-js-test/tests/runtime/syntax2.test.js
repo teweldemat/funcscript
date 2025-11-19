@@ -147,6 +147,13 @@ describe('Syntax2', () => {
         expect(valueOf(result)).to.deep.equal(expected);
       });
     }
+
+    it('propagates errors from conditions', () => {
+      const result = evaluate("case error('test'): 5, 6", builtinProvider());
+      expect(typeOf(result)).to.equal(FSDataType.Error);
+      const error = valueOf(result);
+      expect(error.errorMessage).to.equal('test');
+    });
   });
 
   describe('SwitchExpression', () => {

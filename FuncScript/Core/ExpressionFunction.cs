@@ -1,49 +1,67 @@
-﻿using System.Diagnostics.SymbolStore;
+﻿using System.Data;
+using System.Diagnostics.SymbolStore;
 using System.Runtime.Serialization;
 using FuncScript.Core;
 using System.Text;
 using FuncScript.Error;
+using FuncScript.Functions;
 using FuncScript.Model;
 
 namespace FuncScript.Core
 {
-    public class ExpressionFunction : IFsFunction
+    public class ExpressionFunction
     {
-        private class ParameterDataProvider : IFsDataProvider
+        public class ExpressionFunctionCaller(KeyValueCollection provider, ExpressionFunction parent) : IFsFunction
         {
-            public IParameterList pars;
-            public IFsDataProvider parentSymbolProvider;
+
+            public object Evaluate(object par)
+            {
+                var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+                var parProvider = new ParameterDataProvider()
+                {
+                    parameters = pars,
+                    expressionFunction =parent,
+                    parentSymbolProvider = provider
+                };
+                return parent.Expression.Evaluate(parProvider);
+            }
+
+            public CallType CallType { get; } = CallType.Prefix;
+            public string Symbol { get; } = null;
+            public int Precedence { get; } = 0;
+        }
+        private class ParameterDataProvider : KeyValueCollection
+        {
+            public FsList parameters;
+            public KeyValueCollection parentSymbolProvider;
             public ExpressionFunction expressionFunction;
-            public IFsDataProvider ParentProvider => parentSymbolProvider;
+            public KeyValueCollection ParentProvider => this.parentSymbolProvider;
             public bool IsDefined(string key)
             {
                 return expressionFunction.ParamterNameIndex.ContainsKey(key)
                        || parentSymbolProvider.IsDefined(key);
             }
 
+            public IList<KeyValuePair<string, object>> GetAll()
+            {
+                throw new NotImplementedException();
+            }
+
             public object Get(string name)
             {
                 if (expressionFunction.ParamterNameIndex.TryGetValue(name, out var index))
-                    return pars.GetParameter(parentSymbolProvider, index);
+                    return parameters[index];
                 return parentSymbolProvider.Get(name);
             }
         }
 
-        public ExpressionBlock Expression { get; set; }
+        private ExpressionBlock Expression;
 
         private Dictionary<string, int> ParamterNameIndex;
         private String[] _parameters;
         private object _expressionValue = null;
-        private IFsDataProvider _context = null;
-
-        public void SetContext(IFsDataProvider context)
-        {
-            //REVIEW: this is commented because it was being triggered but why was it triggered?
-            //if (_context != null)
-             //   throw new EvaluationTimeException("Context for expression function already set");
-            _context = context;
-        }
-        public ExpressionFunction(String[] pars, ExpressionBlock exp)
+        private KeyValueCollection _parentContext;
+        public ExpressionFunction(string[] pars, ExpressionBlock exp)
         {
             this.Expression = exp;
             this._parameters = pars;
@@ -60,18 +78,9 @@ namespace FuncScript.Core
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
-        {
-            if (_context == null)
-                throw new Error.EvaluationTimeException("Context not set to expression function");
-            var ret= Expression.Evaluate(new ParameterDataProvider
-            {
-                expressionFunction = this,
-                parentSymbolProvider = new KvcProvider(_context,parent),
-                pars = pars
-            });
-            return ret;
-        }
+        
+        
+        
 
         
 
@@ -95,10 +104,9 @@ namespace FuncScript.Core
 
             sb.Append(')');
             sb.Append("=>");
-            sb.Append(this.Expression.AsExpString(new DefaultFsDataProvider()));
+            sb.Append(this.Expression.AsExpString());
             return sb.ToString();
         }
-    }
-
+        }
     
 }

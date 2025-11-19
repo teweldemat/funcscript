@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.Design;
 using System.Data;
+using System.Runtime.CompilerServices;
 using FuncScript.Core;
 using FuncScript.Model;
 using System.Security.Cryptography;
@@ -10,42 +11,48 @@ namespace FuncScript.Block
 {
     public class KvcExpression : ExpressionBlock
     {
-        private class KvcExpressionProvider : IFsDataProvider
+        public class KvcExpressionCollection(KeyValueCollection provider,KvcExpression thisKvc) : KeyValueCollection
         {
-            private readonly KvcExpression _parent;
-            private readonly Dictionary<string, object> _valCache = new Dictionary<string, object>();
-            public IFsDataProvider ParentProvider { get; }
+
+            public KeyValueCollection ParentProvider => provider;
+            public object Get(string key)
+            {
+                if (thisKvc.index.TryGetValue(key, out var exp) && exp.ValueExpression != null)
+                {
+                    var v = exp.ValueExpression.Evaluate(this);
+                    return v;
+                }
+
+                if (ParentProvider != null)
+                    return ParentProvider.Get(key);
+                return null;
+            }
+            
 
             public bool IsDefined(string key)
             {
-                return _parent.index.ContainsKey(key);
+                if (thisKvc.index.ContainsKey(key.ToLower()))
+                    return true;
+                if(ParentProvider!=null)
+                    return ParentProvider.IsDefined(key);
+                return false;
             }
 
-            public KvcExpressionProvider(IFsDataProvider provider, KvcExpression parent)
+            public IList<KeyValuePair<string, object>> GetAll()
             {
-                this.ParentProvider = provider;
-                _parent = parent;
+                return thisKvc._keyValues.Select(kv => KeyValuePair.Create(kv.Key, kv.ValueExpression.Evaluate(this))).ToList();
             }
-            String _evaluating = null;
-            public object Get(string name)
+
+            public override bool Equals(object obj)
             {
-                if (_valCache.TryGetValue(name, out var val))
-                    return val;
-                if (_evaluating == null || name != _evaluating)
-                {
-                    if (_parent.index.TryGetValue(name, out var exp) && exp.ValueExpression != null)
-                    {
-                        _evaluating = name;
-                        var v = exp.ValueExpression.Evaluate(this);
-                        _evaluating = null;
-                        _valCache[name] = v;
-                        return v;
-                    }
-                }
-                return ParentProvider.Get(name);
+                return KeyValueCollection.Equals(this, obj);
+            }
+
+            public override int GetHashCode()
+            {
+                return KeyValueCollection.GetHashCode(this);
             }
         }
-        
         public class KeyValueExpression
         {
             public String Key;
@@ -53,100 +60,76 @@ namespace FuncScript.Block
             public ExpressionBlock ValueExpression;
         }
 
-        public class ConnectionExpression
+        IList<KeyValueExpression> _keyValues;
+        ExpressionBlock evalExpresion = null;
+        Dictionary<string, KeyValueExpression> index;
+        public int ItemCount => _keyValues.Count;
+
+        public static (string,KvcExpression) CreateKvcExpression(IList<KeyValueExpression> kvc,ExpressionBlock retExpression)
         {
-            public ExpressionBlock Source;
-            public ExpressionBlock Sink;
-            public ExpressionBlock Catch;
-        }
+            var theKvc = new KvcExpression();
+            theKvc._keyValues = kvc;
+            theKvc.evalExpresion = retExpression;
 
-
-        public IList<KeyValueExpression> _keyValues;
-        public ExpressionBlock singleReturn = null;
-
-        private Dictionary<string, KeyValueExpression> index;
-
-        class ConnectionInfo
-        {
-            public object sink;
-            public object vref;
-
-            public CodeLocation location;
-
-            protected void ThrowInvalidConnectionError(string msg)
+            theKvc.index = new Dictionary<string, KeyValueExpression>();
+            foreach (var k in theKvc._keyValues)
             {
-                throw new Error.EvaluationException(location, new TypeMismatchError(msg));
-            }
-        }
-
-        
-
-        public String SetKeyValues(IList<KeyValueExpression> kv, ExpressionBlock retExpression)
-        {
-            _keyValues = kv;
-            this.singleReturn = retExpression;
-
-            if (_keyValues == null)
-                index = null;
-            else
-            {
-                index = new Dictionary<string, KeyValueExpression>();
-                foreach (var k in _keyValues)
-                {
-                    k.KeyLower = k.Key.ToLower();
-                    if (this.index.ContainsKey(k.KeyLower))
-                        return $"Key {k.KeyLower} is duplicated";
-                    this.index.Add(k.KeyLower, k);
-                }
+                k.KeyLower = k.Key.ToLower();
+                if (!theKvc.index.TryAdd(k.KeyLower, k))
+                    return ($"Key {k.KeyLower} is duplicated",null);
             }
 
-            return null;
+            return (null,theKvc);
         }
 
-        public IList<KeyValueExpression> KeyValues => _keyValues;
-
-        public override object Evaluate(IFsDataProvider provider)
-        {
-            var evalProvider = new KvcExpressionProvider(provider, this);
-
-            if (singleReturn != null)
-            {
-                return singleReturn.Evaluate(evalProvider);
-            }
-            var kvc = new SimpleKeyValueCollection(null, this._keyValues
-                .Select(kv => KeyValuePair.Create<string, object>(kv.Key,
-                    evalProvider.Get(kv.KeyLower))).ToArray());
-            return kvc;
-        }
-
-        public override IList<ExpressionBlock> GetChilds()
-        {
-            var ret = new List<ExpressionBlock>();
-            ret.AddRange(this.KeyValues.Select(x => x.ValueExpression));
-            return ret;
-        }
+        public override object Evaluate(KeyValueCollection provider) => evalExpresion!=null
+            ?evalExpresion.Evaluate(new KvcExpressionCollection(provider,this))
+            :  new KvcExpressionCollection(provider,this);
 
         public override string ToString()
         {
             return "Key-values";
         }
 
-        public override string AsExpString(IFsDataProvider provider)
+        public override string AsExpString()
         {
             var sb = new StringBuilder();
             sb.Append("{\n");
-            foreach (var kv in this.KeyValues)
+            foreach (var kv in this._keyValues)
             {
-                sb.Append($"\t\n{kv.Key}: {kv.ValueExpression.AsExpString(provider)},");
+                sb.Append($"\t\n{kv.Key}: {kv.ValueExpression.AsExpString()},");
             }
 
-            if (this.singleReturn != null)
+            if (this.evalExpresion != null)
             {
-                sb.Append($"return {this.singleReturn.AsExpString(provider)}");
+                sb.Append($"return {this.evalExpresion.AsExpString()}");
             }
 
             sb.Append("}");
             return sb.ToString();
         }
+
+        
+
+       
+
+        public bool IsEvalMode => evalExpresion != null;
+
+        public KeyValueExpression GetKeyValueExpression(int i) => this._keyValues[i];
+
+        public ExpressionBlock EvalExpression => evalExpresion;
+
+        public override IEnumerable<ExpressionBlock> GetChilds()
+        {
+            foreach (var kv in _keyValues ?? Array.Empty<KeyValueExpression>())
+            {
+                if (kv?.ValueExpression != null)
+                    yield return kv.ValueExpression;
+            }
+
+            if (evalExpresion != null)
+                yield return evalExpresion;
+        }
+        
     }
 }

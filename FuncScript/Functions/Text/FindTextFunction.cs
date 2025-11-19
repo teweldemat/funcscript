@@ -14,14 +14,16 @@ namespace FuncScript.Functions.Text
 
         public int Precedence => 100;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count < 2 || pars.Count > MaxParsCount)
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            if (pars.Length < 2 || pars.Length > MaxParsCount)
                 throw new Error.TypeMismatchError($"{this.Symbol}: Two or three parameters expected");
 
-            var par0 = pars.GetParameter(parent, 0);
-            var par1 = pars.GetParameter(parent, 1);
-            var par2 = pars.Count > 2 ? pars.GetParameter(parent, 2) : null;
+            var par0 = pars[0];
+            var par1 = pars[1];
+            var par2 = pars.Length > 2 ? pars[2] : null;
 
             if (par0 == null || par1 == null)
                 throw new Error.TypeMismatchError($"{this.Symbol}: Two strings and optionally an index expected as parameters");

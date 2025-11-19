@@ -1,18 +1,13 @@
 ﻿using FuncScript.Core;
+using FuncScript.Model;
 
 namespace FuncScript.Block
 {
     public class NullExpressionBlock : ExpressionBlock
     {
-        public override object Evaluate(IFsDataProvider provider)
-        {
-            return null;
-        }
-        public override IList<ExpressionBlock> GetChilds()
-        {
-            return new ExpressionBlock[0];
-        }
-        public override string AsExpString(IFsDataProvider provider)
+        public override object Evaluate(KeyValueCollection provider) => null;
+
+        public override string AsExpString()
         {
             return "null";
         }

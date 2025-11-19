@@ -5,22 +5,22 @@ using System.Text;
 
 namespace FuncScript.Model
 {
-    public abstract class FsList:IEnumerable<object>
+    public interface FsList:IEnumerable<object>
     {
         //public abstract  IEnumerable<object> Data { get; }
         public abstract object this[int index] { get; }
         public abstract int Length { get; }
         public abstract IEnumerator<object> GetEnumerator();
 
-        public override bool Equals(object obj)
+        public static bool Equals(FsList thisList, object obj)
         {
-            if (obj == null || GetType() != obj.GetType())
+            if (obj == null || thisList.GetType() != obj.GetType())
             {
                 return false;
             }
             var other = (FsList)obj;
             var otherData = other.ToArray();
-            var thisData = this.ToArray();
+            var thisData = thisList.ToArray();
             if (otherData.Length != thisData.Length)
                 return false;
             for(int i=0;i<otherData.Length;i++)
@@ -36,14 +36,14 @@ namespace FuncScript.Model
             }
             return true;
         }
-        public override string ToString()
+        public static string ToString(FsList thisList)
         {
             var sb = new StringBuilder();
             sb.Append("[");
-            if (this.Any())
+            if (thisList.Any())
             {
                 var first = true;
-                foreach (var d in this)
+                foreach (var d in thisList)
                 {
                     if (first)
                         first = false;
@@ -59,12 +59,6 @@ namespace FuncScript.Model
             sb.Append("]");
             return sb.ToString();
         }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-
         // override object.GetHashCode
         public static bool IsListType(Type t) =>
             t.IsAssignableTo(typeof(System.Collections.IEnumerable)) || t.IsAssignableTo(typeof(System.Collections.IList)) || IsGenericList(t);
@@ -112,9 +106,14 @@ namespace FuncScript.Model
             return this.GetHashCode();
         }
 
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
 
-        public override object this[int index] => (index<0||index>=_data.Length)?null:_data[index];
-        public override int Length =>_data.Length;
-        public override IEnumerator<object> GetEnumerator() => ((System.Collections.Generic.IEnumerable<object>)_data).GetEnumerator();
+
+        public  object this[int index] => (index<0||index>=_data.Length)?null:_data[index];
+        public int Length =>_data.Length;
+        public  IEnumerator<object> GetEnumerator() => ((System.Collections.Generic.IEnumerable<object>)_data).GetEnumerator();
     }
 }

@@ -58,7 +58,7 @@ All numeric helpers belong to the `math` provider collection, so you can call th
 - `Any(list, predicate)` – Returns `true` when any element satisfies `predicate`.
 - `Contains(list, value)` – Returns `true` when `value` is present.
 - `First(list)` – First element (errors on empty lists).
-- `Len(list)` – Length of the list.
+- `Length(list)` – Length of the list.
 - `Take(list, count)` / `Skip(list, count)` – Subset operators.
 - `Sort(list)` – Sort values using default comparison.
 - `Reverse(list)` – Reverse the order of elements.

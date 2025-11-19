@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using FuncScript.Block;
+using FuncScript.Model;
 
 namespace FuncScript.Core
 {
@@ -8,14 +9,14 @@ namespace FuncScript.Core
     {
         public class ParseContext
         {
-            public ParseContext(IFsDataProvider provider, string expression, List<SyntaxErrorData> errorsList)
+            public ParseContext(KeyValueCollection provider, string expression, List<SyntaxErrorData> errorsList)
             {
                 Provider = provider;
                 Expression = expression ?? throw new ArgumentNullException(nameof(expression));
                 ErrorsList = errorsList ?? throw new ArgumentNullException(nameof(errorsList));
             }
 
-            public IFsDataProvider Provider { get; }
+            public KeyValueCollection Provider { get; }
 
             public string Expression { get; }
 

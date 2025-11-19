@@ -19,17 +19,19 @@ namespace FuncScript.Functions.Logic
 
         public int Precedence => 400;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            int count = pars.Count;
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            int count = pars.Length;
 
             for (int i = 0; i < count; i++)
             {
-                var par = pars.GetParameter(parent, i);
+                var thePar = pars[i];
 
-                if (!(par is bool b))
+                if (!(thePar is bool b))
                     return new FsError(FsError.ERROR_TYPE_MISMATCH,
-                        $"{this.Symbol} doesn't apply to this type:{(par == null ? "null" : par.GetType())} ");
+                        $"{this.Symbol} doesn't apply to this type:{(thePar == null ? "null" : thePar.GetType())} ");
 
                 if(!b)
                     return false;

@@ -7,7 +7,7 @@ namespace FuncScript.Core
     public partial class FuncScriptParser
     {
         static ParseBlockResult GetInfixExpressionSingleLevel(ParseContext context, IList<ParseNode> siblings,
-            int level, string[] candidates, int index)
+            ReferenceMode referenceMode, int level, string[] candidates, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -19,9 +19,9 @@ namespace FuncScript.Core
             ParseBlockResult operandResult;
             var currentIndex = index;
             if (level == 0)
-                operandResult = GetInfixFunctionCall(context, nodes, currentIndex);
+                operandResult = GetInfixFunctionCall(context, nodes, referenceMode, currentIndex);
             else
-                operandResult = GetInfixExpressionSingleLevel(context, nodes, level - 1,
+                operandResult = GetInfixExpressionSingleLevel(context, nodes, referenceMode, level - 1,
                     s_operatorSymols[level - 1], currentIndex);
 
             if (!operandResult.HasProgress(currentIndex) || operandResult.ExpressionBlock == null)
@@ -48,9 +48,9 @@ namespace FuncScript.Core
 
                     ParseBlockResult nextOperand;
                     if (level == 0)
-                        nextOperand = GetInfixFunctionCall(context, nodes, currentIndex);
+                        nextOperand = GetInfixFunctionCall(context, nodes, referenceMode, currentIndex);
                     else
-                        nextOperand = GetInfixExpressionSingleLevel(context, nodes, level - 1,
+                        nextOperand = GetInfixExpressionSingleLevel(context, nodes, referenceMode, level - 1,
                             s_operatorSymols[level - 1], currentIndex);
 
                     if (!nextOperand.HasProgress(currentIndex) || nextOperand.ExpressionBlock == null)
@@ -80,9 +80,10 @@ namespace FuncScript.Core
                 }
 
                 var combined = new FunctionCallExpression
+                (
+                    functionLiteral,
+                    new ListExpression( operands.ToArray()))
                 {
-                    Function = functionLiteral,
-                    Parameters = operands.ToArray(),
                     Pos = startPos,
                     Length = endPos - startPos
                 };

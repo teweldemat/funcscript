@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using FuncScript.Block;
+using FuncScript.Model;
 
 namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        public static ExpressionBlock ParseFsTemplate(IFsDataProvider provider, string expression,
+        public static ExpressionBlock ParseFsTemplate(KeyValueCollection provider, string expression,
             List<SyntaxErrorData> errors)
         {
             if (provider == null)
@@ -15,7 +17,7 @@ namespace FuncScript.Core
 
             var errorList = errors ?? new List<SyntaxErrorData>();
             var context = new ParseContext(provider, expression, errorList);
-            var result = GetFSTemplate(context, new List<ParseNode>(), 0);
+            var result = GetFSTemplate(context, new List<ParseNode>(), ReferenceMode.Standard, 0);
             return result.ExpressionBlock;
         }
     }

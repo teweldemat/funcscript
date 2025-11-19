@@ -8,7 +8,8 @@ namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        static ParseBlockResult GetInfixFunctionCall(ParseContext context, IList<ParseNode> siblings, int index)
+        static ParseBlockResult GetInfixFunctionCall(ParseContext context, IList<ParseNode> siblings,
+            ReferenceMode referenceMode, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -19,7 +20,7 @@ namespace FuncScript.Core
 
             var operands = new List<ExpressionBlock>();
 
-            var firstOperandResult = GetCallAndMemberAccess(context, buffer, index);
+            var firstOperandResult = GetCallAndMemberAccess(context, buffer, referenceMode, index);
             if (!firstOperandResult.HasProgress(index) || firstOperandResult.ExpressionBlock == null)
                 return ParseBlockResult.NoAdvance(index);
             
@@ -49,7 +50,7 @@ namespace FuncScript.Core
 
             currentIndex = afterIdentifier;
 
-            var secondOperandResult = GetCallAndMemberAccess(context, buffer, currentIndex);
+            var secondOperandResult = GetCallAndMemberAccess(context, buffer, referenceMode, currentIndex);
             if (!secondOperandResult.HasProgress(currentIndex) || secondOperandResult.ExpressionBlock == null)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, 0, $"Right side operand expected for {iden.Iden}"));
@@ -66,7 +67,7 @@ namespace FuncScript.Core
                     break;
 
                 currentIndex = afterChain;
-                var nextOperand = GetCallAndMemberAccess(context, buffer, currentIndex);
+                var nextOperand = GetCallAndMemberAccess(context, buffer, referenceMode, currentIndex);
                 if (!nextOperand.HasProgress(currentIndex) || nextOperand.ExpressionBlock == null)
                     break;
 
@@ -85,14 +86,20 @@ namespace FuncScript.Core
                 Length = iden.Length
             };
 
-            var firstNode = buffer.FirstOrDefault(n => n.NodeType != ParseNodeType.WhiteSpace);
-            var startPos = firstNode?.Pos ?? (buffer.Count > 0 ? buffer[0].Pos : index);
+            var startPos = index;
             var expressionLength = Math.Max(0, currentIndex - startPos);
 
-            var expression = new FunctionCallExpression
+            var parametersExpression = new ListExpression(operands.ToArray())
             {
-                Function = functionLiteral,
-                Parameters = operands.ToArray(),
+                Pos = operands.Count > 0 ? operands[0].Pos : startPos,
+                Length = operands.Count
+            };
+
+            var expression = new FunctionCallExpression
+            (
+                functionLiteral,
+                parametersExpression
+                ){
                 Pos = startPos,
                 Length = expressionLength
             };

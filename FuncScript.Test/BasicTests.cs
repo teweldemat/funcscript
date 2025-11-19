@@ -143,6 +143,14 @@ namespace FuncScript.Test
         }
 
         [Test]
+        public void NullCoalescingChainReturnsFirstNonNull()
+        {
+            var exp = "null??null??null??5";
+            var result = FuncScriptRuntime.Evaluate(exp);
+            Assert.That(result, Is.EqualTo(5));
+        }
+
+        [Test]
         public void TripleQuotedStringsSupportMultiline()
         {
             var exp = "\"\"\"one\\nTwo\"\"\"";
@@ -213,9 +221,8 @@ namespace FuncScript.Test
             Assert.AreEqual(1 * 1 + 2 * 2 + 4 * 4, res);
         }
         [Test]
-        public void SumListWthInitial()
+        public void SumListWithInitial()
         {
-
             var res = AssertSingleResultType("Reduce(Map([1,2,4],(x)=>x*x),(c,t)=>t+c,0)", typeof(int));
             Assert.AreEqual(1 * 1 + 2 * 2 + 4 * 4, res);
         }
@@ -351,11 +358,19 @@ return j;
         }
 
         [Test]
-        public void TestSpread()
+        public void TestSelect2()
         {
-            var res = AssertSingleResultType("Select({'a':1,'b':2},{'b':5,'c':8})", typeof(KeyValueCollection));
-            var expected = FuncScriptRuntime.Evaluate(null, "{'a':1,'b':5,'c':8}");
-            Assert.AreEqual(expected, res);
+            var res = AssertSingleResultType("{'a':1,'b':2}{a,'b':5,'c':8}", typeof(KeyValueCollection));
+            var expected = FuncScriptRuntime.Evaluate(null, "{a:1,'b':5,'c':8}");
+            Assert.AreEqual(Engine.FormatToJson(expected),Engine.FormatToJson(res));
+        }
+        
+        [Test]
+        public void TestSelect3()
+        {
+            var res = AssertSingleResultType("{'a':3}{a}", typeof(KeyValueCollection));
+            var expected = FuncScriptRuntime.Evaluate(null, "{a:3}");
+            Assert.AreEqual(Engine.FormatToJson(expected),Engine.FormatToJson(res));
         }
 
         [Test]
@@ -363,7 +378,7 @@ return j;
         {
             var res = new ObjectKvc(new { a = 1, b = 5, c = 8 });
             var expected = FuncScriptRuntime.Evaluate(null, "{'a':1,'b':5,'c':8}");
-            Assert.AreEqual(expected, res);
+            Assert.AreEqual(Engine.FormatToJson(expected), Engine.FormatToJson(res));
         }
         [Test]
         public void TestSpread2()
@@ -371,15 +386,15 @@ return j;
             var g = new DefaultFsDataProvider();
             var res = FuncScriptRuntime.Evaluate(g, "Select({'a':1,'b':5,'c':8},{'a':null,'b':null})");
             var expected = new ObjectKvc(new { a = 1, b = 5 });
-            Assert.AreEqual(expected, res);
+            Assert.AreEqual(Engine.FormatToJson(expected),Engine.FormatToJson(res));
         }
         [Test]
         public void TestIdenKey()
         {
             var g = new DefaultFsDataProvider();
-            var res = FuncScriptRuntime.Evaluate(g, "Select({a:3,b:4},{a,c:5})");
+            var res = FuncScriptRuntime.Evaluate(g, "{a:3,b:4}{a,c:5}");
             var expected = new ObjectKvc(new { a = 3, c = 5 });
-            Assert.AreEqual(expected, res);
+            Assert.AreEqual(Engine.FormatToJson(expected), Engine.FormatToJson(res));
         }
         [Test]
         public void MapNull()
@@ -436,7 +451,18 @@ return j;
         }
 
         [Test]
-        public void ResursiveCall()
+        public void ResursiveCall1()
+        {
+            var exp = 
+@"{
+    f:(x)=>if(x=0,f(x+1),10);
+    return f(0);
+}";
+            var res=FuncScriptRuntime.Evaluate(exp);
+            Assert.That(res,Is.EqualTo(10));
+        }
+        [Test]
+        public void ResursiveCall2()
         {
             var exp = 
 @"{
@@ -446,6 +472,7 @@ return j;
             var res=FuncScriptRuntime.Evaluate(exp);
             Assert.That(res,Is.EqualTo(3));
         }
+        
         [Test]
         public void FunctionCallWithMemberAccess()
         {
@@ -457,7 +484,6 @@ return j;
             var res=FuncScriptRuntime.Evaluate(exp);
             Assert.That(res,Is.EqualTo(5));
         }
-
 
         [Test]
         public void TestFormatAsJson()

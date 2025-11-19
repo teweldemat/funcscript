@@ -15,19 +15,21 @@ namespace FuncScript.Functions.Misc
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count < 1 || pars.Count > MaxParsCount)
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            if (pars.Length < 1 || pars.Length > MaxParsCount)
                 throw new Error.TypeMismatchError($"{this.Symbol}: message and optional type expected");
 
-            var messageValue = pars.GetParameter(parent, 0);
+            var messageValue = pars[0];
             if (messageValue is not string message)
                 throw new Error.TypeMismatchError($"{this.Symbol}: message must be a string");
 
             string type = null;
-            if (pars.Count > 1)
+            if (pars.Length > 1)
             {
-                var typeValue = pars.GetParameter(parent, 1);
+                var typeValue = pars[1];
                 if (typeValue == null)
                     type = null;
                 else if (typeValue is string typeString)

@@ -28,14 +28,16 @@ namespace FuncScript.Functions.KeyValue
             return ((KeyValueCollection)target).Get(((string)key).ToLower());
         }
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != MaxParsCount)
-                throw new Error.TypeMismatchError($"{Symbol} function: Expected {MaxParsCount} parameters, received {pars.Count}.");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            if (pars.Length != MaxParsCount)
+                throw new Error.TypeMismatchError($"{Symbol} function: Expected {MaxParsCount} parameters, received {pars.Length}.");
 
             
-            var key = pars.GetParameter(parent,1);
-            var target = pars.GetParameter(parent,0);
+            var key = pars[1];
+            var target = pars[0];
             
 
             return EvaluateInternal(target, key);

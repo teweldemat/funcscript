@@ -18,13 +18,15 @@ namespace FuncScript.Functions.KeyValue
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != MaxParsCount)
-                throw new Error.TypeMismatchError($"{Symbol} function: Invalid parameter count. Expected {MaxParsCount}, but got {pars.Count}");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            var par0 = pars.GetParameter(parent, 0);
-            var par1 = pars.GetParameter(parent, 1);
+            if (pars.Length != MaxParsCount)
+                throw new Error.TypeMismatchError($"{Symbol} function: Invalid parameter count. Expected {MaxParsCount}, but got {pars.Length}");
+
+            var par0 = pars[0];
+            var par1 = pars[1];
 
             if (!(par0 is KeyValueCollection))
                 throw new Error.TypeMismatchError($"{Symbol} function: The first parameter should be {ParName(0)}");
@@ -45,7 +47,7 @@ namespace FuncScript.Functions.KeyValue
                 }
             }
 
-            return new SimpleKeyValueCollection(parent,second.ToArray());
+            return new SimpleKeyValueCollection(first.ParentProvider, second.ToArray());
         }
 
         public string ParName(int index)

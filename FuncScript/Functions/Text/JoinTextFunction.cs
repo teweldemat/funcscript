@@ -15,13 +15,15 @@ namespace FuncScript.Functions.Text
 
         public int Precedence => 100;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != MaxParsCount)
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            if (pars.Length != MaxParsCount)
                 throw new Error.TypeMismatchError($"{this.Symbol}: Two parameters expected");
 
-            var par0 = pars.GetParameter(parent, 0);
-            var par1 = pars.GetParameter(parent, 1);
+            var par0 = pars[0];
+            var par1 = pars[1];
 
             if (par0 == null || par1 == null)
                 throw new Error.TypeMismatchError($"{this.Symbol}: List and separator expected as parameters");

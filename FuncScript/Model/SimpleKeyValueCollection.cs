@@ -5,7 +5,7 @@ namespace FuncScript.Model
 {
     public class SimpleKeyValueCollection: KeyValueCollection
     {
-        private IFsDataProvider _parent;
+        private KeyValueCollection _parent;
         KeyValuePair<String, object>[] _data;
         Dictionary<String, object> _index;
         public SimpleKeyValueCollection(KeyValuePair<string, object>[] kv)
@@ -14,7 +14,7 @@ namespace FuncScript.Model
 
         }
         
-        public SimpleKeyValueCollection(IFsDataProvider parent, KeyValuePair<string, object>[] kv)
+        public SimpleKeyValueCollection(KeyValueCollection parent, KeyValuePair<string, object>[] kv)
         {
             this.Data = kv;
             this._parent = parent;
@@ -36,21 +36,31 @@ namespace FuncScript.Model
             }
         }
 
-        public override object Get(string value)
+        public  object Get(string value)
         {
             return _index.GetValueOrDefault(value);
         }
 
-        public override IFsDataProvider ParentProvider => _parent;
+        public  KeyValueCollection ParentProvider => _parent;
 
-        public override bool IsDefined(string value)
+        public  bool IsDefined(string value)
         {
             return _index.ContainsKey(value);
         }
 
-        public override IList<KeyValuePair<string, object>> GetAll()
+        public  IList<KeyValuePair<string, object>> GetAll()
         {
             return this._data;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return KeyValueCollection.Equals(this, obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return KeyValueCollection.GetHashCode(this);
         }
     }
 }

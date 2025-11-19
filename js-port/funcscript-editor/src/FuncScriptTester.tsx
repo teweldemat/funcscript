@@ -1027,9 +1027,114 @@ const variablesListBaseStyle: CSSProperties = {
   borderRadius: 6,
   padding: '0.5rem',
   minHeight: 0,
-  overflowY: 'auto',
-  background: '#fff'
+  background: '#fff',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.5rem'
 };
+
+const variableListItemsStyle: CSSProperties = {
+  flex: 1,
+  minHeight: 0,
+  overflowY: 'auto',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.5rem'
+};
+
+const variablesHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '0.5rem'
+};
+
+const variablesTitleStyle: CSSProperties = {
+  fontWeight: 600,
+  color: '#0f172a'
+};
+
+const iconButtonBaseStyle: CSSProperties = {
+  width: 28,
+  height: 28,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: 4,
+  border: '1px solid #d0d7de',
+  background: '#f6f8fa',
+  cursor: 'pointer',
+  padding: 0
+};
+
+const iconButtonDisabledStyle: CSSProperties = {
+  opacity: 0.5,
+  cursor: 'not-allowed'
+};
+
+const iconButtonSvgStyle: CSSProperties = {
+  width: 16,
+  height: 16,
+  display: 'block'
+};
+
+const variableToolbarButtonStyle: CSSProperties = {
+  ...iconButtonBaseStyle
+};
+
+const variableItemHeaderStyle: CSSProperties = {
+  width: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '0.5rem'
+};
+
+const variableDeleteButtonStyle: CSSProperties = {
+  ...iconButtonBaseStyle,
+  borderColor: 'transparent',
+  background: 'transparent',
+  color: '#d1242f'
+};
+
+type IconProps = {
+  color?: string;
+};
+
+const TrashIcon = ({ color = '#0f172a' }: IconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    style={iconButtonSvgStyle}
+    aria-hidden="true"
+    focusable="false"
+    stroke={color}
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    fill="none"
+  >
+    <path d="M6 7h12" />
+    <path d="M10 4h4" />
+    <path d="M8 7v12c0 1.1.9 2 2 2h4c1.1 0 2-.9 2-2V7" />
+  </svg>
+);
+
+const CrossIcon = ({ color = '#d1242f' }: IconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    style={iconButtonSvgStyle}
+    aria-hidden="true"
+    focusable="false"
+    stroke={color}
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    fill="none"
+  >
+    <path d="M6 6l12 12" />
+    <path d="M18 6l-12 12" />
+  </svg>
+);
 
 const formatValuePreview = (value: unknown): string => {
   if (value === null || value === undefined) {
@@ -1136,7 +1241,12 @@ const nodeEditorBaseStyle: CSSProperties = {
 
 const nodeEditorSurfaceStyle: CSSProperties = {
   flex: 1,
-  minHeight: 0
+  minHeight: 0,
+  display: 'flex',
+  flexDirection: 'column',
+  height: '100%',
+  maxHeight: '100%',
+  overflow: 'hidden'
 };
 
 const testerEditorStyle: CSSProperties = {
@@ -1154,7 +1264,12 @@ const variableEditorBaseStyle: CSSProperties = {
 
 const variableEditorSurfaceStyle: CSSProperties = {
   flex: 1,
-  minHeight: 0
+  minHeight: 0,
+  display: 'flex',
+  flexDirection: 'column',
+  height: '100%',
+  maxHeight: '100%',
+  overflow: 'hidden'
 };
 
 const mainSplitterStyle: CSSProperties = {
@@ -1273,6 +1388,7 @@ export type FuncScriptTesterProps = Omit<FuncScriptEditorProps, 'onParseModelCha
   variables?: FuncScriptTesterVariableInput[];
   onVariablesChange?: (variables: FuncScriptTesterVariableInput[]) => void;
   initialMode?: 'standard' | 'tree';
+  onEvaluationError?: (message: string | null) => void;
 };
 
 const FuncScriptTester = ({
@@ -1285,7 +1401,8 @@ const FuncScriptTester = ({
   saveKey,
   variables: externalVariables,
   onVariablesChange,
-  initialMode = 'standard'
+  initialMode = 'standard',
+  onEvaluationError
 }: FuncScriptTesterProps) => {
   const [variables, setVariables] = useState<Map<string, VariableState>>(() => new Map());
   const variablesRef = useRef<Map<string, VariableState>>(variables);
@@ -1421,6 +1538,15 @@ const FuncScriptTester = ({
       setCurrentExpressionBlock(model.expressionBlock);
     },
     []
+  );
+
+  const reportEvaluationError = useCallback(
+    (message: string | null) => {
+      if (onEvaluationError) {
+        onEvaluationError(message);
+      }
+    },
+    [onEvaluationError]
   );
 
   const evaluateExpression = useCallback((expression: string): {
@@ -1642,6 +1768,46 @@ const FuncScriptTester = ({
     setSelectedVariableKey(key);
   }, []);
 
+  const handleDeleteVariable = useCallback((key: string) => {
+    let removed = false;
+    setVariables((prev) => {
+      if (!prev.has(key)) {
+        return prev;
+      }
+      removed = true;
+      const next = new Map(prev);
+      next.delete(key);
+      variablesRef.current = next;
+      return next;
+    });
+    if (!removed) {
+      return;
+    }
+    setSelectedVariableKey((current) => {
+      if (current && current !== key && variablesRef.current.has(current)) {
+        return current;
+      }
+      const first = variablesRef.current.keys().next();
+      return first.done ? null : first.value;
+    });
+  }, []);
+
+  const handleClearVariables = useCallback(() => {
+    let cleared = false;
+    setVariables((prev) => {
+      if (prev.size === 0) {
+        return prev;
+      }
+      cleared = true;
+      const next = new Map<string, VariableState>();
+      variablesRef.current = next;
+      return next;
+    });
+    if (cleared) {
+      setSelectedVariableKey(null);
+    }
+  }, []);
+
   const runTest = useCallback(() => {
     const provider = providerRef.current;
     if (!provider) {
@@ -1665,13 +1831,16 @@ const FuncScriptTester = ({
     try {
       const evaluated = Engine.evaluate(value, provider);
       setResultState({ value: evaluated, error: null });
+      reportEvaluationError(null);
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
       setResultState({
         value: null,
-        error: err instanceof Error ? err.message : String(err)
+        error: message
       });
+      reportEvaluationError(message);
     }
-  }, [evaluateExpression, value]);
+  }, [evaluateExpression, value, reportEvaluationError]);
 
   const parseTree = useMemo(() => buildExpressionTree(currentExpressionBlock, value), [currentExpressionBlock, value]);
   const parseNodeMap = useMemo(() => createParseNodeIndex(parseTree), [parseTree]);
@@ -2900,33 +3069,71 @@ const FuncScriptTester = ({
           />
           <div ref={testingColumnRef} style={testingColumnStyle}>
             <div style={variablesListStyle}>
-              {variableEntries.length === 0 ? (
-                <div style={unsetTokenStyle}>Variables will appear here when referenced.</div>
-              ) : (
-                variableEntries.map((entry) => {
-                  const isSelected = entry.key === selectedVariableKey;
-                  const hasValue = entry.typedValue !== null && !entry.error;
-                  const summaryText = entry.error
-                    ? 'Error'
-                    : hasValue
-                    ? Engine.getTypeName(Engine.typeOf(entry.typedValue as TypedValue))
-                    : 'Unset';
-                  return (
-                    <button
-                      key={entry.key}
-                      type="button"
-                      onClick={() => handleSelectVariable(entry.key)}
-                      style={isSelected ? selectedListItemStyle : listItemStyle}
-                    >
-                      <div>
-                        <strong>{entry.name}</strong>
+              <div style={variablesHeaderStyle}>
+                <div style={variablesTitleStyle}>Variables</div>
+                <button
+                  type="button"
+                  onClick={handleClearVariables}
+                  style={{
+                    ...variableToolbarButtonStyle,
+                    ...(variableEntries.length === 0 ? iconButtonDisabledStyle : {})
+                  }}
+                  disabled={variableEntries.length === 0}
+                  aria-label="Clear variables"
+                  title="Clear variables"
+                >
+                  <TrashIcon />
+                </button>
+              </div>
+              <div style={variableListItemsStyle}>
+                {variableEntries.length === 0 ? (
+                  <div style={unsetTokenStyle}>Variables will appear here when referenced.</div>
+                ) : (
+                  variableEntries.map((entry) => {
+                    const isSelected = entry.key === selectedVariableKey;
+                    const hasValue = entry.typedValue !== null && !entry.error;
+                    const summaryText = entry.error
+                      ? 'Error'
+                      : hasValue
+                      ? Engine.getTypeName(Engine.typeOf(entry.typedValue as TypedValue))
+                      : 'Unset';
+                    return (
+                      <div
+                        key={entry.key}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={isSelected}
+                        onClick={() => handleSelectVariable(entry.key)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+                            event.preventDefault();
+                            handleSelectVariable(entry.key);
+                          }
+                        }}
+                        style={isSelected ? selectedListItemStyle : listItemStyle}
+                      >
+                        <div style={variableItemHeaderStyle}>
+                          <strong>{entry.name}</strong>
+                          <button
+                            type="button"
+                            style={variableDeleteButtonStyle}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleDeleteVariable(entry.key);
+                            }}
+                            aria-label={`Delete variable ${entry.name}`}
+                            title={`Delete variable ${entry.name}`}
+                          >
+                            <CrossIcon />
+                          </button>
+                        </div>
+                        <div style={hasValue ? undefined : unsetTokenStyle}>{summaryText}</div>
+                        {entry.error ? <div style={errorTextStyle}>{entry.error}</div> : null}
                       </div>
-                      <div style={hasValue ? undefined : unsetTokenStyle}>{summaryText}</div>
-                      {entry.error ? <div style={errorTextStyle}>{entry.error}</div> : null}
-                    </button>
-                  );
-                })
-              )}
+                    );
+                  })
+                )}
+              </div>
             </div>
             <div
               role="separator"
@@ -2941,14 +3148,14 @@ const FuncScriptTester = ({
               onKeyDown={handleVariableSplitterKeyDown}
             />
             <div style={variableEditorContainerStyle}>
-              <div onBlur={handleVariableEditorBlur} style={variableEditorSurfaceStyle}>
-                <FuncScriptEditor
-                  key={selectedVariableKey ?? 'variable-editor'}
-                  value={variableEditorValue}
-                  onChange={handleVariableEditorChange}
-                  minHeight={160}
-                />
-              </div>
+              <FuncScriptEditor
+                key={selectedVariableKey ?? 'variable-editor'}
+                value={variableEditorValue}
+                onChange={handleVariableEditorChange}
+                onBlur={handleVariableEditorBlur}
+                minHeight={160}
+                style={variableEditorSurfaceStyle}
+              />
             </div>
           </div>
         </>

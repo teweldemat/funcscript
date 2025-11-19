@@ -7,7 +7,7 @@ namespace FuncScript.Core
     public partial class FuncScriptParser
     {
         static ValueParseResult<ListExpression> GetSpaceSeparatedListExpression(ParseContext context,
-            IList<ParseNode> siblings, int index)
+            IList<ParseNode> siblings, ReferenceMode referenceMode, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -18,7 +18,7 @@ namespace FuncScript.Core
             var items = new List<ExpressionBlock>();
             var nodes = new List<ParseNode>();
 
-            var firstResult = GetExpression(context, nodes, currentIndex);
+            var firstResult = GetExpression(context, nodes, referenceMode, currentIndex);
             if (firstResult.HasProgress(currentIndex))
             {
                 if (firstResult.ExpressionBlock != null)
@@ -32,7 +32,7 @@ namespace FuncScript.Core
                         break;
 
                     var nextIndex = afterSeparator;
-                    var nextResult = GetExpression(context, nodes, nextIndex);
+                    var nextResult = GetExpression(context, nodes, referenceMode, nextIndex);
                     if (!nextResult.HasProgress(nextIndex))
                         break;
 
@@ -42,7 +42,7 @@ namespace FuncScript.Core
                 }
             }
 
-            var listExpression = new ListExpression { ValueExpressions = items.ToArray() };
+            var listExpression = new ListExpression(items.ToArray());
             var parseNode = new ParseNode(ParseNodeType.List, index, currentIndex - index, nodes);
             siblings.Add(parseNode);
 

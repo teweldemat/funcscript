@@ -147,6 +147,31 @@ namespace FuncScript.Test
             }
 
         }
+
+        [Test]
+        public void IfExpressionMemberAccessThrows()
+        {
+            var error_exp = "a.b";
+            var exp = "if a.b then true else false";
+            try
+            {
+                FuncScriptRuntime.Evaluate(exp);
+                throw new Exception("No error");
+            }
+            catch (Exception ex)
+            {
+                AnalyzeError(ex, exp, exp.IndexOf(error_exp), error_exp.Length);
+                Assert.AreEqual(typeof(Error.TypeMismatchError), ex.InnerException.GetType());
+            }
+        }
+
+        [Test]
+        public void IfExpressionShortCircuitsMemberAccess()
+        {
+            var exp = "if false and a.b then 'x' else 'y'";
+            var result = FuncScriptRuntime.Evaluate(exp);
+            Assert.That(result, Is.EqualTo("y"));
+        }
         [Test]
         public void TestListUncalledError()
         {

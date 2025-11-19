@@ -181,6 +181,15 @@ namespace FuncScript.Test
         }
 
         [Test]
+        public void CaseExpressionPropagatesErrors()
+        {
+            var expression = "case error('test'): 5, 6";
+            var result = FuncScriptRuntime.Evaluate(expression);
+            Assert.That(result, Is.TypeOf<FsError>());
+            Assert.That(((FsError)result).ErrorMessage, Is.EqualTo("test"));
+        }
+
+        [Test]
         [TestCase("switch 30", null)]
         [TestCase("switch 4, 1:'a', 2:'b', 4:'c'", "c")]
         [TestCase("switch 4, 1:'a', 2:'b', 3:'c'", null)]

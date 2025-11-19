@@ -12,13 +12,15 @@ namespace FuncScript.Functions.Text
         public string Symbol => "format";
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count < 1)
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            if (pars.Length < 1)
                 throw new Error.EvaluationTimeException($"{this.Symbol} requires at least one parameter.");
 
-            var par0 = pars.GetParameter(parent, 0);
-            var par1 = pars.Count > 1 ? pars.GetParameter(parent, 1) : null;
+            var par0 = pars[0];
+            var par1 = pars.Length > 1 ? pars[1] : null;
 
             string format = par1 as string;
             var sb = new StringBuilder();

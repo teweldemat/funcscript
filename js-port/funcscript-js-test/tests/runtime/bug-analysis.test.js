@@ -7,6 +7,7 @@ const {
   DefaultFsDataProvider,
   valueOf
 } = require('@tewelde/funcscript');
+const { toPlain } = require('../helpers/runtime');
 
 // Mirrors key scenarios from FuncScript.Test/BugAnalysis.cs
 
@@ -53,4 +54,5 @@ describe('BugAnalysis', () => {
     const result = evaluate(exp, new DefaultFsDataProvider());
     expect(valueOf(result)).to.equal(9);
   });
+
 });

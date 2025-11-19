@@ -6,7 +6,8 @@ namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        static ParseBlockResult GetExpInParenthesis(ParseContext context, IList<ParseNode> siblings, int index)
+        static ParseBlockResult GetExpInParenthesis(ParseContext context, IList<ParseNode> siblings,
+            ReferenceMode referenceMode, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -21,7 +22,7 @@ namespace FuncScript.Core
 
             currentIndex = afterOpen;
             var childNodes = new List<ParseNode>();
-            var expressionResult = GetExpression(context, childNodes, currentIndex);
+            var expressionResult = GetExpression(context, childNodes, referenceMode, currentIndex);
             ExpressionBlock expressionBlock = null;
             ParseNode expressionNode = null;
             if (expressionResult.HasProgress(currentIndex))

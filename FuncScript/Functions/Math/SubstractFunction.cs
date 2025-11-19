@@ -13,30 +13,25 @@ namespace FuncScript.Functions.Math
 
         public int Precedence => 100;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            var ret = EvaluateInternal(pars, (i) =>
-            {
-                var ret = pars.GetParameter(parent, i);
-                return (true, ret);
-            });
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            var ret = EvaluateInternal(pars);
             return ret;
         }
 
-        object EvaluateInternal(IParameterList pars, Func<int, (bool, object)> getPar)
+        object EvaluateInternal(FsList pars)
         {
             bool isInt = false, isLong = false, isDouble = false;
             int intTotal = 0;
             long longTotal = 0;
             double doubleTotal = 0;
-            int count = pars.Count;
+            int count = pars.Length;
 
             if (count > 0)
             {
-                var p = getPar(0);
-                if (!p.Item1)
-                    return null;
-                var d = p.Item2;
+                var d = pars[0];
 
                 if (d is int)
                 {
@@ -57,10 +52,7 @@ namespace FuncScript.Functions.Math
 
             for (int i = 1; i < count; i++)
             {
-                var p = getPar(i);
-                if (!p.Item1)
-                    return null;
-                var d = p.Item2;
+                var d = pars[i];
 
                 if (isInt)
                 {

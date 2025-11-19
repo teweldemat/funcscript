@@ -13,14 +13,16 @@ namespace FuncScript.Functions.Logic
 
         public int Precedence => 200;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != this.MaxParsCount)
-                throw new Error.EvaluationTimeException(
-                    $"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Count}");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            var par0 = pars.GetParameter(parent, 0);
-            var par1 = pars.GetParameter(parent, 1);
+            if (pars.Length != this.MaxParsCount)
+                throw new Error.EvaluationTimeException(
+                    $"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Length}");
+
+            var par0 = pars[0];
+            var par1 = pars[1];
 
             if (par0 == null || par1 == null)
                 return null;

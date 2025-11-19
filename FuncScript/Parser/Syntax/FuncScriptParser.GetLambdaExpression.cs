@@ -7,7 +7,7 @@ namespace FuncScript.Core
     public partial class FuncScriptParser
     {
         static ValueParseResult<ExpressionFunction> GetLambdaExpression(ParseContext context,
-            IList<ParseNode> siblings, int index)
+            IList<ParseNode> siblings, ReferenceMode referenceMode, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -41,7 +41,7 @@ namespace FuncScript.Core
             if (arrowNodes.Count > 0)
                 childNodes.AddRange(arrowNodes);
 
-            var bodyResult = GetExpression(context, childNodes, currentIndex);
+            var bodyResult = GetExpression(context, childNodes, referenceMode, currentIndex);
             if (!bodyResult.HasProgress(currentIndex) || bodyResult.ExpressionBlock == null)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, 0, "defination of lambda expression expected"));

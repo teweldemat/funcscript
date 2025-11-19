@@ -31,7 +31,7 @@ describe('ErrorReporting', () => {
   });
 
   it('reports type mismatch inside expression', () => {
-    expect(() => evaluate('10+len(5)', builtinProvider())).to.throw('Function call target is not a function, list, or key-value collection');
+    expect(() => evaluate('10+len(5)', builtinProvider())).to.throw(/Length function/i);
   });
 
   it('reports null member access', () => {

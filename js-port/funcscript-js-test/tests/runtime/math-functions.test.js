@@ -65,11 +65,24 @@ describe('MathFunctions', () => {
     expect(valueOf(result)).to.equal(5);
   });
 
-  it('RandomPiAndEValues', () => {
-    const randomValue = evaluate('math.random()');
-    expect(typeOf(randomValue)).to.equal(FSDataType.Float);
-    expect(valueOf(randomValue)).to.be.within(0, 1);
+  it('returns deterministic seeded math.random values', () => {
+    const defaultRandom = evaluate('math.random()');
+    const seededZero = evaluate('math.random(0)');
+    expect(typeOf(defaultRandom)).to.equal(FSDataType.Float);
+    expect(valueOf(defaultRandom)).to.be.within(0, 1);
+    expect(valueOf(defaultRandom)).to.equal(valueOf(seededZero));
 
+    const seeded = evaluate('math.random(42)');
+    const seededAgain = evaluate('math.random(42)');
+    expect(valueOf(seeded)).to.equal(valueOf(seededAgain));
+
+    const differentSeed = evaluate('math.random(7.5)');
+    expect(Math.abs(valueOf(seeded) - valueOf(differentSeed))).to.be.greaterThan(Number.EPSILON);
+    expect(valueOf(seeded)).to.be.within(0, 1);
+    expect(valueOf(differentSeed)).to.be.within(0, 1);
+  });
+
+  it('exposes pi and e values', () => {
     const piValue = evaluate('math.pi');
     expect(typeOf(piValue)).to.equal(FSDataType.Float);
     expect(valueOf(piValue)).to.be.closeTo(Math.PI, 1e-10);

@@ -1,6 +1,8 @@
 ﻿using FuncScript.Core;
 using System;
+using System.Data;
 using System.Runtime.Serialization;
+using FuncScript.Model;
 
 namespace FuncScript.Functions.Logic
 {
@@ -14,12 +16,14 @@ namespace FuncScript.Functions.Logic
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count > this.MaxParsCount)
-                throw new Error.EvaluationTimeException($"{this.Symbol} function: invalid parameter count. Max of {this.MaxParsCount} expected, got {pars.Count}");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            var par0 = pars.GetParameter(parent, 0);
+                        if (pars.Length > this.MaxParsCount)
+                throw new Error.EvaluationTimeException($"{this.Symbol} function: invalid parameter count. Max of {this.MaxParsCount} expected, got {pars.Length}");
+
+            var par0 = pars[0];
 
             if (par0 == null)
                 return null;
@@ -30,7 +34,7 @@ namespace FuncScript.Functions.Logic
             var str = (string)par0;
             DateTime date;
 
-            var par1 = pars.GetParameter(parent, 1) as string;
+            var par1 = pars[1] as string;
 
             if (par1 == null)
             {

@@ -14,19 +14,21 @@ namespace FuncScript.Functions.List
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != this.MaxParsCount)
-                throw new Error.TypeMismatchError($"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Count}");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            var par0 = pars.GetParameter(parent,0);
-            var par1 = pars.GetParameter(parent,1);
+            if (pars.Length != this.MaxParsCount)
+                throw new Error.TypeMismatchError($"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Length}");
+
+            var par0 = pars[0];
+            var par1 = pars[1];
 
 
-            return EvaluateInternal(parent, par0, par1);
+            return EvaluateInternal(par0, par1);
         }
 
-        private object EvaluateInternal(IFsDataProvider parent, object par0, object par1)
+        private object EvaluateInternal(object par0, object par1)
         {
             if (par0 == null)
                 return null;
@@ -43,7 +45,7 @@ namespace FuncScript.Functions.List
 
             for (int i = 0; i < lst.Length; i++)
             {
-                var val = func.Evaluate(parent, new ArrayParameterList(new object[] { lst[i], i }));
+                var val = func.Evaluate(FunctionArgumentHelper.Create(lst[i], i));
                 if (val is bool && (bool)val)
                 {
                     res.Add(lst[i]);

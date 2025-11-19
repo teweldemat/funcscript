@@ -15,18 +15,20 @@ namespace FuncScript.Functions.List
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != this.MaxParsCount)
-                throw new Error.TypeMismatchError($"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Count}");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            var par0 = pars.GetParameter(parent,0);
-            var par1 = pars.GetParameter(parent,1);
+            if (pars.Length != this.MaxParsCount)
+                throw new Error.TypeMismatchError($"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Length}");
 
-            return EvaluateInternal(parent, par0, par1);
+            var par0 = pars[0];
+            var par1 = pars[1];
+
+            return EvaluateInternal(par0, par1);
         }
 
-        private object EvaluateInternal(IFsDataProvider parent, object par0, object par1)
+        private object EvaluateInternal(object par0, object par1)
         {
             if (par0 == null)
                 return null;
@@ -43,8 +45,7 @@ namespace FuncScript.Functions.List
 
             res.Sort((x, y) =>
             {
-                var sortParamList = new ArrayParameterList(new object[] { x, y });
-                var result = func.Evaluate(parent, sortParamList);
+                var result = func.Evaluate(FunctionArgumentHelper.Create(x, y));
 
                 if (!(result is int))
                     throw new Error.EvaluationTimeException($"{this.Symbol} function: The sorting function must return an integer");

@@ -14,12 +14,14 @@ namespace FuncScript.Functions.Math
 
         public int Precedence => 100;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != 1)
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            if (pars.Length != 1)
                 return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,"One parameter expected");
 
-            var param = pars.GetParameter(parent, 0);
+            var param = pars[0];
 
             if (param is int intValue)
                 return -intValue;

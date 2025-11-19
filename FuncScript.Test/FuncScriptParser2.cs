@@ -54,7 +54,7 @@ namespace FuncScript.Test
 
             Assert.That(result.ExpressionBlock, Is.TypeOf<KvcExpression>());
             var block = (KvcExpression)result.ExpressionBlock;
-            Assert.That(block.KeyValues.Count, Is.EqualTo(2));
+            Assert.That(block.ItemCount, Is.EqualTo(2));
         }
 
         [Test]
@@ -69,7 +69,6 @@ namespace FuncScript.Test
             Assert.That(result.ExpressionBlock, Is.TypeOf<KvcExpression>());
 
             var block = (KvcExpression)result.ExpressionBlock;
-            Assert.That(block.singleReturn, Is.Not.Null, "Return expression should be captured");
 
             var keywordNode = EnumerateNodes(result.ParseNode)
                 .FirstOrDefault(n => n.NodeType == ParseNodeType.KeyWord && n.Length == 6);
@@ -88,7 +87,7 @@ namespace FuncScript.Test
             Assert.That(result.ExpressionBlock, Is.TypeOf<KvcExpression>());
 
             var block = (KvcExpression)result.ExpressionBlock;
-            Assert.That(block.singleReturn, Is.Not.Null, "Eval expression should be captured like return");
+            Assert.That(block.IsEvalMode,"Eval expression should be captured like return");
 
             var keywordNode = EnumerateNodes(result.ParseNode)
                 .FirstOrDefault(n => n.NodeType == ParseNodeType.KeyWord && n.Length == 4);
@@ -105,8 +104,8 @@ namespace FuncScript.Test
             Assert.That(result.ExpressionBlock, Is.TypeOf<KvcExpression>());
 
             var block = (KvcExpression)result.ExpressionBlock;
-            Assert.That(block.KeyValues.Count, Is.EqualTo(1));
-            Assert.That(block.KeyValues[0].ValueExpression, Is.TypeOf<ReferenceBlock>(),
+            Assert.That(block.ItemCount, Is.EqualTo(1));
+            Assert.That(block.GetKeyValueExpression(0).ValueExpression, Is.TypeOf<ReferenceBlock>(),
                 "Implicit key should map to a reference block");
         }
 
@@ -154,8 +153,8 @@ namespace FuncScript.Test
             Assert.That(result.ExpressionBlock, Is.TypeOf<KvcExpression>());
 
             var block = (KvcExpression)result.ExpressionBlock;
-            Assert.That(block.KeyValues.Count, Is.EqualTo(1));
-            Assert.That(block.KeyValues[0].ValueExpression, Is.TypeOf<ListExpression>());
+            Assert.That(block.ItemCount, Is.EqualTo(1));
+            Assert.That(block.GetKeyValueExpression(0). ValueExpression, Is.TypeOf<ListExpression>());
 
             var nodes = EnumerateNodes(result.ParseNode).ToList();
             Assert.That(nodes.Any(n => n.NodeType == ParseNodeType.List), Is.True,
@@ -172,7 +171,7 @@ namespace FuncScript.Test
             Assert.That(result.ExpressionBlock, Is.TypeOf<KvcExpression>());
 
             var block = (KvcExpression)result.ExpressionBlock;
-            Assert.That(block.singleReturn, Is.TypeOf<ListExpression>());
+            Assert.That(block.EvalExpression, Is.TypeOf<ListExpression>());
 
             var listNodes = EnumerateNodes(result.ParseNode)
                 .Where(n => n.NodeType == ParseNodeType.List)

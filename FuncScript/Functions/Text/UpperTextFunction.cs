@@ -1,4 +1,6 @@
 using FuncScript.Core;
+using FuncScript.Error;
+using FuncScript.Model;
 
 namespace FuncScript.Functions.Text
 {
@@ -13,12 +15,14 @@ namespace FuncScript.Functions.Text
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != 1)
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+                        if (pars.Length != 1)
                 throw new Error.TypeMismatchError($"{this.Symbol}: single string parameter expected");
 
-            var value = pars.GetParameter(parent, 0);
+            var value = pars[0];
 
             if (value == null)
                 return null;

@@ -14,12 +14,14 @@ namespace FuncScript.Functions.OS
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != this.MaxParsCount)
-                throw new Error.EvaluationTimeException($"{this.Symbol} function: invalid parameter count. {this.MaxParsCount} expected, got {pars.Count}");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            var par0 = pars.GetParameter(parent, 0);
+            if (pars.Length != this.MaxParsCount)
+                throw new Error.EvaluationTimeException($"{this.Symbol} function: invalid parameter count. {this.MaxParsCount} expected, got {pars.Length}");
+
+            var par0 = pars[0];
             if (par0 == null || !(par0 is string))
                 throw new Error.TypeMismatchError($"Function {this.Symbol}. Invalid parameter type, expected a string");
 

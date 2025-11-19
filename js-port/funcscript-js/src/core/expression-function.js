@@ -62,8 +62,21 @@ class ExpressionFunction extends BaseFunction {
     return ensureTyped(result);
   }
 
+  clone() {
+    return new ExpressionFunction(this.parameters.slice(), this.expression);
+  }
+
   parName(index) {
     return this.parameters[index];
+  }
+
+  toString() {
+    const parameterList = this.parameters.join(',');
+    const provider = this.context ?? new FsDataProvider();
+    const body = this.expression && typeof this.expression.asExpressionString === 'function'
+      ? this.expression.asExpressionString(provider)
+      : '';
+    return `(${parameterList})=>${body}`;
   }
 }
 

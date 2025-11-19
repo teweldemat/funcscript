@@ -1,54 +1,23 @@
-﻿using FuncScript.Core;
+﻿using System.Diagnostics;
+using FuncScript.Core;
 using FuncScript.Model;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace FuncScript.Block
 {
     internal class SelectorExpression: ExpressionBlock
     {
-        class SelectorProvider: IFsDataProvider
+        ExpressionBlock Source;
+        KvcExpression Selector;
+
+        public SelectorExpression(ExpressionBlock source, KvcExpression selector)
         {
-            public IFsDataProvider Provider;
-            public SelectorExpression Parent;
-            public IFsDataProvider ParentProvider => Provider;
-
-            public object SourceVal
-            {
-                set
-                {
-                    _sourceVal = value as KeyValueCollection;
-                }
-            }
-            KeyValueCollection _sourceVal;
-            public object Get(string name)
-            {
-                if (_sourceVal != null)
-                {
-                    if (_sourceVal.IsDefined(name))
-                        return _sourceVal.Get(name);
-                }
-                return Provider.Get(name);
-            }
-            public bool IsDefined(string key)
-            {
-                if (_sourceVal != null)
-                {
-                    if (_sourceVal.IsDefined(key))
-                        return true;
-                }
-
-                return Provider.IsDefined(key);
-            }
-
+            this.Source = source;
+            this.Selector = selector;
         }
-        public ExpressionBlock Source;
-        public KvcExpression Selector;
-        public override object Evaluate(IFsDataProvider provider)
+
+
+        public override object Evaluate(KeyValueCollection provider)
         {
             var sourceVal = Source.Evaluate(provider);
             if (sourceVal is FsList)
@@ -59,13 +28,12 @@ namespace FuncScript.Block
                 
                 foreach (var l in lst)
                 {
-                    var sel=new SelectorProvider
+                    if(l is KeyValueCollection kvc)
+                        ret[i] = Selector.Evaluate(kvc);
+                    else
                     {
-                        Parent = this,
-                        Provider = provider,
-                        SourceVal = l
-                    };
-                    ret[i] = Selector.Evaluate(sel);
+                        ret[i] = null;
+                    }
                     i++;
                 }
                 return new ArrayFsList(ret);
@@ -73,26 +41,26 @@ namespace FuncScript.Block
             }
             else
             {
-                return Selector.Evaluate(new SelectorProvider
-                {
-                    Parent = this,
-                    Provider = provider,
-                    SourceVal=sourceVal
-                });
+                if(sourceVal is KeyValueCollection kvc)
+                    return Selector.Evaluate(kvc);
+                return null;
             }
         }
 
-        public override IList<ExpressionBlock> GetChilds()
+        public override IEnumerable<ExpressionBlock> GetChilds()
         {
-            return new ExpressionBlock[] { Source, Selector };
+            yield return Source;
+            yield return Selector;
         }
+
+
         public override string ToString()
         {
             return "selector";
         }
-        public override string AsExpString(IFsDataProvider provider)
+        public override string AsExpString()
         {
-            return $"{Source.AsExpString(provider)} {Selector.AsExpString(provider)}";
+            return $"{Source.AsExpString()} {Selector.AsExpString()}";
         }
     }
 }

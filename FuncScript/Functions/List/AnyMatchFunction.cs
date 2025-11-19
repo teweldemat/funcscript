@@ -18,34 +18,15 @@ namespace FuncScript.Functions.List
         public string Symbol => "Any";
 
         public int Precedence => 0;
-        class DoListFuncPar : IParameterList
+        public object Evaluate(object par)
         {
-            public object X;
-            public object I;
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
-            public override int Count => 2;
+            if (pars.Length != this.MaxParsCount)
+                throw new Error.EvaluationTimeException($"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Length}");
 
-            public override object GetParameter(IFsDataProvider provider, int index)
-            {
-                switch (index)
-                {
-                    case 0:
-                        return X;
-                    case 1:
-                        return I;
-                    default:
-                        return null;
-                }
-            }
-        }
-
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
-        {
-            if (pars.Count != this.MaxParsCount)
-                throw new Error.EvaluationTimeException($"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Count}");
-
-            var par0 = pars.GetParameter(parent, 0);
-            var par1 = pars.GetParameter(parent, 1);
+            var par0 = pars[0];
+            var par1 = pars[1];
 
             if (par0 == null)
                 return false;
@@ -65,7 +46,7 @@ namespace FuncScript.Functions.List
 
             for (int i = 0; i < lst.Length; i++)
             {
-                var result = func.Evaluate(parent, new DoListFuncPar { X = lst[i], I = i });
+                var result = func.Evaluate(FunctionArgumentHelper.Create(lst[i], i));
 
                 if (result is bool && (bool)result)
                     return true;

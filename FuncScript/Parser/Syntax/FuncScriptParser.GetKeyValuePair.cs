@@ -7,7 +7,7 @@ namespace FuncScript.Core
     public partial class FuncScriptParser
     {
         static ValueParseResult<KvcExpression.KeyValueExpression> GetKeyValuePair(ParseContext context,
-            IList<ParseNode> siblings, int index)
+            IList<ParseNode> siblings, ReferenceMode referenceMode, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -45,7 +45,7 @@ namespace FuncScript.Core
             currentIndex = afterColon;
 
 
-            var valueResult = GetExpression(context, childNodes, currentIndex);
+            var valueResult = GetExpression(context, childNodes, referenceMode, currentIndex);
             if (!valueResult.HasProgress(currentIndex) || valueResult.ExpressionBlock == null)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, 0, "value expression expected"));

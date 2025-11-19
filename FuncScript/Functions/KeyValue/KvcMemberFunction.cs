@@ -20,14 +20,16 @@ namespace FuncScript.Functions.KeyValue
 
         public int Precedence => 200;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            if (pars.Count != MaxParsCount)
-                throw new Error.TypeMismatchError($"{Symbol} function: Invalid parameter count. Expected {MaxParsCount}, but got {pars.Count}");
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            if (pars.Length != MaxParsCount)
+                throw new Error.TypeMismatchError($"{Symbol} function: Invalid parameter count. Expected {MaxParsCount}, but got {pars.Length}");
 
             
-            var par1 =pars.GetParameter(parent,1);
-            var par0 = pars.GetParameter(parent,0);
+            var par1 =pars[1];
+            var par0 = pars[0];
             
 
             if (!(par1 is string))
@@ -40,8 +42,9 @@ namespace FuncScript.Functions.KeyValue
                 return kvc.Get(((string)par1).ToLower());
             
             if (par0 is IFsFunction func)
-                return func.Evaluate(parent, new ArrayParameterList(new object[] { par1 }));
-            
+                return func.Evaluate(FunctionArgumentHelper.Create(par1));
+
+
             throw new Error.TypeMismatchError($"{Symbol} function: Can't get member {par1} from a {Engine.GetFsDataType(par0)}");
 
         }

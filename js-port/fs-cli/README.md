@@ -27,13 +27,20 @@ fs-cli '1 + 2'
 Run an expression together with a FuncScript test expression:
 
 ```bash
-fs-cli --test 'a + b' '{ suite: { name: "adds"; cases: [{"a":1, "b":2}]; test: (result, data) => result = data.a + data.b }; return [suite]; }'
+fs-cli 'a + b' --test '{ suite: { name: "adds"; cases: [{"a":1, "b":2}]; test: (result, data) => result = data.a + data.b }; eval [suite]; }'
+```
+
+Point to files instead of inline expressions:
+
+```bash
+fs-cli -i script.fs --test script.test.fs
 ```
 
 ### Flags
 
-- `--test`, `-t` – Enable test mode and expect both an expression and a test expression.
+- `--test`, `-t` – Enable test mode; pair with `-i` to reference a test file or provide inline expressions.
 - `--scan <path>`, `-s <path>` – Traverse the provided folder, parse every `.fs`/`.fx` file, and run paired `<name>.test.fs` suites.
+- `-i <path>` – Read the expression under test from the specified FuncScript file.
 - `--json` – Output JSON only.
 - `--compact` – Emit compact JSON (implies `--json`).
 - `--version`, `-v` – Show CLI version.

@@ -6,7 +6,8 @@ namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        static ParseBlockResult GetReturnDefinition(ParseContext context, IList<ParseNode> siblings, int index)
+        static ParseBlockResult GetReturnDefinition(ParseContext context, IList<ParseNode> siblings,
+            ReferenceMode referenceMode, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -24,7 +25,7 @@ namespace FuncScript.Core
             }
 
             var currentIndex = keywordResult;
-            var valueResult = GetExpression(context, childNodes, currentIndex);
+            var valueResult = GetExpression(context, childNodes, referenceMode, currentIndex);
             if (!valueResult.HasProgress(currentIndex) || valueResult.ExpressionBlock == null)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, 0, "return/eval expression expected"));

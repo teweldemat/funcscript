@@ -7,13 +7,14 @@ namespace FuncScript.Core
 {
     public partial class FuncScriptParser
     {
-        static ParseBlockResult GetStringTemplate(ParseContext context, List<ParseNode> siblings, int index)
+        static ParseBlockResult GetStringTemplate(ParseContext context, List<ParseNode> siblings,
+            ReferenceMode referenceMode, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
 
             var tripleBuffer = CreateNodeBuffer(siblings);
-            var tripleResult = GetStringTemplate(context, tripleBuffer, "\"\"\"", index);
+            var tripleResult = GetStringTemplate(context, tripleBuffer, referenceMode, "\"\"\"", index);
             if (tripleResult.HasProgress(index))
             {
                 CommitNodeBuffer(siblings, tripleBuffer);
@@ -21,7 +22,7 @@ namespace FuncScript.Core
             }
 
             var doubleBuffer = CreateNodeBuffer(siblings);
-            var doubleResult = GetStringTemplate(context, doubleBuffer, "\"", index);
+            var doubleResult = GetStringTemplate(context, doubleBuffer, referenceMode, "\"", index);
             if (doubleResult.HasProgress(index))
             {
                 CommitNodeBuffer(siblings, doubleBuffer);
@@ -29,7 +30,7 @@ namespace FuncScript.Core
             }
 
             var singleBuffer = CreateNodeBuffer(siblings);
-            var singleResult = GetStringTemplate(context, singleBuffer, "'", index);
+            var singleResult = GetStringTemplate(context, singleBuffer, referenceMode, "'", index);
             if (singleResult.HasProgress(index))
             {
                 CommitNodeBuffer(siblings, singleBuffer);
@@ -39,8 +40,8 @@ namespace FuncScript.Core
             return ParseBlockResult.NoAdvance(index);
         }
 
-        static ParseBlockResult GetStringTemplate(ParseContext context, List<ParseNode> siblings, string delimiter,
-            int index)
+        static ParseBlockResult GetStringTemplate(ParseContext context, List<ParseNode> siblings, ReferenceMode referenceMode,
+            string delimiter, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -121,7 +122,7 @@ namespace FuncScript.Core
                         afterExpressionStart - currentIndex));
 
                     var expressionIndex = afterExpressionStart;
-                    var expressionResult = GetExpression(context, nodeParts, expressionIndex);
+                    var expressionResult = GetExpression(context, nodeParts, referenceMode, expressionIndex);
                     if (!expressionResult.HasProgress(expressionIndex) || expressionResult.ExpressionBlock == null)
                     {
                         errors.Add(new SyntaxErrorData(expressionIndex, 0, "expression expected"));
@@ -187,10 +188,10 @@ namespace FuncScript.Core
             else
             {
                 expression = new FunctionCallExpression
-                {
-                    Function = new LiteralBlock(context.Provider.Get("+")),
-                    Parameters = parts.ToArray()
-                };
+                (
+                    new LiteralBlock(context.Provider.Get("+")),
+                    new ListExpression(parts.ToArray())
+                );
                 parseNode = new ParseNode(ParseNodeType.StringTemplate, templateStart, currentIndex - templateStart, nodeParts);
             }
 

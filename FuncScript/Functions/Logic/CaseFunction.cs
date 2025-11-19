@@ -1,4 +1,5 @@
 ﻿using FuncScript.Core;
+using FuncScript.Model;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,23 +18,36 @@ namespace FuncScript.Functions.Logic
 
         public int Precedence => 0;
 
-        public object Evaluate(IFsDataProvider parent, IParameterList pars)
+        public object Evaluate(object par)
         {
-            int count = pars.Count;
+            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+
+            int count = pars.Length;
 
             for (int i = 0; i < count / 2; i++)
             {
-                var cond = pars.GetParameter(parent, 2 * i);
+                var cond = pars[2 * i];
 
-                if (cond is bool && (bool)cond)
+                if (cond is FsError fsError)
                 {
-                    return pars.GetParameter(parent, 2 * i + 1);
+                    return fsError;
+                }
+
+                if (cond is not bool conditionValue)
+                {
+                    return new FsError(FsError.ERROR_TYPE_MISMATCH,
+                        $"{Symbol}: Condition {i + 1} must evaluate to a boolean value.");
+                }
+
+                if (conditionValue)
+                {
+                    return pars[2 * i + 1];
                 }
             }
 
             if (count % 2 == 1)
             {
-                return pars.GetParameter(parent, count - 1);
+                return pars[count - 1];
             }
 
             return null;

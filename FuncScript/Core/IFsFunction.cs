@@ -4,9 +4,7 @@ namespace FuncScript.Core
 {
     public interface IFsFunction
     {
-        object Evaluate(IFsDataProvider parent, IParameterList pars);
-        String ParName(int index);
-        int MaxParsCount { get; }
+        object Evaluate(object pars);
         CallType CallType { get; }
         String Symbol { get; }
         int Precedence { get; }
@@ -46,12 +44,6 @@ namespace FuncScript.Core
             return total;
         }
     }
-    public abstract class IParameterList
-    {
-        public abstract int Count { get; }
-        public abstract object GetParameter(IFsDataProvider provider, int index);
-    }
-
     public enum CallType
     {
         Infix,

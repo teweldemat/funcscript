@@ -7,7 +7,7 @@ namespace FuncScript.Core
     public partial class FuncScriptParser
     {
         static ValueParseResult<KvcExpression.KeyValueExpression> GetKvcItem(ParseContext context,
-            List<ParseNode> siblings, bool nakedKvc, int index)
+            List<ParseNode> siblings, ReferenceMode referenceMode, bool nakedKvc, int index)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -15,7 +15,7 @@ namespace FuncScript.Core
             var exp = context.Expression;
 
             var keyValueBuffer = CreateNodeBuffer(siblings);
-            var keyValueResult = GetKeyValuePair(context, keyValueBuffer, index);
+            var keyValueResult = GetKeyValuePair(context, keyValueBuffer, referenceMode, index);
             if (keyValueResult.HasProgress(index))
             {
                 CommitNodeBuffer(siblings, keyValueBuffer);
@@ -24,7 +24,7 @@ namespace FuncScript.Core
             }
 
             var returnBuffer = CreateNodeBuffer(siblings);
-            var returnResult = GetReturnDefinition(context, returnBuffer, index);
+            var returnResult = GetReturnDefinition(context, returnBuffer, referenceMode, index);
             if (returnResult.HasProgress(index) && returnResult.ExpressionBlock != null)
             {
                 CommitNodeBuffer(siblings, returnBuffer);
@@ -44,7 +44,7 @@ namespace FuncScript.Core
                 if (identifierIndex > index)
                 {
                     CommitNodeBuffer(siblings, identifierBuffer);
-                    var reference = new ReferenceBlock(iden.Iden, iden.IdenLower, false)
+                    var reference = new ReferenceBlock(iden.Iden, iden.IdenLower, ReferenceMode.SkipSiblings)
                     {
                         Pos = iden.StartIndex,
                         Length = iden.Length
@@ -64,7 +64,7 @@ namespace FuncScript.Core
                 if (stringResult.NextIndex > index)
                 {
                     CommitNodeBuffer(siblings, stringBuffer);
-                    var reference = new ReferenceBlock(stringResult.Value, stringResult.Value.ToLowerInvariant(), false)
+                    var reference = new ReferenceBlock( stringResult.Value, stringResult.Value.ToLowerInvariant(), referenceMode)
                     {
                         Pos = stringResult.StartIndex,
                         Length = stringResult.Length

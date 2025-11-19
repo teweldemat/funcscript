@@ -24,11 +24,18 @@ function convertToString(value) {
     }
     case FSDataType.KeyValueCollection: {
       const kv = helpers.valueOf(typed);
-      const entries = kv.getAll().map(([key, val]) => `${key}: ${convertToString(val)}`);
+      const entries = kv
+        .getAll()
+        .map(([key, val]) => `"${key}":${convertToString(val)}`);
       return `{ ${entries.join(', ')} }`;
     }
-    case FSDataType.Function:
+    case FSDataType.Function: {
+      const fn = helpers.valueOf(typed);
+      if (fn && typeof fn.toString === 'function') {
+        return fn.toString();
+      }
       return '<function>';
+    }
     default:
       return String(helpers.valueOf(typed));
   }
@@ -116,11 +123,8 @@ class FormatValueFunction extends BaseFunction {
     if (formatParameter && helpers.typeOf(formatParameter) === FSDataType.String) {
       const rawFormat = helpers.valueOf(formatParameter);
       const format = rawFormat.toLowerCase();
-      switch (format) {
-        case 'json':
-          return helpers.makeValue(FSDataType.String, JSON.stringify(convertToJs(value)));
-        default:
-          break;
+      if (format === 'json') {
+        return helpers.makeValue(FSDataType.String, convertToString(value));
       }
 
       const formatted = tryFormatWithPattern(value, rawFormat);
@@ -130,36 +134,6 @@ class FormatValueFunction extends BaseFunction {
     }
 
     return helpers.makeValue(FSDataType.String, convertToString(value));
-  }
-}
-
-function convertToJs(value) {
-  const typed = helpers.ensureTyped(value);
-  switch (helpers.typeOf(typed)) {
-    case FSDataType.Null:
-      return null;
-    case FSDataType.Boolean:
-    case FSDataType.Integer:
-    case FSDataType.Float:
-    case FSDataType.BigInteger:
-    case FSDataType.String:
-      return helpers.valueOf(typed);
-    case FSDataType.List: {
-      const results = [];
-      for (const item of helpers.valueOf(typed)) {
-        results.push(convertToJs(item));
-      }
-      return results;
-    }
-    case FSDataType.KeyValueCollection: {
-      const obj = {};
-      for (const [key, val] of helpers.valueOf(typed).getAll()) {
-        obj[key] = convertToJs(val);
-      }
-      return obj;
-    }
-    default:
-      return helpers.valueOf(typed);
   }
 }
 

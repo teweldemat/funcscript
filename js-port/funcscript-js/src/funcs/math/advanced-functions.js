@@ -9,6 +9,9 @@ const NumericKind = {
   Float: 'float'
 };
 
+const FNV_OFFSET_BASIS = 2166136261;
+const FNV_PRIME = 16777619;
+
 function numericKindFromType(typed) {
   const t = typeOf(typed);
   if (t === FSDataType.Float) {
@@ -63,6 +66,34 @@ function buildNumericResult(kind, numeric) {
       return makeValue(FSDataType.Integer, Math.trunc(numeric));
     }
   }
+}
+
+function normalizeSeedInput(input) {
+  if (!Number.isFinite(input)) {
+    return '0';
+  }
+  if (input === 0) {
+    return '0';
+  }
+  return input.toString();
+}
+
+function buildSeedState(seedInput) {
+  const text = normalizeSeedInput(seedInput);
+  let hash = FNV_OFFSET_BASIS >>> 0;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, FNV_PRIME) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+function generateSeededRandom(seedInput) {
+  let state = (buildSeedState(seedInput) + 0x9e3779b9) >>> 0;
+  state = Math.imul(state ^ (state >>> 15), state | 1);
+  state ^= state + Math.imul(state ^ (state >>> 7), state | 61);
+  const normalized = (state ^ (state >>> 14)) >>> 0;
+  return normalized / 0x100000000;
 }
 
 class SquareRootFunction extends BaseFunction {
@@ -515,14 +546,27 @@ class RandomFunction extends BaseFunction {
   }
 
   get maxParameters() {
-    return 0;
+    return 1;
   }
 
   evaluate(provider, parameters) {
-    if (parameters.count !== 0) {
-      return makeError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, `${this.symbol}: This function does not accept parameters`);
+    if (parameters.count > 1) {
+      return makeError(
+        FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+        `${this.symbol}: Expected at most 1 parameter, received ${parameters.count}`
+      );
     }
-    return makeValue(FSDataType.Float, Math.random());
+
+    let seedValue = 0;
+    if (parameters.count === 1) {
+      const seedResult = ensureNumeric(this.symbol, parameters.getParameter(provider, 0), 'seed');
+      if (!seedResult.ok) {
+        return seedResult.error;
+      }
+      seedValue = seedResult.number;
+    }
+
+    return makeValue(FSDataType.Float, generateSeededRandom(seedValue));
   }
 }
 
