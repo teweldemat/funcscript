@@ -126,7 +126,7 @@ Inline lambdas make it easy to transform lists on the fly, even inside a block:
 
 </div>
 
-because the inline lambda squares each entry and `eval` surfaces the mapped list.
+The inline lambda squares each entry and `eval` surfaces the mapped list.
 
 ## Guarding Against Missing Data
 Use `if ... then ... else ...` expressions to keep JSON structures resilient:
@@ -202,7 +202,7 @@ the `eval` keyword:
 
 </div>
 
-because `eval` designates `x + 5` as the block's result instead of returning the entire record.
+Here, `eval` designates `x + 5` as the block's result instead of returning the entire record.
 
 `eval` composes naturally with lambdas and nested scopes:
 
@@ -249,7 +249,7 @@ list, and uses `eval` to emit the transformed values:
 
 </div>
 
-because the `eval` expression is the mapped list and `bump` is the bound function applied to each element.
+The `eval` expression is the mapped list and `bump` is the bound function applied to each element.
 
 ## String Interpolation
 Triple-quoted `f"..."` strings interpolate expressions inline, which keeps formatting concise:
@@ -270,4 +270,4 @@ Customer C-1024 owes 4200 units
 
 </div>
 
-because the interpolated expressions resolve before the outer `eval` returns the text.
+The interpolated expressions resolve before the outer `eval` returns the text.

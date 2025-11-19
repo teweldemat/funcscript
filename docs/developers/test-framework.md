@@ -4,15 +4,15 @@ The FuncScript Test Framework provides a lightweight way to validate FuncScript 
 
 ## Overview
 
-A FuncScript expression **A** can be tested using another FuncScript expression **T**. During a test run, the framework intercepts calls to `FsDataProvider.get` within **A** and replaces them with mock values supplied by **T**. This makes it possible to run repeatable tests without depending on upstream systems.
+A FuncScript expression **A** can be tested using another FuncScript expression **T**. During a test run, the framework intercepts calls to `IFsDataProvider.Get` within **A** and replaces them with mock values supplied by **T**. This makes it possible to run repeatable tests without depending on upstream systems.
 
 ## Defining Tests
 
-Each test script returns one or more `testSuit` objects (analogous to test suites). A `testSuit` typically defines:
+Each test script returns one or more `testSuite` objects (analogous to test suites). A `testSuite` typically defines:
 
 - `name`: A description of what the suite validates.
 - `cases`: Mock input values for intercepted symbols.
-- `test`: A function that runs once per case and performs assertions against the evaluated result. The function returns the assertion result, if multiple assertions are made, the result will be list of assertion results.
+- `test`: A function that runs once per case and performs assertions against the evaluated result. The function returns the assertion outcome, and when multiple assertions run it can return a list of results.
 
 The `test` function receives two arguments:
 
@@ -25,12 +25,12 @@ Script under test:
 
 ```funcscript
 {
-  z:b * b - 4 * a * c;
-  eval if z<0 then Error('Equation not solvable') 
-    else 
-      { 
-        r1:(-b + math.sqrt(z)) / (2 * a),
-        r2:(-b +- math.sqrt(z)) / (2 * a)
+  z: b * b - 4 * a * c;
+  eval if z < 0 then error('Equation not solvable')
+    else
+      {
+        r1: (-b + math.sqrt(z)) / (2 * a);
+        r2: (-b - math.sqrt(z)) / (2 * a);
       };
 }
 ```
@@ -44,16 +44,16 @@ Test script:
     cases: [
       { "a": 1.0, "b": 2.0, "c": -1.0 },
       { "a": 1.0, "b": 4.0, "c": 2.0 }
-    ],
-    test: (resData, caseData) => assert.isnotnull(resData)
-  },
+    ];
+    test: (resData, caseData) => assert.isnotnull(resData);
+  };
   shouldBeError: {
     name: "Returns an error result for non-solvable quadratic equations";
     cases: [
       { "a": 1.0, "b": 1.0, "c": 2 }
-    ],
-    test: (resData, caseData) => assert.iserror(resData)
-  }
+    ];
+    test: (resData, caseData) => assert.iserror(resData);
+  };
 
   eval [shouldBeOk, shouldBeError];
 }
@@ -96,16 +96,16 @@ These predicates make it easy to validate both normal and exceptional results fr
 
 ## Execution Flow
 
-1. The framework intercepts `FsDataProvider.get` calls inside the tested expression **A**.
+1. The framework intercepts `IFsDataProvider.Get` calls inside the tested expression **A**.
 2. For each mock case defined in `cases`, the specified symbols are substituted with the provided mock values.
 3. Expression **A** executes with the substituted data.
-4. The resulting value is passed to the `test` function defined by each `testSuit`.
+4. The resulting value is passed to the `test` function defined by each `testSuite`.
 5. Assertion outcomes are reported per case, letting you see which inputs triggered which results.
 
 ## Return Structure
 
-Each test script must evaluate to an array of `testSuit` objects:
+Each test script must evaluate to an array of `testSuite` objects:
 
-```javascript
-eval [testSuit1, testSuit2, ...];
+```funcscript
+eval [testSuite1, testSuite2, ...];
 ```

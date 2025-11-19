@@ -3,7 +3,7 @@
 This section captures common syntactic forms in FuncScript’s JSON-superset language. Each construct
 can be combined with others so long as the overall value remains JSON-compatible.
 
-## Infix expressions
+## Infix Expressions
 Operators support infix usage, including arithmetic and logical comparisons:
 
 ```funcscript
@@ -14,14 +14,14 @@ Keyword helpers such as `in`, `or`, and `and` behave like symbolic infix operato
 like `value in [1, 2, 3]` or `flag1 and flag2` read naturally. Negation uses the unary `-` operator,
 for example `-balance`.
 
-## List expression
+## List Expressions
 Lists use JSON square-bracket syntax and can embed expressions for elements:
 
 ```funcscript
 { values: [1, 2, 1 + 3] }
 ```
 
-## Key value collection expression
+## Key/Value Collections
 Records are written with braces. Values can be literals or expressions. When the entire expression
 is just a record, the outer braces are optional; the parser treats the top-level bindings as part
 of the same key/value collection either way:
@@ -50,7 +50,7 @@ Thanks!
 """
 }
 ```
-Note that the line break after the opening """ and before the closing """ are ignored. The example
+The line breaks immediately after the opening """ and before the closing """ are ignored. The example
 expression evaluates as:
 
 ```string
@@ -62,7 +62,7 @@ Thanks!
 
 Standard `'single'` and `"double"` literals remain available, and string templates still use the `f"..."` prefix to embed expressions.
 
-## Function expressions
+## Function Expressions
 Lambda-style functions use the `(parameters) => body` syntax. They can appear anywhere a value is expected, including inside key/value pairs:
 
 ```funcscript
@@ -75,7 +75,7 @@ Lambda-style functions use the `(parameters) => body` syntax. They can appear an
 
 Functions are values themselves—store them in a variable, pass them to higher‑order helpers, or return them from other functions. Use key/value collections (see next section) when you need the block itself to evaluate to a different expression.
 
-## Key value collection with eval expression
+## Key/Value Collections with `eval`
 Key/value collections normally evaluate to an object containing every binding. Marking one binding with `eval` turns the entire block into a special form that evaluates to that expression instead of the surrounding record. The `eval` directive can appear anywhere in the block—the evaluation engine starts from that expression, resolves only the referenced bindings (regardless of order), and ignores irrelevant ones. The older `return` keyword still works for backwards compatibility but is slated for deprecation, so prefer `eval` in new code:
 
 ```funcscript
@@ -119,7 +119,7 @@ Use either `// inline` or `/* multi-line */` comments anywhere whitespace is per
 }
 ```
 
-## If expression
+## If Expressions
 Conditional logic uses explicit keywords:
 
 ```funcscript
@@ -130,7 +130,7 @@ Conditional logic uses explicit keywords:
 }
 ```
 
-## Case expression
+## Case Expressions
 Use the `case` keyword with `condition: value` pairs. Commas or semicolons separate additional arms.
 
 ```funcscript
@@ -140,7 +140,7 @@ Use the `case` keyword with `condition: value` pairs. Commas or semicolons separ
 }
 ```
 
-## Switch expression
+## Switch Expressions
 Switches evaluate `condition: value` arms in order. Provide a `true: value` branch for the default.
 
 ```funcscript
