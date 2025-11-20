@@ -260,6 +260,17 @@ function ensureExpression(value, label) {
   return value;
 }
 
+function stripBom(contents) {
+  if (typeof contents !== 'string' || contents.length === 0) {
+    return contents;
+  }
+  return contents.charCodeAt(0) === 0xfeff ? contents.slice(1) : contents;
+}
+
+function readUtf8File(pathValue) {
+  return stripBom(fs.readFileSync(pathValue, 'utf8'));
+}
+
 function ensureFileContents(pathValue, label) {
   if (!pathValue || typeof pathValue !== 'string') {
     throw new Error(`Missing ${label} path.`);
@@ -268,7 +279,7 @@ function ensureFileContents(pathValue, label) {
   if (!fs.existsSync(resolved)) {
     throw new Error(`${label} not found: ${resolved}`);
   }
-  return fs.readFileSync(resolved, 'utf8');
+  return readUtf8File(resolved);
 }
 
 function ensureScanPath(value) {
@@ -487,7 +498,7 @@ function processScriptFile(filePath, aggregate) {
   const relativePath = relativeToRoot(aggregate.root, filePath);
   let contents;
   try {
-    contents = fs.readFileSync(filePath, 'utf8');
+    contents = readUtf8File(filePath);
   } catch (error) {
     aggregate.parseFailures += 1;
     aggregate.parseErrors.push({
@@ -568,7 +579,7 @@ function maybeRunCompanionTest(filePath, expression, aggregate) {
   const relativeTest = relativeToRoot(aggregate.root, testPath);
   let testExpression;
   try {
-    testExpression = fs.readFileSync(testPath, 'utf8');
+    testExpression = readUtf8File(testPath);
   } catch (error) {
     aggregate.testFailures += 1;
     aggregate.failedTests.push({

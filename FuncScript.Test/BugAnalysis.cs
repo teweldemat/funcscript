@@ -118,4 +118,24 @@ testData.Samples map (sample) => sample
         var date=kvc.Get("z");
         Assert.That(date,Is.TypeOf<long>());
     }
+
+    [Test]
+    public void Bug20251120_2()
+    {
+        var testData = new
+        {
+            y=3
+        };
+
+        var q=@"
+        testData {
+            x: x??0+2,
+        }";
+        var provider = new DefaultFsDataProvider();
+        var result = Engine.Evaluate(q, provider, new { testData }, Engine.ParseMode.Standard);
+        Assert.That(result,Is.AssignableTo<KeyValueCollection>());
+        var kvc = (KeyValueCollection)result;
+        var n = kvc.Get("x");
+        Assert.That(n,Is.EqualTo(2));
+    }
 }

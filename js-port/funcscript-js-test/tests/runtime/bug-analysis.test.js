@@ -79,4 +79,17 @@ testData.Samples map (sample) => sample
     expect(plain[0]).to.have.property('z', 12);
   });
 
+  it('evaluates null-coalescing inside selector blocks (Bug20251120_2 parity)', () => {
+    const exp = fs.readFileSync(
+      path.join(__dirname, '../../../../FuncScript.Test/data/bug20251120_2.fs'),
+      'utf8'
+    );
+
+    const result = evaluateWithVars(exp, {});
+    const plain = toPlain(result);
+
+    expect(plain).to.be.an('object');
+    expect(plain).to.have.property('x', 2);
+  });
+
 });
