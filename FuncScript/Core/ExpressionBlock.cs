@@ -38,7 +38,7 @@ namespace FuncScript.Core
             {
                 PreventTooDeep(ExecContext.CurrentDepth);
                 var result = EvaluateCore(provider);
-                if (result is FsError fsError)
+                if (result is FsError fsError && fsError.CodeLocation == null)
                 {
                     fsError.CodeLocation = CodeLocation;
                 }

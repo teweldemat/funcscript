@@ -23,6 +23,9 @@ namespace FuncScript.Functions.Logic
 
             var condition = pars[0];
 
+            if (condition is FsError fsError)
+                return fsError;
+
             if (!(condition is bool))
                 return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: The first parameter must be a boolean value.");
 

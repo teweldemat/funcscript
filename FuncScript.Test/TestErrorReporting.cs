@@ -1,5 +1,6 @@
 ﻿using global::FuncScript.Core;
 using global::FuncScript.Error;
+using global::FuncScript.Model;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -12,6 +13,25 @@ namespace FuncScript.Test
 {
     public class TestErrorReporting
     {
+        private static FsError AssertExpressionReturnsFsError(string expression)
+        {
+            var result = FuncScriptRuntime.Evaluate(expression);
+            Assert.That(result, Is.TypeOf<FsError>(), $"Expected '{expression}' to return FsError");
+            var fsError = (FsError)result;
+            Assert.That(fsError.CodeLocation, Is.Not.Null, $"FsError from '{expression}' is missing CodeLocation");
+            return fsError;
+        }
+
+        private static FsError AssertExpressionReturnsFsError(string expression, string errorExpression)
+        {
+            var fsError = AssertExpressionReturnsFsError(expression);
+            var expectedPos = expression.IndexOf(errorExpression, StringComparison.Ordinal);
+            Assert.That(expectedPos, Is.GreaterThanOrEqualTo(0), $"Failed to locate '{errorExpression}' within '{expression}'");
+            Assert.That(fsError.CodeLocation.Position, Is.EqualTo(expectedPos));
+            Assert.That(fsError.CodeLocation.Length, Is.EqualTo(errorExpression.Length));
+            return fsError;
+        }
+
         void AnalyzeError(Exception ex, String exp, int expectedPos, int expecctedLen)
         {
             Assert.AreEqual(typeof(Error.EvaluationException), ex.GetType());
@@ -86,24 +106,16 @@ namespace FuncScript.Test
         {
             var error_exp = "x.l";
             var exp = $"10+{error_exp}";
-            try
-            {
-                FuncScriptRuntime.Evaluate(exp);
-                throw new Exception("No error");
-            }
-            catch (Exception ex)
-            {
-                AnalyzeError(ex, exp, exp.IndexOf(error_exp), error_exp.Length);
-                Assert.AreEqual(typeof(Error.TypeMismatchError), ex.InnerException.GetType());
-            }
+            var fsError = AssertExpressionReturnsFsError(exp, error_exp);
+            Assert.That(fsError.ErrorType, Is.EqualTo(FsError.ERROR_TYPE_MISMATCH));
         }
 
         [Test]
-        public void LogErrorMessageContainsOriginalExpression()
+        public void LogErrorExpressionSpanMatchesOriginalExpression()
         {
             var expression = "1+x.l";
-            var exception = Assert.Throws<Error.EvaluationException>(() => FuncScriptRuntime.Evaluate(expression));
-            Assert.That(exception!.Message, Does.Contain("x.l"));
+            var fsError = AssertExpressionReturnsFsError(expression, "x.l");
+            Assert.That(expression.Substring(fsError.CodeLocation.Position, fsError.CodeLocation.Length), Is.EqualTo("x.l"));
         }
 
         [Test]
@@ -118,16 +130,8 @@ namespace FuncScript.Test
         {
             var error_exp = "[5,6].l";
             var exp = $"10+{error_exp}";
-            try
-            {
-                FuncScriptRuntime.Evaluate(exp);
-                throw new Exception("No error");
-            }
-            catch (Exception ex)
-            {
-                AnalyzeError(ex, exp, exp.IndexOf(error_exp), error_exp.Length);
-                Assert.AreEqual(typeof(Error.TypeMismatchError), ex.InnerException.GetType());
-            }
+            var fsError = AssertExpressionReturnsFsError(exp, error_exp);
+            Assert.That(fsError.ErrorType, Is.EqualTo(FsError.ERROR_TYPE_MISMATCH));
 
         }
         [Test]
@@ -135,34 +139,28 @@ namespace FuncScript.Test
         {
             var error_exp = "c.d";
             var exp = $"{{a:5; b:{error_exp};}}";
-            try
-            {
-                FuncScriptRuntime.Evaluate(exp);
-                throw new Exception("No error");
-            }
-            catch (Exception ex)
-            {
-                AnalyzeError(ex, exp, exp.IndexOf(error_exp), error_exp.Length);
-                Assert.AreEqual(typeof(Error.TypeMismatchError), ex.InnerException.GetType());
-            }
+            var result = FuncScriptRuntime.Evaluate(exp);
+            Assert.That(result, Is.InstanceOf<KeyValueCollection>());
+            var collection = (KeyValueCollection)result;
+            var value = collection.Get("b");
+            Assert.That(value, Is.TypeOf<FsError>());
+            var fsError = (FsError)value;
+            Assert.That(fsError.CodeLocation, Is.Not.Null);
+            var expectedPos = exp.IndexOf(error_exp, StringComparison.Ordinal);
+            Assert.That(expectedPos, Is.GreaterThanOrEqualTo(0));
+            Assert.That(fsError.CodeLocation.Position, Is.EqualTo(expectedPos));
+            Assert.That(fsError.CodeLocation.Length, Is.EqualTo(error_exp.Length));
+            Assert.That(fsError.ErrorType, Is.EqualTo(FsError.ERROR_TYPE_MISMATCH));
 
         }
 
         [Test]
-        public void IfExpressionMemberAccessThrows()
+        public void IfExpressionMemberAccessReturnsError()
         {
             var error_exp = "a.b";
             var exp = "if a.b then true else false";
-            try
-            {
-                FuncScriptRuntime.Evaluate(exp);
-                throw new Exception("No error");
-            }
-            catch (Exception ex)
-            {
-                AnalyzeError(ex, exp, exp.IndexOf(error_exp), error_exp.Length);
-                Assert.AreEqual(typeof(Error.TypeMismatchError), ex.InnerException.GetType());
-            }
+            var fsError = AssertExpressionReturnsFsError(exp, error_exp);
+            Assert.That(fsError.ErrorType, Is.EqualTo(FsError.ERROR_TYPE_MISMATCH));
         }
 
         [Test]

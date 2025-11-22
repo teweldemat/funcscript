@@ -25,18 +25,21 @@ namespace FuncScript.Functions.KeyValue
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length != MaxParsCount)
-                throw new Error.TypeMismatchError($"{Symbol} function: Invalid parameter count. Expected {MaxParsCount}, but got {pars.Length}");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{Symbol} function: Invalid parameter count. Expected {MaxParsCount}, but got {pars.Length}");
 
-            
+
             var par1 =pars[1];
             var par0 = pars[0];
             
 
             if (!(par1 is string))
-                throw new Error.TypeMismatchError($"{Symbol} function: The second parameter should be {ParName(1)}");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH,
+                    $"{Symbol} function: The second parameter should be {ParName(1)}");
 
             if (par0 == null)
-                throw new Error.TypeMismatchError($"{Symbol} function: Can't get member {par1} from null data");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH,
+                    $"{Symbol} function: Can't get member {par1} from null data");
 
             if (par0 is KeyValueCollection kvc)
                 return kvc.Get(((string)par1).ToLower());
@@ -45,7 +48,8 @@ namespace FuncScript.Functions.KeyValue
                 return func.Evaluate(FunctionArgumentHelper.Create(par1));
 
 
-            throw new Error.TypeMismatchError($"{Symbol} function: Can't get member {par1} from a {Engine.GetFsDataType(par0)}");
+            return new FsError(FsError.ERROR_TYPE_MISMATCH,
+                $"{Symbol} function: Can't get member {par1} from a {Engine.GetFsDataType(par0)}");
 
         }
 

@@ -230,6 +230,102 @@ namespace FuncScript.Test
         }
 
         [Test]
+        public void NestedExpressionPreservesInnerErrorCodeLocation()
+        {
+            var expression = "{return error(\"boom\");}";
+            var parseBlock = ParseExpressionBlock(expression);
+            var errorBlock = FindFunctionCall(parseBlock, "error");
+            Assert.That(errorBlock, Is.Not.Null, "Failed to locate error call in parsed expression");
+            var expectedLocation = errorBlock.CodeLocation;
+
+            var result = BasicTests.AssertSingleResult(expression);
+            Assert.That(result, Is.TypeOf<FsError>());
+            var fsError = (FsError)result;
+            Assert.That(fsError.CodeLocation, Is.Not.Null);
+            Assert.That(fsError.CodeLocation.Position, Is.EqualTo(expectedLocation.Position));
+            Assert.That(fsError.CodeLocation.Length, Is.EqualTo(expectedLocation.Length));
+        }
+
+        [Test]
+        public void AddFunctionPropagatesFsErrorAndPreservesLocation()
+        {
+            var expression = "1+error(\"boom\")";
+            var parseBlock = ParseExpressionBlock(expression);
+            var errorBlock = FindFunctionCall(parseBlock, "error");
+            Assert.That(errorBlock, Is.Not.Null, "Failed to locate error call in parsed expression");
+
+            var result = BasicTests.AssertSingleResult(expression);
+            Assert.That(result, Is.TypeOf<FsError>());
+            var fsError = (FsError)result;
+            Assert.That(fsError.CodeLocation, Is.Not.Null);
+            Assert.That(fsError.CodeLocation.Position, Is.EqualTo(errorBlock.CodeLocation.Position));
+            Assert.That(fsError.CodeLocation.Length, Is.EqualTo(errorBlock.CodeLocation.Length));
+        }
+
+        [Test]
+        public void MemberAccessErrorHighlightsMemberSpan()
+        {
+            var expression = "1+a.b";
+            var parseBlock = ParseExpressionBlock(expression);
+            var memberBlock = FindFunctionCall(parseBlock, ".");
+            Assert.That(memberBlock, Is.Not.Null, "Failed to locate member access expression");
+
+            var result = BasicTests.AssertSingleResult(expression);
+            Assert.That(result, Is.TypeOf<FsError>());
+            var fsError = (FsError)result;
+            Assert.That(fsError.CodeLocation, Is.Not.Null);
+            Assert.That(fsError.CodeLocation.Position, Is.EqualTo(memberBlock.CodeLocation.Position));
+            Assert.That(fsError.CodeLocation.Length, Is.EqualTo(memberBlock.CodeLocation.Length));
+        }
+
+        private static ExpressionBlock ParseExpressionBlock(string expression)
+        {
+            var provider = new DefaultFsDataProvider();
+            var parseContext = new FuncScriptParser.ParseContext(provider, expression);
+            var parseResult = FuncScriptParser.Parse(parseContext);
+            Assert.That(parseResult.Errors, Is.Empty, "Expression failed to parse");
+            return parseResult.ExpressionBlock;
+        }
+
+        private static ExpressionBlock FindFunctionCall(ExpressionBlock block, string functionName)
+        {
+            if (block is FunctionCallExpression functionCall
+                && MatchesFunction(functionCall.Function, functionName))
+            {
+                return functionCall;
+            }
+
+            foreach (var child in block.GetChilds())
+            {
+                var found = FindFunctionCall(child, functionName);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
+        }
+
+        private static bool MatchesFunction(ExpressionBlock block, string functionName)
+        {
+            if (block is ReferenceBlock referenceBlock
+                && string.Equals(referenceBlock.Name, functionName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (block is LiteralBlock literalBlock
+                && literalBlock.Value is IFsFunction fsFunction
+                && string.Equals(fsFunction.Symbol, functionName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        [Test]
         public void IfThenElseSyntaxParsesToFunctionCall()
         {
             var provider = new DefaultFsDataProvider();
@@ -387,10 +483,14 @@ namespace FuncScript.Test
         [Test]
         public void MemberofNull()
         {
-            Assert.Throws<EvaluationException>(() =>
-            {
-                var res = FuncScriptRuntime.Evaluate("x.a");
-            });
+            var expression = "x.a";
+            var result = FuncScriptRuntime.Evaluate(expression);
+            Assert.That(result, Is.TypeOf<FsError>());
+            var fsError = (FsError)result;
+            Assert.That(fsError.ErrorType, Is.EqualTo(FsError.ERROR_TYPE_MISMATCH));
+            Assert.That(fsError.CodeLocation, Is.Not.Null);
+            Assert.That(fsError.CodeLocation.Position, Is.EqualTo(expression.IndexOf("x.a", StringComparison.Ordinal)));
+            Assert.That(fsError.CodeLocation.Length, Is.EqualTo("x.a".Length));
         }
     }
 }
