@@ -13,12 +13,14 @@ namespace FuncScript.Core
                 throw new ArgumentNullException(nameof(context));
 
             var exp = context.Expression;
+            var errors = CreateErrorBuffer();
 
             var currentIndex = index;
             var unitNodes = new List<ParseNode>();
             var unitResult = GetUnit(context, unitNodes, referenceMode, currentIndex);
+            AppendErrors(errors, unitResult);
             if (!unitResult.HasProgress(currentIndex) || unitResult.ExpressionBlock == null)
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
 
             var expression = unitResult.ExpressionBlock;
             currentIndex = unitResult.NextIndex;
@@ -32,6 +34,7 @@ namespace FuncScript.Core
             {
                 var callChildren = new List<ParseNode>();
                 var callResult = GetFunctionCallParametersList(context, callChildren, referenceMode, expression, currentIndex);
+                AppendErrors(errors, callResult);
                 if (callResult.HasProgress(currentIndex) && callResult.ExpressionBlock != null)
                 {
                     expression = callResult.ExpressionBlock;
@@ -45,6 +48,7 @@ namespace FuncScript.Core
 
                 var memberChildren = new List<ParseNode>();
                 var memberResult = GetMemberAccess(context, memberChildren, expression, currentIndex);
+                AppendErrors(errors, memberResult);
                 if (memberResult.HasProgress(currentIndex) && memberResult.ExpressionBlock != null)
                 {
                     expression = memberResult.ExpressionBlock;
@@ -58,6 +62,7 @@ namespace FuncScript.Core
 
                 var selectorChildren = new List<ParseNode>();
                 var selectorResult = GetKvcExpression(context, selectorChildren, ReferenceMode.SkipSiblings,false, currentIndex);
+                AppendErrors(errors, selectorResult);
                 if (selectorResult.HasProgress(currentIndex) && selectorResult.ExpressionBlock is KvcExpression kvc)
                 {
                     var selector = new SelectorExpression(expression,kvc)
@@ -78,7 +83,7 @@ namespace FuncScript.Core
                 break;
             }
 
-            return new ParseBlockResult(currentIndex, expression);
+            return new ParseBlockResult(currentIndex, expression, errors);
         }
     }
 }

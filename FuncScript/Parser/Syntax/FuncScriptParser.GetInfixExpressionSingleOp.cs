@@ -26,8 +26,10 @@ namespace FuncScript.Core
                     s_operatorSymols[level - 1],
                     currentIndex);
 
+            var errors = CreateErrorBuffer();
+            AppendErrors(errors, operandResult);
             if (!operandResult.HasProgress(currentIndex) || operandResult.ExpressionBlock == null)
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
 
             var currentExpression = operandResult.ExpressionBlock;
             currentIndex = operandResult.NextIndex;
@@ -35,6 +37,7 @@ namespace FuncScript.Core
             while (true)
             {
                 var operatorResult = GetOperator(context, buffer, candidates, currentIndex);
+                AppendErrors(errors, operatorResult);
                 if (!operatorResult.HasProgress(currentIndex))
                     break;
 
@@ -54,8 +57,9 @@ namespace FuncScript.Core
                         nextOperand = GetInfixExpressionSingleOp(context, operandNodes, referenceMode, level - 1,
                             s_operatorSymols[level - 1], currentIndex);
 
+                    AppendErrors(errors, nextOperand);
                     if (!nextOperand.HasProgress(currentIndex) || nextOperand.ExpressionBlock == null)
-                        return ParseBlockResult.NoAdvance(indexBeforeOperator);
+                        return ParseBlockResult.NoAdvance(indexBeforeOperator, errors);
 
                     operands.Add(nextOperand.ExpressionBlock);
                     currentIndex = nextOperand.NextIndex;
@@ -68,7 +72,7 @@ namespace FuncScript.Core
                 }
 
                 if (operands.Count < 2)
-                    return ParseBlockResult.NoAdvance(indexBeforeOperator);
+                    return ParseBlockResult.NoAdvance(indexBeforeOperator, errors);
 
                 var startPos = operands[0].Pos;
                 var endPos = operands[^1].Pos + operands[^1].Length;
@@ -90,7 +94,7 @@ namespace FuncScript.Core
 
             CommitNodeBuffer(siblings, buffer);
 
-            return new ParseBlockResult(currentIndex, currentExpression);
+            return new ParseBlockResult(currentIndex, currentExpression, errors);
         }
     }
 }

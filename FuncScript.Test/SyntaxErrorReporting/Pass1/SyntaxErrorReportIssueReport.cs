@@ -12,6 +12,7 @@ namespace FuncScript.Test
         {
             var errors = new List<FuncScriptParser.SyntaxErrorData>();
             block = FuncScriptParser.Parse(new DefaultFsDataProvider(), expression, errors);
+            TestContext.Progress.WriteLine($"Pass1 Parse('{expression}') -> [{string.Join(" | ", errors.Select(e => e.Message))}]");
             return errors;
         }
 

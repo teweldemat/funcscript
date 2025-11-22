@@ -12,13 +12,13 @@ namespace FuncScript.Core
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
 
-            var errors = context.ErrorsList;
+            var errors = CreateErrorBuffer();
             var exp = context.Expression;
             var nodes = new List<ParseNode>();
             var currentIndex = index;
             var afterOpen = GetToken(context, currentIndex,nodes,ParseNodeType.OpenBrace, "[");
             if (afterOpen == currentIndex)
-                return new ParseBlockResult(index, null);
+                return new ParseBlockResult(index, null, errors);
 
 
             var listStart = nodes.Count > 0 ? nodes[0].Pos : currentIndex;
@@ -27,6 +27,7 @@ namespace FuncScript.Core
             var items = new List<ExpressionBlock>();
 
             var firstResult = GetExpression(context, nodes, referenceMode, currentIndex);
+            AppendErrors(errors, firstResult);
             if (firstResult.HasProgress(currentIndex))
             {
                 if (firstResult.ExpressionBlock != null)
@@ -41,6 +42,7 @@ namespace FuncScript.Core
                     
                     currentIndex = afterComma;
                     var nextResult = GetExpression(context, nodes, referenceMode, currentIndex);
+                    AppendErrors(errors, nextResult);
                     if (!nextResult.HasProgress(currentIndex))
                         break;
 
@@ -50,11 +52,18 @@ namespace FuncScript.Core
                 }
             }
 
+            currentIndex = SkipSpace(context, nodes, currentIndex);
+
             var afterClose = GetToken(context, currentIndex,nodes,ParseNodeType.CloseBrance, "]");
             if (afterClose == currentIndex)
             {
+                if (items.Count > 0 && currentIndex < exp.Length)
+                {
+                    errors.Add(new SyntaxErrorData(currentIndex, 1, "List separator (',') expected between items"));
+                    return new ParseBlockResult(currentIndex, null, errors);
+                }
                 errors.Add(new SyntaxErrorData(currentIndex, 0, "']' expected"));
-                return new ParseBlockResult(index, null);
+                return new ParseBlockResult(index, null, errors);
             }
 
             currentIndex = afterClose;
@@ -64,7 +73,7 @@ namespace FuncScript.Core
 
             var parseNode = new ParseNode(ParseNodeType.List, listStart, currentIndex - listStart, nodes);
             siblings.Add(parseNode);
-            return new ParseBlockResult(currentIndex, listExpression);
+            return new ParseBlockResult(currentIndex, listExpression, errors);
         }
     }
 }

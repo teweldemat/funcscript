@@ -224,8 +224,9 @@ namespace FuncScript.Test
             var expression = "if 1=1 then \"yes\" else \"no\"";
 
             var errors = new List<FuncScriptParser.SyntaxErrorData>();
-            var parseContext = new FuncScriptParser.ParseContext(provider, expression, errors);
+            var parseContext = new FuncScriptParser.ParseContext(provider, expression);
             var parseResult = FuncScriptParser.Parse(parseContext);
+            errors.AddRange(parseResult.Errors);
             var expr = parseResult.ExpressionBlock;
 
             Assert.That(errors, Is.Empty);

@@ -16,8 +16,11 @@ namespace FuncScript.Core
 
         public static ExpressionBlock Parse(KeyValueCollection provider, String exp, List<SyntaxErrorData> serrors)
         {
-            var context = new ParseContext(provider, exp, serrors);
-            return Parse(context).ExpressionBlock;
+            var context = new ParseContext(provider, exp);
+            var result = Parse(context);
+            if (serrors != null)
+                AppendErrors(serrors, result.Errors);
+            return result.ExpressionBlock;
         }
 
 

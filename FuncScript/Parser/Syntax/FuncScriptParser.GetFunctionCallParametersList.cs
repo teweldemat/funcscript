@@ -14,28 +14,33 @@ namespace FuncScript.Core
             if (function == null)
                 throw new ArgumentNullException(nameof(function));
 
+            var errors = CreateErrorBuffer();
             var roundResult = ParseParameters(context, siblings, referenceMode, function, index, "(", ")");
+            AppendErrors(errors, roundResult);
             if (roundResult.HasProgress(index))
-                return roundResult;
+                return MergeErrors(roundResult, errors);
 
             var squareResult = ParseParameters(context, siblings, referenceMode, function, index, "[", "]");
+            AppendErrors(errors, squareResult);
             if (squareResult.HasProgress(index))
-                return squareResult;
+                return MergeErrors(squareResult, errors);
 
-            return ParseBlockResult.NoAdvance(index);
+            return ParseBlockResult.NoAdvance(index, errors);
         }
 
         static ParseBlockResult ParseParameters(ParseContext context, IList<ParseNode> siblings,
             ReferenceMode referenceMode, ExpressionBlock function, int index, string openToken, string closeToken)
         {
+            var errors = CreateErrorBuffer();
             var nodeItems = new List<ParseNode>();
             var currentIndex = GetToken(context, index, nodeItems, ParseNodeType.OpenBrace, openToken);
             if (currentIndex == index)
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
 
             var parameters = new List<ExpressionBlock>();
 
             var parameterResult = GetExpression(context, nodeItems, referenceMode, currentIndex);
+            AppendErrors(errors, parameterResult);
             if (parameterResult.HasProgress(currentIndex) && parameterResult.ExpressionBlock != null)
             {
                 parameters.Add(parameterResult.ExpressionBlock);
@@ -48,10 +53,11 @@ namespace FuncScript.Core
                         break;
 
                     var nextParameter = GetExpression(context, nodeItems, referenceMode, afterComma);
+                    AppendErrors(errors, nextParameter);
                     if (!nextParameter.HasProgress(afterComma) || nextParameter.ExpressionBlock == null)
                     {
-                        context.ErrorsList.Add(new SyntaxErrorData(afterComma, 0, "Parameter for call expected"));
-                        return ParseBlockResult.NoAdvance(index);
+                        errors.Add(new SyntaxErrorData(afterComma, 0, "Parameter for call expected"));
+                        return ParseBlockResult.NoAdvance(index, errors);
                     }
 
                     parameters.Add(nextParameter.ExpressionBlock);
@@ -62,8 +68,8 @@ namespace FuncScript.Core
             var afterClose = GetToken(context, currentIndex, nodeItems, ParseNodeType.CloseBrance, closeToken);
             if (afterClose == currentIndex)
             {
-                context.ErrorsList.Add(new SyntaxErrorData(currentIndex, 0, $"'{closeToken}' expected"));
-                return ParseBlockResult.NoAdvance(index);
+                errors.Add(new SyntaxErrorData(currentIndex, 0, $"'{closeToken}' expected"));
+                return ParseBlockResult.NoAdvance(index, errors);
             }
 
             currentIndex = afterClose;
@@ -83,7 +89,7 @@ namespace FuncScript.Core
                 Length = currentIndex - function.Pos
             };
 
-            return new ParseBlockResult(currentIndex, callExpression);
+            return new ParseBlockResult(currentIndex, callExpression, errors);
         }
     }
 }

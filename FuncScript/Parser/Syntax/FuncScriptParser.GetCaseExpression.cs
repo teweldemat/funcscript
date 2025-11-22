@@ -13,13 +13,13 @@ namespace FuncScript.Core
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
 
-            var errors = context.ErrorsList;
+            var errors = CreateErrorBuffer();
             var exp = context.Expression;
 
             var childNodes = new List<ParseNode>();
             var keywordResult = GetKeyWord(context, childNodes, index, KW_CASE);
             if (keywordResult==index)
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
 
             var currentIndex = keywordResult;
             var parameters = new List<ExpressionBlock>();
@@ -29,10 +29,11 @@ namespace FuncScript.Core
                 if (parameters.Count == 0)
                 {
                     var conditionResult = GetExpression(context, childNodes, referenceMode, currentIndex);
+                    AppendErrors(errors, conditionResult);
                     if (!conditionResult.HasProgress(currentIndex) || conditionResult.ExpressionBlock == null)
                     {
                         errors.Add(new SyntaxErrorData(currentIndex, 1, "Case condition expected"));
-                        return ParseBlockResult.NoAdvance(index);
+                        return ParseBlockResult.NoAdvance(index, errors);
                     }
 
                     parameters.Add(conditionResult.ExpressionBlock);
@@ -47,6 +48,7 @@ namespace FuncScript.Core
                     currentIndex = afterSeparator;
 
                     var nextCondition = GetExpression(context, childNodes, referenceMode, currentIndex);
+                    AppendErrors(errors, nextCondition);
                     if (!nextCondition.HasProgress(currentIndex) || nextCondition.ExpressionBlock == null)
                         break;
 
@@ -61,10 +63,11 @@ namespace FuncScript.Core
                 var valueIndex = afterColon;
 
                 var valueResult = GetExpression(context, childNodes, referenceMode, valueIndex);
+                AppendErrors(errors, valueResult);
                 if (!valueResult.HasProgress(valueIndex) || valueResult.ExpressionBlock == null)
                 {
                     errors.Add(new SyntaxErrorData(valueIndex, 1, "Case value expected"));
-                    return ParseBlockResult.NoAdvance(index);
+                    return ParseBlockResult.NoAdvance(index, errors);
                 }
 
                 parameters.Add(valueResult.ExpressionBlock);
@@ -84,7 +87,7 @@ namespace FuncScript.Core
 
             siblings.Add(parseNode);
 
-            return new ParseBlockResult(currentIndex, functionCall);
+            return new ParseBlockResult(currentIndex, functionCall, errors);
         }
     }
 }

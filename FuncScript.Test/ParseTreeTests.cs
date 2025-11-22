@@ -19,8 +19,14 @@ namespace FuncScript.Test
         static ParseBlockResultWithNode ParseExpression(KeyValueCollection provider, string expression,
             List<FuncScriptParser.SyntaxErrorData> errors)
         {
-            var context = new ParseContext(provider, expression, errors);
-            return FuncScriptParser.Parse(context);
+            var context = new ParseContext(provider, expression);
+            var result = FuncScriptParser.Parse(context);
+            if (errors != null && result?.Errors != null)
+            {
+                foreach (var error in result.Errors)
+                    errors.Add(error);
+            }
+            return result;
         }
 
         [Test]

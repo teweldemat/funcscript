@@ -14,7 +14,7 @@ namespace FuncScript.Core
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
 
-            var errors = context.ErrorsList;
+            var errors = CreateErrorBuffer();
             var exp = context.Expression;
 
             var parts = new List<ExpressionBlock>();
@@ -47,10 +47,11 @@ namespace FuncScript.Core
 
                     var expressionIndex = interpolationStart;
                     var expressionResult = GetExpression(context, nodeParts, referenceMode, expressionIndex);
+                    AppendErrors(errors, expressionResult);
                     if (!expressionResult.HasProgress(expressionIndex) || expressionResult.ExpressionBlock == null)
                     {
                         errors.Add(new SyntaxErrorData(expressionIndex, 0, "expression expected"));
-                        return ParseBlockResult.NoAdvance(index);
+                        return ParseBlockResult.NoAdvance(index, errors);
                     }
 
                     currentIndex = expressionResult.NextIndex;
@@ -60,7 +61,7 @@ namespace FuncScript.Core
                     if (interpolationEnd == currentIndex)
                     {
                         errors.Add(new SyntaxErrorData(currentIndex, 0, "'}' expected"));
-                        return ParseBlockResult.NoAdvance(index);
+                        return ParseBlockResult.NoAdvance(index, errors);
                     }
 
                     currentIndex = interpolationEnd;
@@ -104,7 +105,7 @@ namespace FuncScript.Core
             if (parseNode != null)
                 siblings.Add(parseNode);
 
-            return new ParseBlockResult(currentIndex, expression);
+            return new ParseBlockResult(currentIndex, expression, errors);
         }
     }
 }

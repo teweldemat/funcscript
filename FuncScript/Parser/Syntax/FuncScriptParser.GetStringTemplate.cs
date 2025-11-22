@@ -13,31 +13,35 @@ namespace FuncScript.Core
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
 
+            var errors = CreateErrorBuffer();
             var tripleBuffer = CreateNodeBuffer(siblings);
             var tripleResult = GetStringTemplate(context, tripleBuffer, referenceMode, "\"\"\"", index);
+            AppendErrors(errors, tripleResult);
             if (tripleResult.HasProgress(index))
             {
                 CommitNodeBuffer(siblings, tripleBuffer);
-                return tripleResult;
+                return MergeErrors(tripleResult, errors);
             }
 
             var doubleBuffer = CreateNodeBuffer(siblings);
             var doubleResult = GetStringTemplate(context, doubleBuffer, referenceMode, "\"", index);
+            AppendErrors(errors, doubleResult);
             if (doubleResult.HasProgress(index))
             {
                 CommitNodeBuffer(siblings, doubleBuffer);
-                return doubleResult;
+                return MergeErrors(doubleResult, errors);
             }
 
             var singleBuffer = CreateNodeBuffer(siblings);
             var singleResult = GetStringTemplate(context, singleBuffer, referenceMode, "'", index);
+            AppendErrors(errors, singleResult);
             if (singleResult.HasProgress(index))
             {
                 CommitNodeBuffer(siblings, singleBuffer);
-                return singleResult;
+                return MergeErrors(singleResult, errors);
             }
 
-            return ParseBlockResult.NoAdvance(index);
+            return ParseBlockResult.NoAdvance(index, errors);
         }
 
         static ParseBlockResult GetStringTemplate(ParseContext context, List<ParseNode> siblings, ReferenceMode referenceMode,
@@ -48,17 +52,17 @@ namespace FuncScript.Core
             if (delimiter == null)
                 throw new ArgumentNullException(nameof(delimiter));
 
-            var errors = context.ErrorsList;
+            var errors = CreateErrorBuffer();
             var exp = context.Expression;
             var nodeParts = new List<ParseNode>();
 
             var templateStart = SkipSpace(context,nodeParts, index);
             if (templateStart >= exp.Length)
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
 
             var currentIndex = GetLiteralMatch(exp, templateStart, $"f{delimiter}");
             if (currentIndex == templateStart)
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
 
             var parts = new List<ExpressionBlock>();
 
@@ -123,10 +127,11 @@ namespace FuncScript.Core
 
                     var expressionIndex = afterExpressionStart;
                     var expressionResult = GetExpression(context, nodeParts, referenceMode, expressionIndex);
+                    AppendErrors(errors, expressionResult);
                     if (!expressionResult.HasProgress(expressionIndex) || expressionResult.ExpressionBlock == null)
                     {
                         errors.Add(new SyntaxErrorData(expressionIndex, 0, "expression expected"));
-                        return ParseBlockResult.NoAdvance(index);
+                        return ParseBlockResult.NoAdvance(index, errors);
                     }
 
                     currentIndex = expressionResult.NextIndex;
@@ -136,7 +141,7 @@ namespace FuncScript.Core
                     if (afterExpressionEnd == currentIndex)
                     {
                         errors.Add(new SyntaxErrorData(currentIndex, 0, "'}' expected"));
-                        return ParseBlockResult.NoAdvance(index);
+                        return ParseBlockResult.NoAdvance(index, errors);
                     }
 
                     currentIndex = afterExpressionEnd;
@@ -168,7 +173,7 @@ namespace FuncScript.Core
             if (afterClose == currentIndex)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, 0, $"'{delimiter}' expected"));
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
             }
 
             currentIndex = afterClose;
@@ -200,7 +205,7 @@ namespace FuncScript.Core
                 siblings.Add(parseNode);
             }
 
-            return new ParseBlockResult(currentIndex, expression);
+            return new ParseBlockResult(currentIndex, expression, errors);
         }
     }
 }

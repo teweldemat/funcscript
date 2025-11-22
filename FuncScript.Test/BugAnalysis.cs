@@ -17,8 +17,9 @@ public class BugAnalysis
         var exp = System.IO.File.ReadAllText(@"data/parse-test-1.fx");
         var err = new List<FuncScriptParser.SyntaxErrorData>();
         var timer = System.Diagnostics.Stopwatch.StartNew();
-        var parseContext = new FuncScriptParser.ParseContext(new DefaultFsDataProvider(), exp, err);
+        var parseContext = new FuncScriptParser.ParseContext(new DefaultFsDataProvider(), exp);
         var parseResult = FuncScriptParser.Parse(parseContext);
+        err.AddRange(parseResult.Errors);
         var block = parseResult.ExpressionBlock;
         Assert.NotNull(exp);
         Assert.IsEmpty(err);
@@ -34,8 +35,9 @@ public class BugAnalysis
         var exp = "{x:2,y:{x:2,y:{x:2,y:{x:2,y:{x:2,y:{x:2,y:{x:2,y:{x:2,y:5}}}}}}}}";
         var err = new List<FuncScriptParser.SyntaxErrorData>();
         var timer = System.Diagnostics.Stopwatch.StartNew();
-        var parseContext = new FuncScriptParser.ParseContext(new DefaultFsDataProvider(), exp, err);
+        var parseContext = new FuncScriptParser.ParseContext(new DefaultFsDataProvider(), exp);
         var parseResult = FuncScriptParser.Parse(parseContext);
+        err.AddRange(parseResult.Errors);
         var block = parseResult.ExpressionBlock;
         Assert.NotNull(exp);
         Assert.IsEmpty(err);

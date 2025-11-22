@@ -13,12 +13,13 @@ namespace FuncScript.Core
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
 
-            var errors = context.ErrorsList;
+            var errors = CreateErrorBuffer();
             // String template
             var stringTemplateResult = GetStringTemplate(context, siblings, referenceMode, index);
+            AppendErrors(errors, stringTemplateResult);
             if (stringTemplateResult.HasProgress(index) && stringTemplateResult.ExpressionBlock != null)
             {
-                return stringTemplateResult;
+                return new ParseBlockResult(stringTemplateResult.NextIndex, stringTemplateResult.ExpressionBlock, errors);
             }
 
             // Simple string literal
@@ -30,7 +31,7 @@ namespace FuncScript.Core
                     Pos = stringResult.StartIndex,
                     Length = stringResult.Length
                 };
-                return new ParseBlockResult(stringResult.NextIndex, block);
+                return new ParseBlockResult(stringResult.NextIndex, block, errors);
             }
 
             // Numeric literal
@@ -42,32 +43,62 @@ namespace FuncScript.Core
                     Pos = numberResult.StartIndex,
                     Length = numberResult.Length
                 };
-                return new ParseBlockResult(numberResult.NextIndex, block);
+                return new ParseBlockResult(numberResult.NextIndex, block, errors);
             }
 
             // List expression
             var listResult = GetListExpression(context, siblings, referenceMode, index);
-            if (listResult.HasProgress(index) && listResult.ExpressionBlock != null)
-                return listResult;
+            AppendErrors(errors, listResult);
+            if (listResult.HasProgress(index))
+            {
+                if (listResult.ExpressionBlock != null)
+                    return new ParseBlockResult(listResult.NextIndex, listResult.ExpressionBlock, errors);
+                return new ParseBlockResult(listResult.NextIndex, null, errors);
+            }
 
             // Key-value collection or selector definition
             var kvcResult = GetKvcExpression(context, siblings, ReferenceMode.Standard, false, index);
-            if (kvcResult.HasProgress(index) && kvcResult.ExpressionBlock != null) return kvcResult;
+            AppendErrors(errors, kvcResult);
+            if (kvcResult.HasProgress(index))
+            {
+                if (kvcResult.ExpressionBlock != null)
+                    return new ParseBlockResult(kvcResult.NextIndex, kvcResult.ExpressionBlock, errors);
+                return new ParseBlockResult(kvcResult.NextIndex, null, errors);
+            }
 
             // If-then-else
             var ifResult = GetIfThenElseExpression(context, siblings, referenceMode, index);
-            if (ifResult.HasProgress(index) && ifResult.ExpressionBlock != null) return ifResult;
+            AppendErrors(errors, ifResult);
+            if (ifResult.HasProgress(index))
+            {
+                if (ifResult.ExpressionBlock != null)
+                    return new ParseBlockResult(ifResult.NextIndex, ifResult.ExpressionBlock, errors);
+                return new ParseBlockResult(ifResult.NextIndex, null, errors);
+            }
 
             // Case expression
             var caseResult = GetCaseExpression(context, siblings, referenceMode, index);
-            if (caseResult.HasProgress(index) && caseResult.ExpressionBlock != null) return caseResult;
+            AppendErrors(errors, caseResult);
+            if (caseResult.HasProgress(index))
+            {
+                if (caseResult.ExpressionBlock != null)
+                    return new ParseBlockResult(caseResult.NextIndex, caseResult.ExpressionBlock, errors);
+                return new ParseBlockResult(caseResult.NextIndex, null, errors);
+            }
 
             // Switch expression
             var switchResult = GetSwitchExpression(context, siblings, referenceMode, index);
-            if (switchResult.HasProgress(index) && switchResult.ExpressionBlock != null) return switchResult;
+            AppendErrors(errors, switchResult);
+            if (switchResult.HasProgress(index))
+            {
+                if (switchResult.ExpressionBlock != null)
+                    return new ParseBlockResult(switchResult.NextIndex, switchResult.ExpressionBlock, errors);
+                return new ParseBlockResult(switchResult.NextIndex, null, errors);
+            }
 
             // Lambda expression
             var lambdaResult = GetLambdaExpression(context, siblings, referenceMode, index);
+            AppendErrors(errors, lambdaResult);
             if (lambdaResult.HasProgress(index) && lambdaResult.Value != null)
             {
                 var block = new LiteralBlock(lambdaResult.Value)
@@ -75,7 +106,11 @@ namespace FuncScript.Core
                     Pos = index,
                     Length = lambdaResult.NextIndex - index
                 };
-                return new ParseBlockResult(lambdaResult.NextIndex, block);
+                return new ParseBlockResult(lambdaResult.NextIndex, block, errors);
+            }
+            else if (lambdaResult.HasProgress(index))
+            {
+                return new ParseBlockResult(lambdaResult.NextIndex, null, errors);
             }
 
             // Keyword literal (null/true/false)
@@ -89,7 +124,7 @@ namespace FuncScript.Core
                     Pos = literalPos,
                     Length = literalLength
                 };
-                return new ParseBlockResult(keywordIndex, block);
+                return new ParseBlockResult(keywordIndex, block, errors);
             }
 
             // Identifier reference
@@ -102,19 +137,30 @@ namespace FuncScript.Core
                     Pos = iden.StartIndex,
                     Length = iden.Length
                 };
-                return new ParseBlockResult(identifierIndex, reference);
+                return new ParseBlockResult(identifierIndex, reference, errors);
             }
 
             // Expression in parenthesis
             var parenthesisResult = GetExpInParenthesis(context, siblings, referenceMode, index);
-            if (parenthesisResult.HasProgress(index) && parenthesisResult.ExpressionBlock != null)
-                return parenthesisResult;
+            AppendErrors(errors, parenthesisResult);
+            if (parenthesisResult.HasProgress(index))
+            {
+                if (parenthesisResult.ExpressionBlock != null)
+                    return new ParseBlockResult(parenthesisResult.NextIndex, parenthesisResult.ExpressionBlock, errors);
+                return new ParseBlockResult(parenthesisResult.NextIndex, null, errors);
+            }
             
             // Prefix operator
             var prefixResult = GetPrefixOperator(context, siblings, referenceMode, index);
-            if (prefixResult.HasProgress(index) && prefixResult.ExpressionBlock != null) return prefixResult;
+            AppendErrors(errors, prefixResult);
+            if (prefixResult.HasProgress(index))
+            {
+                if (prefixResult.ExpressionBlock != null)
+                    return new ParseBlockResult(prefixResult.NextIndex, prefixResult.ExpressionBlock, errors);
+                return new ParseBlockResult(prefixResult.NextIndex, null, errors);
+            }
 
-            return ParseBlockResult.NoAdvance(index);
+            return ParseBlockResult.NoAdvance(index, errors);
         }
     }
 }

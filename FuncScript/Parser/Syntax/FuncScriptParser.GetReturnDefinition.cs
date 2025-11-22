@@ -12,7 +12,7 @@ namespace FuncScript.Core
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
 
-            var errors = context.ErrorsList;
+            var errors = CreateErrorBuffer();
             var exp = context.Expression;
 
             var childNodes = new List<ParseNode>();
@@ -21,15 +21,16 @@ namespace FuncScript.Core
             {
                 keywordResult = GetKeyWord(context, childNodes, index, KW_EVAL);
                 if (keywordResult == index)
-                    return ParseBlockResult.NoAdvance(index);
+                    return ParseBlockResult.NoAdvance(index, errors);
             }
 
             var currentIndex = keywordResult;
             var valueResult = GetExpression(context, childNodes, referenceMode, currentIndex);
+            AppendErrors(errors, valueResult);
             if (!valueResult.HasProgress(currentIndex) || valueResult.ExpressionBlock == null)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, 0, "return/eval expression expected"));
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
             }
 
             currentIndex = valueResult.NextIndex;
@@ -43,7 +44,7 @@ namespace FuncScript.Core
 
             siblings.Add(parseNode);
 
-            return new ParseBlockResult(currentIndex, expression);
+            return new ParseBlockResult(currentIndex, expression, errors);
         }
     }
 }

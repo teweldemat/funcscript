@@ -12,7 +12,7 @@ namespace FuncScript.Core
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
 
-            var errors = context.ErrorsList;
+            var errors = CreateErrorBuffer();
             var exp = context.Expression;
 
             string matchedSymbol = null;
@@ -32,23 +32,24 @@ namespace FuncScript.Core
             }
 
             if (matchedSymbol == null)
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
 
             var function = context.Provider.Get(functionName);
             if (function == null)
             {
                 errors.Add(new SyntaxErrorData(index, currentIndex - index,
                     $"Prefix operator {functionName} not defined"));
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
             }
 
             var childNodes = new List<ParseNode>();
             var operandResult = GetCallAndMemberAccess(context, childNodes, referenceMode, currentIndex);
+            AppendErrors(errors, operandResult);
             if (!operandResult.HasProgress(currentIndex) || operandResult.ExpressionBlock == null)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, 0,
                     $"Operant for {functionName} expected"));
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
             }
 
             currentIndex = operandResult.NextIndex;
@@ -70,7 +71,7 @@ namespace FuncScript.Core
             buffer.Add(parseNode);
             CommitNodeBuffer(siblings, buffer);
 
-            return new ParseBlockResult(currentIndex, expression);
+            return new ParseBlockResult(currentIndex, expression, errors);
         }
     }
 }

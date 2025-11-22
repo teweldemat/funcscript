@@ -13,6 +13,7 @@ namespace FuncScript.Core
             if (candidates == null)
                 throw new ArgumentNullException(nameof(candidates));
 
+            var errors = CreateErrorBuffer();
             var exp = context.Expression;
             var buffer = CreateNodeBuffer(siblings);
             var currentIndex = SkipSpace(context, buffer, index);
@@ -27,10 +28,10 @@ namespace FuncScript.Core
                 var parseNode = new ParseNode(ParseNodeType.Operator, currentIndex, nextIndex - currentIndex);
                 buffer.Add(parseNode);
                 CommitNodeBuffer(siblings, buffer);
-                return new ValueParseResult<(string symbol, IFsFunction function)>(nextIndex, (op, function));
+                return new ValueParseResult<(string symbol, IFsFunction function)>(nextIndex, (op, function), errors);
             }
 
-            return new ValueParseResult<(string symbol, IFsFunction function)>(index, default);
+            return new ValueParseResult<(string symbol, IFsFunction function)>(index, default, errors);
         }
     }
 }

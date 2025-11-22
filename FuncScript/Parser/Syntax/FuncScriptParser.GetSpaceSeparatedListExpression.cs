@@ -13,12 +13,14 @@ namespace FuncScript.Core
                 throw new ArgumentNullException(nameof(context));
 
             var exp = context.Expression;
+            var errors = CreateErrorBuffer();
             var currentIndex = index;
 
             var items = new List<ExpressionBlock>();
             var nodes = new List<ParseNode>();
 
             var firstResult = GetExpression(context, nodes, referenceMode, currentIndex);
+            AppendErrors(errors, firstResult);
             if (firstResult.HasProgress(currentIndex))
             {
                 if (firstResult.ExpressionBlock != null)
@@ -33,6 +35,7 @@ namespace FuncScript.Core
 
                     var nextIndex = afterSeparator;
                     var nextResult = GetExpression(context, nodes, referenceMode, nextIndex);
+                    AppendErrors(errors, nextResult);
                     if (!nextResult.HasProgress(nextIndex))
                         break;
 
@@ -46,7 +49,7 @@ namespace FuncScript.Core
             var parseNode = new ParseNode(ParseNodeType.List, index, currentIndex - index, nodes);
             siblings.Add(parseNode);
 
-            return new ValueParseResult<ListExpression>(currentIndex, listExpression);
+            return new ValueParseResult<ListExpression>(currentIndex, listExpression, errors);
         }
     }
 }

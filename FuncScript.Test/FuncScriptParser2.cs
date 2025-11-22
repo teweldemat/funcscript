@@ -12,8 +12,9 @@ namespace FuncScript.Test
         private static (FuncScriptParser.ParseBlockResultWithNode Result, List<FuncScriptParser.SyntaxErrorData> Errors) ParseExpression(string expression)
         {
             var errors = new List<FuncScriptParser.SyntaxErrorData>();
-            var context = new FuncScriptParser.ParseContext(new DefaultFsDataProvider(), expression, errors);
+            var context = new FuncScriptParser.ParseContext(new DefaultFsDataProvider(), expression);
             var result = FuncScriptParser.Parse(context);
+            errors.AddRange(result.Errors);
             return (result, errors);
         }
 

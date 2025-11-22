@@ -43,12 +43,12 @@ namespace FuncScript.Core
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
 
-            var errors = context.ErrorsList;
+            var errors = CreateErrorBuffer();
             var exp = context.Expression;
 
             var afterOperator = GetToken(context, index,siblings,ParseNodeType.Operator, oper);
             if (afterOperator == index)
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
 
             var memberIndex = afterOperator;
             var iden=GetIdentifier(context,siblings, memberIndex);
@@ -56,7 +56,7 @@ namespace FuncScript.Core
             if (afterIdentifier == memberIndex)
             {
                 errors.Add(new SyntaxErrorData(memberIndex, 0, "member identifier expected"));
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
             }
 
             var currentIndex = afterIdentifier;
@@ -79,7 +79,7 @@ namespace FuncScript.Core
 
             var parseNode = new ParseNode(ParseNodeType.MemberAccess, index, currentIndex - index);
             siblings.Add(parseNode);
-            return new ParseBlockResult(currentIndex, expression);
+            return new ParseBlockResult(currentIndex, expression, errors);
         }
     }
 }

@@ -9,45 +9,42 @@ namespace FuncScript.Core
     {
         public class ParseContext
         {
-            public ParseContext(KeyValueCollection provider, string expression, List<SyntaxErrorData> errorsList)
+            public ParseContext(KeyValueCollection provider, string expression)
             {
                 Provider = provider;
                 Expression = expression ?? throw new ArgumentNullException(nameof(expression));
-                ErrorsList = errorsList ?? throw new ArgumentNullException(nameof(errorsList));
             }
 
             public KeyValueCollection Provider { get; }
 
             public string Expression { get; }
-
-            public List<SyntaxErrorData> ErrorsList { get; }
-
-            public ParseContext CreateChild(string expression, List<SyntaxErrorData> errorsList)
-            {
-                return new ParseContext(Provider, expression, errorsList ?? new List<SyntaxErrorData>());
-            }
         }
 
-        
+
         public class ParseResult
         {
-            public ParseResult(int nextIndex)
+            protected ParseResult(int nextIndex, List<SyntaxErrorData> errors)
             {
                 NextIndex = nextIndex;
+                _errors = errors ?? new List<SyntaxErrorData>();
             }
 
 
             public int NextIndex { get; }
-            
-            public static ParseBlockResult NoAdvance(int index) => new ParseBlockResult(index, null);
+
+            readonly List<SyntaxErrorData> _errors;
+
+            public IReadOnlyList<SyntaxErrorData> Errors => _errors;
+
+            public static ParseBlockResult NoAdvance(int index, List<SyntaxErrorData> errors = null) => new ParseBlockResult(index, null, errors ?? new List<SyntaxErrorData>());
 
             public bool HasProgress(int currentIndex) => NextIndex > currentIndex;
         }
 
         public class ParseBlockResult:ParseResult
         {
-            public ParseBlockResult(int nextIndex, ExpressionBlock expressionBlock)
-            :base(nextIndex)
+            public ParseBlockResult(int nextIndex, ExpressionBlock expressionBlock, List<SyntaxErrorData> errors)
+            :base(nextIndex, errors)
             {
                 ExpressionBlock = expressionBlock;
             }
@@ -58,8 +55,8 @@ namespace FuncScript.Core
         }
         public class ParseBlockResultWithNode:ParseBlockResult
         {
-            public ParseBlockResultWithNode(int nextIndex, ExpressionBlock expressionBlock,ParseNode parseNode)
-                :base(nextIndex,expressionBlock)
+            public ParseBlockResultWithNode(int nextIndex, ExpressionBlock expressionBlock,ParseNode parseNode, List<SyntaxErrorData> errors)
+                :base(nextIndex,expressionBlock, errors)
             {
                 this.ParseNode = parseNode;
             }
@@ -71,8 +68,8 @@ namespace FuncScript.Core
 
         public class ValueParseResult<T> : ParseResult
         {
-            public ValueParseResult(int nextIndex, T value)
-                : base(nextIndex)
+            public ValueParseResult(int nextIndex, T value, List<SyntaxErrorData> errors)
+                : base(nextIndex, errors)
             {
                 Value = value;
             }
@@ -80,6 +77,6 @@ namespace FuncScript.Core
             public T Value { get; }
         }
 
-        
+
     }
 }

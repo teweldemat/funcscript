@@ -15,8 +15,9 @@ namespace FuncScript.Core
                 throw new ArgumentNullException(nameof(expression));
 
             var errorList = errors ?? new List<SyntaxErrorData>();
-            var context = new ParseContext(provider, expression, errorList);
+            var context = new ParseContext(provider, expression);
             var result = GetSpaceSeparatedStringListExpression(context, new List<ParseNode>(), 0);
+            AppendErrors(errorList, result.Errors);
 
             return result.Value;
         }

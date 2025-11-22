@@ -12,22 +12,23 @@ namespace FuncScript.Core
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
 
-            var errors = context.ErrorsList;
+            var errors = CreateErrorBuffer();
             var exp = context.Expression;
 
             var childNodes = new List<ParseNode>();
             var keywordResult = GetKeyWord(context, childNodes, index, KW_SWITCH);
             if (keywordResult==index)
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
 
             var currentIndex = keywordResult;
             var parameters = new List<ExpressionBlock>();
 
             var selectorResult = GetExpression(context, childNodes, referenceMode, currentIndex);
+            AppendErrors(errors, selectorResult);
             if (!selectorResult.HasProgress(currentIndex) || selectorResult.ExpressionBlock == null)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, 1, "Switch selector expected"));
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
             }
 
             parameters.Add(selectorResult.ExpressionBlock);
@@ -41,6 +42,7 @@ namespace FuncScript.Core
 
                 var branchConditionIndex = afterSeparator;
                 var branchCondition = GetExpression(context, childNodes, referenceMode, branchConditionIndex);
+                AppendErrors(errors, branchCondition);
                 if (!branchCondition.HasProgress(branchConditionIndex) || branchCondition.ExpressionBlock == null)
                     break;
 
@@ -54,10 +56,11 @@ namespace FuncScript.Core
                 var branchResultIndex = afterColon;
 
                 var branchResult = GetExpression(context, childNodes, referenceMode, branchResultIndex);
+                AppendErrors(errors, branchResult);
                 if (!branchResult.HasProgress(branchResultIndex) || branchResult.ExpressionBlock == null)
                 {
                     errors.Add(new SyntaxErrorData(branchResultIndex, 1, "Selector result expected"));
-                    return ParseBlockResult.NoAdvance(index);
+                    return ParseBlockResult.NoAdvance(index, errors);
                 }
 
                 parameters.Add(branchResult.ExpressionBlock);
@@ -78,7 +81,7 @@ namespace FuncScript.Core
 
             siblings.Add(parseNode);
 
-            return new ParseBlockResult(currentIndex, functionCall);
+            return new ParseBlockResult(currentIndex, functionCall, errors);
         }
     }
 }
