@@ -1,4 +1,16 @@
+const { makeValue } = require('../core/value');
+const { FSDataType } = require('../core/fstypes');
+const { FsError } = require('../model/fs-error');
+
 const DEFAULT_CODE_LOCATION = Object.freeze({ Position: 0, Length: 0 });
+const MAX_EVALUATION_DEPTH = 256;
+let currentEvaluationDepth = 0;
+
+function createDepthOverflowValue() {
+  const errorMessage = `Maximum evaluation depth of ${MAX_EVALUATION_DEPTH} exceeded.`;
+  const error = new FsError(FsError.ERROR_EVALUATION_DEPTH_OVERFLOW, errorMessage);
+  return makeValue(FSDataType.Error, error);
+}
 
 function normalizeNumber(value, fallback = 0) {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -58,7 +70,21 @@ class ExpressionBlock {
   }
 
   evaluate(provider) {
-    throw new Error('ExpressionBlock.evaluate not implemented');
+    const previousDepth = currentEvaluationDepth;
+    currentEvaluationDepth += 1;
+    try {
+      if (currentEvaluationDepth > MAX_EVALUATION_DEPTH) {
+        return createDepthOverflowValue();
+      }
+      return this.evaluateInternal(provider);
+    } finally {
+      currentEvaluationDepth = previousDepth;
+    }
+  }
+
+  // To be implemented by derived classes.
+  evaluateInternal() {
+    throw new Error('ExpressionBlock.evaluateInternal not implemented');
   }
 
   getChilds() {
@@ -71,5 +97,7 @@ class ExpressionBlock {
 }
 
 module.exports = {
-  ExpressionBlock
+  MAX_EVALUATION_DEPTH,
+  ExpressionBlock,
+  createDepthOverflowValue
 };

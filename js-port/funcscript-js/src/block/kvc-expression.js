@@ -1,4 +1,4 @@
-const { ExpressionBlock } = require('./expression-block');
+const { ExpressionBlock, createDepthOverflowValue } = require('./expression-block');
 const { SimpleKeyValueCollection } = require('../model/key-value-collection');
 const { ensureTyped, makeValue } = require('../core/value');
 const { FSDataType } = require('../core/fstypes');
@@ -12,6 +12,17 @@ class KvcExpressionProvider extends FsDataProvider {
     this.evaluating = new Set();
   }
 
+  hasSelectorAncestor() {
+    let current = this.parent;
+    while (current) {
+      if (current.__fsSelectorProvider) {
+        return true;
+      }
+      current = current.parent || current.ParentProvider || null;
+    }
+    return false;
+  }
+
   get(name) {
     const lower = name.toLowerCase();
     const entry = this.parentExpression._index.get(lower);
@@ -22,7 +33,16 @@ class KvcExpressionProvider extends FsDataProvider {
       return this.cache.get(lower);
     }
     if (this.evaluating.has(lower)) {
-      return super.get(name);
+      const fallback = super.get(name);
+      if (fallback !== null && fallback !== undefined) {
+        return fallback;
+      }
+      if (this.hasSelectorAncestor()) {
+        return fallback;
+      }
+      const overflowValue = createDepthOverflowValue();
+      this.cache.set(lower, overflowValue);
+      return overflowValue;
     }
 
     this.evaluating.add(lower);
@@ -71,7 +91,7 @@ class KvcExpression extends ExpressionBlock {
     return this._keyValues;
   }
 
-  evaluate(provider) {
+  evaluateInternal(provider) {
     const scope = new KvcExpressionProvider(provider, this);
     if (this.singleReturn) {
       return ensureTyped(this.singleReturn.evaluate(scope));

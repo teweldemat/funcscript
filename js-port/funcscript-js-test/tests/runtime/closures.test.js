@@ -31,4 +31,28 @@ describe('Closures', () => {
   it('returns true when invocation matches captured value', () => {
     expect(evaluateClosure(3)).to.deep.equal([[1, 1], true]);
   });
+
+  it('evaluates nested collections without leaking parent context (ContextMixupTest1)', () => {
+    const expression = `
+{
+    a:5;
+    k:
+    {a:3,f:(x)=>x*a;}
+    eval k.f(2);
+}
+`;
+    expect(toPlain(evaluate(expression))).to.equal(6);
+  });
+
+  it('evaluates nested collections without leaking parent context (ContextMixupTest2)', () => {
+    const expression = `
+{
+    a:5;
+    k:
+    {a:3, eval (x)=>x*a;}
+    eval k(2);
+}
+`;
+    expect(toPlain(evaluate(expression))).to.equal(6);
+  });
 });

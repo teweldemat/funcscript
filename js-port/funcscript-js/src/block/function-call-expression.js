@@ -111,10 +111,16 @@ class FunctionCallExpression extends ExpressionBlock {
     this.Parameters = this.parameters;
   }
 
-  evaluate(provider) {
+  evaluateInternal(provider) {
     const expressionSource = resolveExpressionSource(provider);
     const fnValue = ensureTyped(this.functionExpression.evaluate(provider));
     const fnType = typeOf(fnValue);
+
+    if (fnType === FSDataType.Error) {
+      const fsError = valueOf(fnValue);
+      annotateFsError(fsError, expressionSource, this.functionExpression);
+      return fnValue;
+    }
 
     if (fnType === FSDataType.Function) {
       const fn = valueOf(fnValue);

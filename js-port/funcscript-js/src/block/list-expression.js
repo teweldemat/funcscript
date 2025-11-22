@@ -9,7 +9,7 @@ class ListExpression extends ExpressionBlock {
     this.ValueExpressions = [];
   }
 
-  evaluate(provider) {
+  evaluateInternal(provider) {
     const values = this.ValueExpressions.map((expr) => ensureTyped(expr.evaluate(provider)));
     const list = new ArrayFsList(values);
     return makeValue(FSDataType.List, list);

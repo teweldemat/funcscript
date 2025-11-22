@@ -189,7 +189,7 @@ module.exports = function buildBrowserBuiltinMap() {
     { fn: new AssertIsNullFunction(), names: [], collections: { assert: ['isnull'] } },
     { fn: new AssertIsNotNullFunction(), names: [], collections: { assert: ['isnotnull'] } },
     { fn: new UpperTextFunction(), names: ['upper'], collections: { text: ['upper'] } },
-    { fn: new LowerTextFunction(), names: [], collections: { text: ['lower'] } },
+    { fn: new LowerTextFunction(), names: ['lower'], collections: { text: ['lower'] } },
     { fn: new RegexFunction(), names: ['regex'], collections: { text: ['regex'] } },
     { fn: new DateFunction(), names: ['date'] },
     { fn: new TicksToDateFunction(), names: ['tickstoday'] },
