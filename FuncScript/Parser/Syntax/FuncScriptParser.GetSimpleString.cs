@@ -28,7 +28,7 @@ namespace FuncScript.Core
             public ParseNode ParseNode { get; }
         }
 
-        static SimpleStringResult GetSimpleString(ParseContext context,List<ParseNode> siblings, int index,
+        static SimpleStringResult GetSimpleString(ParseContext context, List<ParseNode> siblings, int index,
             List<SyntaxErrorData> serrors)
         {
             if (context == null)
@@ -37,27 +37,63 @@ namespace FuncScript.Core
             if (index >= context.Expression.Length)
                 return new SimpleStringResult(index, null, index, 0, null);
 
-            var nodes = new List<ParseNode>();
-            var currentIndex = SkipSpace(context,nodes, index);
+            var buffer = CreateNodeBuffer(siblings);
+            var currentIndex = SkipSpace(context, buffer, index);
             if (currentIndex >= context.Expression.Length)
                 return new SimpleStringResult(index, null, index, 0, null);
 
-            var result = GetSimpleString(context, nodes, "\"\"\"", currentIndex, serrors);
+            var result = GetSimpleString(context, buffer, "\"\"\"", true, currentIndex, serrors);
             if (result.NextIndex == currentIndex)
-                result = GetSimpleString(context,nodes, "\"", currentIndex, serrors);
+                result = GetSimpleString(context, buffer, "\"", false, currentIndex, serrors);
             if (result.NextIndex == currentIndex)
-                result = GetSimpleString(context,nodes, "'", currentIndex, serrors);
+                result = GetSimpleString(context, buffer, "'", false, currentIndex, serrors);
 
             if (result.NextIndex == currentIndex)
             {
                 return new SimpleStringResult(index, null, index, 0, null);
             }
 
-            siblings.AddRange(nodes);
+            CommitNodeBuffer(siblings, buffer);
             return result;
         }
 
-        static SimpleStringResult GetSimpleString(ParseContext context,IList<ParseNode> siblings, string delimator, int index, List<SyntaxErrorData> serrors)
+        static (int, char) GetHexUnicodeChar(ParseContext context, int index)
+        {
+            var currentIndex = GetLiteralMatch(context.Expression, index, @"\u");
+            if (currentIndex == index)
+                return (index, (char)0);
+            char ret = (char)0;
+            for(int i=0;i<=4;i++)
+            {
+                if (currentIndex == context.Expression.Length)
+                    return (index, (char)0);
+                var chr = context.Expression[currentIndex];
+                if ('A' <= chr && chr <= 'F')
+                {
+                    ret *= (char)16;
+                    ret += (char)(10 + (chr - 'A'));
+                    currentIndex++;
+                    continue;
+                }
+                
+                if ('a' <= chr && chr <= 'f')
+                {
+                    ret *= (char)16;
+                    ret += (char)(10 + (chr - 'a'));
+                    currentIndex++;
+                    continue;
+                }
+                if ('0' <= chr && chr <= '9')
+                {
+                    ret *= (char)16;
+                    ret += (char)(chr - '0');
+                    currentIndex++;
+                }
+            } 
+            return (currentIndex, ret);
+
+        }
+        static SimpleStringResult GetSimpleString(ParseContext context, IList<ParseNode> siblings, string delimator, bool multiLine, int index, List<SyntaxErrorData> serrors)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
@@ -73,25 +109,21 @@ namespace FuncScript.Core
                 return new SimpleStringResult(index, null, index, 0, null);
 
             var i = nextIndex;
-            if (delimator == "\"\"\"" && i < context.Expression.Length)
+            if (multiLine)
             {
-                var ch = context.Expression[i];
-                if (ch == '\r')
-                {
-                    if (i + 1 < context.Expression.Length && context.Expression[i + 1] == '\n')
-                        i += 2;
-                    else
-                        i += 1;
-                }
-                else if (ch == '\n')
-                {
-                    i += 1;
-                }
+                i = GetLiteralMatch(context.Expression, i, "\r");
+                i = GetLiteralMatch(context.Expression, i, "\n");
             }
             int i2;
             var sb = new StringBuilder();
             while (true)
             {
+                if (i >= context.Expression.Length)
+                {
+                    serrors.Add(new SyntaxErrorData(i, 0, $"'{delimator}' expected"));
+                    return new SimpleStringResult(index, null, index, 0, null);
+                }
+
                 i2 = GetLiteralMatch(context.Expression, i, @"\n");
                 if (i2 > i)
                 {
@@ -116,20 +148,12 @@ namespace FuncScript.Core
                     continue;
                 }
 
-                i2 = GetLiteralMatch(context.Expression, i, @"\u");
+                (i2, var uCode) = GetHexUnicodeChar(context, i);
                 if (i2 > i)
                 {
-                    if (i + 6 <= context.Expression.Length) // Checking if there is enough room for 4 hex digits
-                    {
-                        var unicodeStr = context.Expression.Substring(i + 2, 4);
-                        if (int.TryParse(unicodeStr, System.Globalization.NumberStyles.HexNumber, null,
-                                out int charValue))
-                        {
-                            sb.Append((char)charValue);
-                            i += 6; // Move past the "\uXXXX"
-                            continue;
-                        }
-                    }
+                    sb.Append((char)uCode);
+                    i = i2;
+                    continue;
                 }
 
                 i2 = GetLiteralMatch(context.Expression, i, $@"\{delimator}");
@@ -140,26 +164,29 @@ namespace FuncScript.Core
                     continue;
                 }
 
-                if (i >= context.Expression.Length || GetLiteralMatch(context.Expression, i, delimator) > i)
-                    break;
+                if (multiLine)
+                {
+                    i2 = GetLiteralMatch(context.Expression, i, "\r");
+                    i2 = GetLiteralMatch(context.Expression, i2, "\n");
+                    i2 = GetLiteralMatch(context.Expression, i2, delimator);
+                }
+                else
+                {
+                    i2 = GetLiteralMatch(context.Expression, i, delimator);
+                }
+                if (i2 > i)
+                {
+                    i = i2;
+                    var str = sb.ToString();
+                    var parseNode = new ParseNode(ParseNodeType.LiteralString, index, i - index);
+                    siblings.Add(parseNode);
+                    return new SimpleStringResult(i, str, parseNode.Pos, parseNode.Length, parseNode);
+                }
                 sb.Append(context.Expression[i]);
                 i++;
             }
 
-            i2 = GetLiteralMatch(context.Expression, i, delimator);
-            if (i2 == i)
-            {
-                serrors.Add(new SyntaxErrorData(i, 0, $"'{delimator}' expected"));
-                return new SimpleStringResult(index, null, index, 0, null);
-            }
-
-            i = i2;
-            var str = sb.ToString();
-            var parseNode = new ParseNode(ParseNodeType.LiteralString, index, i - index);
-            siblings.Add(parseNode);
-            return new SimpleStringResult(i, str, parseNode.Pos, parseNode.Length, parseNode);
         }
-
 
     }
 }

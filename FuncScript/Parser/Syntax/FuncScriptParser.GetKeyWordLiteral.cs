@@ -8,13 +8,8 @@ namespace FuncScript.Core
             parseNode = null;
             literal = null;
 
-            if (index >= context.Expression.Length)
-                return index;
-
             var buffer = CreateNodeBuffer(siblings);
             var currentIndex = SkipSpace(context, buffer, index);
-            if (currentIndex >= context.Expression.Length)
-                return index;
 
             var i = GetLiteralMatch(context.Expression, currentIndex, "null");
             if (i > currentIndex)

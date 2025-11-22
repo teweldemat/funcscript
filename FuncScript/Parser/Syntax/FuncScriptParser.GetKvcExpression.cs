@@ -47,7 +47,11 @@ namespace FuncScript.Core
                 if (!itemResult.HasProgress(currentIndex))
                 {
                     if (scopedErrors.Count > 0)
+                    {
                         AppendErrors(errors, scopedErrors);
+                        return new ParseBlockResult(index, null, errors);
+                    }
+
                     break;
                 }
 
@@ -71,60 +75,15 @@ namespace FuncScript.Core
                 currentIndex = itemResult.NextIndex;
 
 
-                var afterSeparator = GetToken(context, currentIndex, nodeItems, ParseNodeType.ListSeparator, ",", ";");
-                if (afterSeparator > currentIndex)
-                {
-                    CommitScopedErrors();
-                    currentIndex = afterSeparator;
-                    continue;
-                }
-
-                var afterWhitespace = SkipSpace(context, nodeItems, currentIndex);
-                if (afterWhitespace >= exp.Length)
-                {
-                    CommitScopedErrors();
-                    currentIndex = afterWhitespace;
-                    continue;
-                }
-
-                if (!nakedMode)
-                {
-                    var peekNodes = new List<ParseNode>();
-                    var afterClose = GetToken(context, afterWhitespace, peekNodes, ParseNodeType.CloseBrance, "}");
-                    if (afterClose > afterWhitespace)
-                    {
-                        CommitScopedErrors();
-                        currentIndex = afterWhitespace;
-                        break;
-                    }
-                }
-
-                var hasLineBreakSeparator = afterWhitespace > currentIndex &&
-                                            exp.AsSpan(currentIndex, afterWhitespace - currentIndex).IndexOfAny('\r', '\n') != -1;
-                if (hasLineBreakSeparator)
-                {
-                    CommitScopedErrors();
-                    currentIndex = afterWhitespace;
-                    continue;
-                }
-
-                var replaceable = ShouldReplaceErrorsWithSeparator(scopedErrors, propertyValueEnd, afterWhitespace);
-                if (!replaceable)
-                {
-                    CommitScopedErrors();
-                    return new ParseBlockResult(afterWhitespace, null, errors);
-                }
-
-                var span = Math.Max(1, afterWhitespace - currentIndex);
-                errors.Add(new SyntaxErrorData(currentIndex, span, "Property separator (';' or ',') expected between entries"));
-                return new ParseBlockResult(afterWhitespace, null, errors);
+                //we don't care about the separator, if we find one ok, if not still ok
+                currentIndex=GetToken(context, currentIndex, nodeItems, ParseNodeType.ListSeparator, ",", ";");
             }
 
             currentIndex = SkipSpace(context, nodeItems, currentIndex);
 
             if (!nakedMode)
             {
-                var afterClose = GetToken(context, currentIndex,nodeItems,ParseNodeType.CloseBrance, "}");
+                var afterClose = GetToken(context, currentIndex, nodeItems, ParseNodeType.CloseBrance, "}");
                 if (afterClose == currentIndex)
                 {
                     errors.Add(new SyntaxErrorData(currentIndex, 0, "'}' expected"));

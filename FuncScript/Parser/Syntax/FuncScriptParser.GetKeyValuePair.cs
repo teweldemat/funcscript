@@ -11,7 +11,6 @@ namespace FuncScript.Core
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
-            var buffer = CreateNodeBuffer(siblings);
             var childNodes = new List<ParseNode>();
             var exp = context.Expression;
             var errors = CreateErrorBuffer();
@@ -77,9 +76,7 @@ namespace FuncScript.Core
             };
 
             var parseNode = new ParseNode(ParseNodeType.KeyValuePair, index, currentIndex - index, childNodes);
-            buffer.AddRange(childNodes);
-            buffer.Add(parseNode);
-            CommitNodeBuffer(siblings, buffer);
+            siblings.Add(parseNode);
             return new ValueParseResult<KvcExpression.KeyValueExpression>(currentIndex, keyValue, errors);
         }
 

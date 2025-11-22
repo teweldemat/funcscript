@@ -25,6 +25,8 @@ namespace FuncScript.Core
                     keyValueResult.Value, errors);
             }
             AppendErrors(errors, keyValueResult);
+            if (errors.Count > 0)
+                return new ValueParseResult<KvcExpression.KeyValueExpression>(index, null, errors);
 
             var returnBuffer = CreateNodeBuffer(siblings);
             var returnResult = GetReturnDefinition(context, returnBuffer, referenceMode, index);

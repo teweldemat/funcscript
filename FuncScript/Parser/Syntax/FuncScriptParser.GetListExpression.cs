@@ -57,7 +57,7 @@ namespace FuncScript.Core
             var afterClose = GetToken(context, currentIndex,nodes,ParseNodeType.CloseBrance, "]");
             if (afterClose == currentIndex)
             {
-                if (items.Count > 0 && currentIndex < exp.Length)
+                if (items.Count > 0 && !exp.AsSpan(currentIndex).IsEmpty)
                 {
                     errors.Add(new SyntaxErrorData(currentIndex, 1, "List separator (',') expected between items"));
                     return new ParseBlockResult(currentIndex, null, errors);

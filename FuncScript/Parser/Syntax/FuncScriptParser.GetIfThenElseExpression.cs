@@ -14,9 +14,6 @@ namespace FuncScript.Core
 
             var errors = CreateErrorBuffer();
             var exp = context.Expression;
-
-            if (index >= exp.Length)
-                return ParseBlockResult.NoAdvance(index, errors);
             var childNodes = new List<ParseNode>();
             var currentIndex = index;
             

@@ -14,6 +14,15 @@ public class AdvancedSyntax
         var expected = new ObjectKvc(new { a = 4, b = 5 });
         Assert.That(FuncScriptRuntime.FormatToJson(res),Is.EqualTo(FuncScriptRuntime.FormatToJson(expected)));
     }
+
+    [Test]
+    public void KeyValuePairsAllowWhitespaceSeparators()
+    {
+        var exp = "{x:3 y:4\nz:x+y}";
+        var res = FuncScriptRuntime.Evaluate(exp);
+        var expected = new ObjectKvc(new { x = 3, y = 4, z = 7 });
+        Assert.That(FuncScriptRuntime.FormatToJson(res), Is.EqualTo(FuncScriptRuntime.FormatToJson(expected)));
+    }
     [Test]
     [TestCase("!true",false)]
     [TestCase("!false",true)]

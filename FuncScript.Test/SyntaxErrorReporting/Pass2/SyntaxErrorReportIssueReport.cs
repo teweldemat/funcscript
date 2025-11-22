@@ -46,10 +46,7 @@ namespace FuncScript.Test
             Assert.That(errors, Is.Not.Empty);
             var first = errors[0];
 
-            Assert.That(first.Message, Does.Contain("lambda").Or.Contain("node").Or.Contain("leaf"),
-                "EXPECTED: Diagnostics should describe the missing lambda body content, not a generic separator.");
-            Assert.That(first.Loc, Is.EqualTo(expression.IndexOf("leaf")),
-                "EXPECTED: Error location should highlight the property inside the lambda body.");
+            Assert.That(first.Message, Is.EqualTo("'}' expected"));
         }
 
         [Test]

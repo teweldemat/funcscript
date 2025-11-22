@@ -13,23 +13,18 @@ namespace FuncScript.Core
                 throw new ArgumentNullException(nameof(context));
 
             var errors = CreateErrorBuffer();
-            var exp = context.Expression;
-
             var parameterNodes = new List<ParseNode>();
             var currentIndex = GetIdentifierList(context, index, parameterNodes, out var parameters, out var parametersNode);
             if (currentIndex == index)
                 return new ValueParseResult<ExpressionFunction>(index, null, errors);
 
             var arrowIndex = currentIndex;
-            if (arrowIndex >= exp.Length - 1)
-                return new ValueParseResult<ExpressionFunction>(index, null, errors);
 
             var childNodes = new List<ParseNode>();
             if (parametersNode != null)
                 childNodes.Add(parametersNode);
 
-            var arrowNodes = new List<ParseNode>();
-            var afterArrow = GetToken(context, arrowIndex,arrowNodes,ParseNodeType.LambdaArrow, "=>");
+            var afterArrow = GetToken(context, arrowIndex,childNodes,ParseNodeType.LambdaArrow, "=>");
             if (afterArrow == arrowIndex)
             {
                 errors.Add(new SyntaxErrorData(arrowIndex, 0, "'=>' expected"));
@@ -37,9 +32,6 @@ namespace FuncScript.Core
             }
 
             currentIndex = afterArrow;
-
-            if (arrowNodes.Count > 0)
-                childNodes.AddRange(arrowNodes);
 
             var bodyResult = GetExpression(context, childNodes, ReferenceMode.Standard, currentIndex);
             AppendErrors(errors, bodyResult);

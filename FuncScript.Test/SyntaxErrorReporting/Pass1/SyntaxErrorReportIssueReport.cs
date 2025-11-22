@@ -27,19 +27,12 @@ namespace FuncScript.Test
         }
 
         [Test]
-        public void MissingPropertySeparatorGeneratesStackedErrorsAtSameLocation()
+        public void MissingPropertySeparatorIsNoLongerAnError()
         {
             var expression = "{a:1 b:2}";
             var errors = Parse(expression, out var block);
-            Assert.That(block, Is.Null);
-            Assert.That(errors.Count, Is.EqualTo(1),
-                "EXPECTED: Only one SyntaxErrorData should describe the missing separator.");
-
-            var error = errors.Single();
-            Assert.That(error.Message, Does.Contain("separator").IgnoreCase,
-                "EXPECTED: Parser should explicitly mention a missing ';' or ',' between properties.");
-            Assert.That(error.Length, Is.GreaterThan(0),
-                "EXPECTED: Error span should cover the gap between the two properties so caret rendering works.");
+            Assert.That(block, Is.Not.Null, "Whitespace-separated key/value pairs should parse as a block.");
+            Assert.That(errors, Is.Empty, "Parser should no longer report missing separators when whitespace is present.");
         }
 
         [Test]

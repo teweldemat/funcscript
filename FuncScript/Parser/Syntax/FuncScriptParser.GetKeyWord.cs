@@ -14,8 +14,6 @@ namespace FuncScript.Core
                 throw new ArgumentNullException(nameof(keyword));
 
             var exp = context.Expression;
-            if (index >= exp.Length)
-                return index;
 
             var buffer = CreateNodeBuffer(siblings);
             var nextIndex = GetToken(context, index, buffer, ParseNodeType.KeyWord, keyword);
