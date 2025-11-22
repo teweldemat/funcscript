@@ -13,7 +13,6 @@ namespace FuncScript.Core
                 throw new ArgumentNullException(nameof(context));
 
             var errors = CreateErrorBuffer();
-            var exp = context.Expression;
             var nodes = new List<ParseNode>();
             var currentIndex = index;
             var afterOpen = GetToken(context, currentIndex,nodes,ParseNodeType.OpenBrace, "[");
@@ -36,11 +35,12 @@ namespace FuncScript.Core
 
                 while (true)
                 {
-                    var afterComma = GetToken(context, currentIndex,nodes,ParseNodeType.ListSeparator,  ",");
-                    if (afterComma == currentIndex)
-                        break;
-                    
-                    currentIndex = afterComma;
+                    var afterComma = GetToken(context, currentIndex,nodes,ParseNodeType.ListSeparator,  ",", ";");
+                    if (afterComma > currentIndex)
+                    {
+                        currentIndex = afterComma;
+                    }
+
                     var nextResult = GetExpression(context, nodes, referenceMode, currentIndex);
                     AppendErrors(errors, nextResult);
                     if (!nextResult.HasProgress(currentIndex))
@@ -57,11 +57,6 @@ namespace FuncScript.Core
             var afterClose = GetToken(context, currentIndex,nodes,ParseNodeType.CloseBrance, "]");
             if (afterClose == currentIndex)
             {
-                if (items.Count > 0 && !exp.AsSpan(currentIndex).IsEmpty)
-                {
-                    errors.Add(new SyntaxErrorData(currentIndex, 1, "List separator (',') expected between items"));
-                    return new ParseBlockResult(currentIndex, null, errors);
-                }
                 errors.Add(new SyntaxErrorData(currentIndex, 0, "']' expected"));
                 return new ParseBlockResult(index, null, errors);
             }

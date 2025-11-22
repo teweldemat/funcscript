@@ -35,7 +35,6 @@ namespace FuncScript.Test
             yield return Case(18, "IncompleteObject", "{a:1");
             yield return Case(19, "SemicolonBeforeBrace", "{a:1;");
             yield return Case(20, "MissingValueInObject", "{a:}");
-            yield return Case(22, "MissingListSeparator", "[1 2]");
             yield return Case(23, "LambdaMissingComma", "(x y)=>x");
             yield return Case(24, "LambdaTrailingComma", "(x,)=>x");
             yield return Case(25, "LambdaMissingBody", "(x)=>");

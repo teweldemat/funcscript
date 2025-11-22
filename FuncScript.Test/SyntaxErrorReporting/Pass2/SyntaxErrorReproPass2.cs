@@ -17,14 +17,11 @@ namespace FuncScript.Test
             yield return Case(51, "OuterMissingValue", "{outer:{inner:}}");
             yield return Case(53, "NestedMissingValue", "{outer:{inner:{deep:}}}");
             yield return Case(55, "DeepMissingValue", "{outer:{inner:{deep:{even:}}}}");
-            yield return Case(56, "NestedListMissingComma", "{outer:{inner:{list:[1 2]}}}");
-            yield return Case(57, "DoubleNestedListMissingComma", "{outer:{inner:{list:[[1 2]]}}}");
             yield return Case(59, "DeepNestedValueMissing", "{outer:{inner:{list:[{a:{b:}}]}}}");
             yield return Case(61, "NestedLambdaMissingBody", "{outer:{inner:(x)=>}}");
             yield return Case(62, "NestedLambdaReturnMissingValue", "{outer:{inner:(x)=>{return;}}}");
             yield return Case(63, "LambdaBodyMissingValue", "{outer:{inner:(x)=>{node:}}}");
             yield return Case(64, "LambdaBodyDeepMissingValue", "{outer:{inner:(x)=>{node:{leaf:}}}}");
-            yield return Case(66, "LambdaListMissingComma", "{outer:{inner:(x)=>{node:[1 2]}}}");
             yield return Case(68, "LambdaReturningLambdaMissingBody", "{outer:{inner:(x)=>{return (y)=>}}}");
             yield return Case(69, "LambdaReturningLambdaReturnMissingValue", "{outer:{inner:(x)=>{return (y)=>{return;};}}}");
             yield return Case(72, "CombinatorReturnNestedMissingValue", "{outer:{combinator:(x)=>{return {a:{b:}};}}}");

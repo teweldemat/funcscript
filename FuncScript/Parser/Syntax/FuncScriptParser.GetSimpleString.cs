@@ -34,13 +34,8 @@ namespace FuncScript.Core
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
 
-            if (index >= context.Expression.Length)
-                return new SimpleStringResult(index, null, index, 0, null);
-
             var buffer = CreateNodeBuffer(siblings);
             var currentIndex = SkipSpace(context, buffer, index);
-            if (currentIndex >= context.Expression.Length)
-                return new SimpleStringResult(index, null, index, 0, null);
 
             var result = GetSimpleString(context, buffer, "\"\"\"", true, currentIndex, serrors);
             if (result.NextIndex == currentIndex)

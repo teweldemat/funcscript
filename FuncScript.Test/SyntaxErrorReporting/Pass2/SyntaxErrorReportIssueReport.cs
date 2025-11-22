@@ -55,14 +55,8 @@ namespace FuncScript.Test
             var expression = "{outer:{inner:[1 2]}}";
             var errors = Parse(expression, out var block);
 
-            Assert.That(errors, Is.Not.Empty);
-            var first = errors[0];
-
-            Assert.That(first.Message, Does.Contain("List separator"),
-                "EXPECTED: Message should explain that list items need commas rather than referencing a property separator.");
-            var spanStart = expression.IndexOf("2");
-            Assert.That(first.Loc, Is.EqualTo(spanStart),
-                "EXPECTED: Error location should sit at the start of the second list entry (where the comma is missing).");
+            Assert.That(errors, Is.Empty,
+                "List expressions should now allow whitespace-separated items without requiring commas.");
         }
     }
 }
