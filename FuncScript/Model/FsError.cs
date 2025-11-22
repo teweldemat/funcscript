@@ -1,3 +1,5 @@
+using FuncScript.Core;
+
 namespace FuncScript.Model;
 
 public class FsError
@@ -10,6 +12,7 @@ public class FsError
     public string ErrorType { get; set; }
     public string ErrorMessage { get; set; }
     public object ErrorData { get; set; }
+    public CodeLocation CodeLocation { get; set; }
 
     public FsError(string messsage) : this(ERROR_DEFAULT, messsage, null)
     {

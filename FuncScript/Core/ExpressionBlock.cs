@@ -37,7 +37,13 @@ namespace FuncScript.Core
             try
             {
                 PreventTooDeep(ExecContext.CurrentDepth);
-                return EvaluateCore(provider);
+                var result = EvaluateCore(provider);
+                if (result is FsError fsError)
+                {
+                    fsError.CodeLocation = CodeLocation;
+                }
+
+                return result;
             }
             finally
             {

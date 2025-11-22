@@ -218,6 +218,18 @@ namespace FuncScript.Test
         }
 
         [Test]
+        public void FsErrorIncludesExpressionCodeLocation()
+        {
+            var expression = "error(\"boom\")";
+            var result = BasicTests.AssertSingleResult(expression);
+            Assert.That(result, Is.TypeOf<FsError>());
+            var fsError = (FsError)result;
+            Assert.That(fsError.CodeLocation, Is.Not.Null);
+            Assert.That(fsError.CodeLocation.Position, Is.EqualTo(0));
+            Assert.That(fsError.CodeLocation.Length, Is.EqualTo(expression.Length));
+        }
+
+        [Test]
         public void IfThenElseSyntaxParsesToFunctionCall()
         {
             var provider = new DefaultFsDataProvider();
