@@ -17,13 +17,12 @@ namespace FuncScript.Block
             this._function = Function;
             this._parameter=Parameter;
         }
-        public override object Evaluate(KeyValueCollection provider, int depth)
+        protected override object EvaluateCore(KeyValueCollection provider)
         {
-            using var scope = TrackDepth(depth);
             try
             {
-                var target = _function.Evaluate(provider, depth + 1);
-                var input = _parameter.Evaluate(provider, depth + 1);
+                var target = _function.Evaluate(provider, 0);
+                var input = _parameter.Evaluate(provider, 0);
                 return Engine.Apply(target, input);
             }
             catch (EvaluationException)

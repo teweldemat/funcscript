@@ -26,19 +26,18 @@ namespace FuncScript.Block
         }
 
 
-        public override object Evaluate(KeyValueCollection provider, int depth)
+        protected override object EvaluateCore(KeyValueCollection provider)
         {
-            using var scope = TrackDepth(depth);
             switch (_referenceMode)
             {
                 case ReferenceMode.Standard:
                     return provider.Get(_nameLower);
                 case ReferenceMode.SkipSiblings:
-                    return provider.ParentProvider?.Get(_nameLower);    
+                    return provider.ParentProvider?.Get(_nameLower);
                 case ReferenceMode.ParentsThenSiblings:
                     if (provider.ParentProvider!=null && provider.ParentProvider.IsDefined(_nameLower))
                         return provider.ParentProvider.Get(_nameLower);
-                    return provider.Get(_nameLower);    
+                    return provider.Get(_nameLower);
             }
 
             throw new EvaluationTimeException("Unsupported reference mode " + _referenceMode);

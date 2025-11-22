@@ -11,8 +11,7 @@ namespace FuncScript.Core
 {
     public abstract class ExpressionBlock
     {
-        internal const int MaxEvaluationDepth = 4096;
-        private static readonly AsyncLocal<int> s_currentDepth = new();
+        internal const int MaxEvaluationDepth = 256;
         private static readonly CodeLocation s_defaultLocation = new CodeLocation(0, 0);
         private CodeLocation _codeLocation = s_defaultLocation;
 
@@ -21,13 +20,7 @@ namespace FuncScript.Core
             get => _codeLocation;
             set => _codeLocation = value ?? s_defaultLocation;
         }
-        internal static int CurrentDepth => s_currentDepth.Value;
 
-        protected DepthScope TrackDepth(int depth)
-        {
-            PreventTooDeep(depth);
-            return new DepthScope(depth);
-        }
 
         protected void PreventTooDeep(int depth)
         {
@@ -37,23 +30,22 @@ namespace FuncScript.Core
             }
         }
 
-        protected readonly struct DepthScope : IDisposable
+        
+        public object Evaluate(KeyValueCollection provider, int _)
         {
-            private readonly int _previousDepth;
-
-            public DepthScope(int depth)
+            var previousDepth = ExecContext.EnterScope();
+            try
             {
-                _previousDepth = s_currentDepth.Value;
-                s_currentDepth.Value = depth;
+                PreventTooDeep(ExecContext.CurrentDepth);
+                return EvaluateCore(provider);
             }
-
-            public void Dispose()
+            finally
             {
-                s_currentDepth.Value = _previousDepth;
+                ExecContext.ExitScope(previousDepth);
             }
         }
 
-        public abstract object Evaluate(KeyValueCollection provider, int depth);
+        protected abstract object EvaluateCore(KeyValueCollection provider);
         public abstract String AsExpString();
         public virtual IEnumerable<ExpressionBlock> GetChilds() => Array.Empty<ExpressionBlock>();
 

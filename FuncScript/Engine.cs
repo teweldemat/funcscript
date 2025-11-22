@@ -696,12 +696,27 @@ namespace FuncScript
             }
             catch (EvaluationException ex)
             {
-                String msg;
+                string locationMessage;
                 if (ex.Len + ex.Pos <= expression.Length && ex.Len > 0)
-                    msg = $"Evaluation error at '{expression.Substring(ex.Pos, ex.Len)}'";
+                    locationMessage = $"Evaluation error at '{expression.Substring(ex.Pos, ex.Len)}'";
                 else
-                    msg = $"Evaluation Error. Location information invalid"; ;
-                throw new EvaluationException(msg, ex.Pos, ex.Len, ex.InnerException);
+                    locationMessage = "Evaluation Error. Location information invalid";
+
+                string finalMessage;
+                if (string.IsNullOrEmpty(ex.Message))
+                {
+                    finalMessage = locationMessage;
+                }
+                else if (string.Equals(ex.Message, locationMessage, StringComparison.Ordinal))
+                {
+                    finalMessage = ex.Message;
+                }
+                else
+                {
+                    finalMessage = $"{ex.Message} ({locationMessage})";
+                }
+
+                throw new EvaluationException(finalMessage, ex.Pos, ex.Len, ex.InnerException);
             }
         }
 

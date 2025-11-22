@@ -23,7 +23,7 @@ namespace FuncScript.Core
                     expressionFunction =parent,
                     parentSymbolProvider = provider
                 };
-                var nextDepth = ExpressionBlock.CurrentDepth + 1;
+                var nextDepth =  1;
                 return parent.Expression.Evaluate(parProvider, nextDepth);
             }
 
