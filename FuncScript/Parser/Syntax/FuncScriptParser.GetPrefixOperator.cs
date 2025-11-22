@@ -54,14 +54,18 @@ namespace FuncScript.Core
 
             currentIndex = operandResult.NextIndex;
 
+            var functionLiteral = new LiteralBlock(function)
+            {
+                CodeLocation = new CodeLocation(index, currentIndex - index)
+            };
+
             var expression = new FunctionCallExpression
             (
-                new LiteralBlock(function),
+                functionLiteral,
                 new ListExpression(new[] { operandResult.ExpressionBlock })
                 )
             {
-                Pos = index,
-                Length = currentIndex - index
+                CodeLocation = new CodeLocation(index, currentIndex - index)
             };
 
             var parseNode = new ParseNode(ParseNodeType.PrefixOperatorExpression, index, currentIndex - index,

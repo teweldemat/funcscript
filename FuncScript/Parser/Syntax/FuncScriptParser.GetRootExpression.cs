@@ -21,10 +21,9 @@ namespace FuncScript.Core
                 if (kvcResult.ExpressionBlock != null)
                 {
                     var kvcExpression = kvcResult.ExpressionBlock;
-                    if (kvcExpression.Length == 0)
+                    if (kvcExpression.CodeLocation.Length == 0)
                     {
-                        kvcExpression.Pos = index;
-                        kvcExpression.Length = kvcResult.NextIndex - index;
+                        kvcExpression.CodeLocation = new CodeLocation(index, kvcResult.NextIndex - index);
                     }
 
                     var last = SkipSpace(context, nodes, kvcResult.NextIndex);
@@ -43,10 +42,9 @@ namespace FuncScript.Core
             if (expressionResult.HasProgress(index) && expressionResult.ExpressionBlock != null)
             {
                 var expression = expressionResult.ExpressionBlock;
-                if (expression.Length == 0)
+                if (expression.CodeLocation.Length == 0)
                 {
-                    expression.Pos = index;
-                    expression.Length = expressionResult.NextIndex - index;
+                    expression.CodeLocation = new CodeLocation(index, expressionResult.NextIndex - index);
                 }
                 var last = SkipSpace(context, nodes, expressionResult.NextIndex);
 

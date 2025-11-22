@@ -65,10 +65,10 @@ namespace FuncScript.Core
                 AppendErrors(errors, selectorResult);
                 if (selectorResult.HasProgress(currentIndex) && selectorResult.ExpressionBlock is KvcExpression kvc)
                 {
+                    var selectorStart = expression.CodeLocation.Position;
                     var selector = new SelectorExpression(expression,kvc)
                     {
-                        Pos = expression.Pos,
-                        Length = selectorResult.NextIndex - expression.Pos
+                        CodeLocation = new CodeLocation(selectorStart, selectorResult.NextIndex - selectorStart)
                     };
 
                     expression = selector;

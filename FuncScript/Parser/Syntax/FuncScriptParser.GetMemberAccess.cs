@@ -64,17 +64,15 @@ namespace FuncScript.Core
             var function = context.Provider.Get(oper);
             var memberLiteral = new LiteralBlock(iden.Iden)
             {
-                Pos = iden.StartIndex,
-                Length = iden.Length
+                CodeLocation = new CodeLocation(iden.StartIndex, iden.Length)
             };
 
             var expression = new FunctionCallExpression
             (
                 new LiteralBlock(function),
                 new ListExpression(new ExpressionBlock[] { source, memberLiteral }))
-            { 
-                Pos = source.Pos,
-                Length = currentIndex - source.Pos
+            {
+                CodeLocation = new CodeLocation(source.CodeLocation.Position, currentIndex - source.CodeLocation.Position)
             };
 
             var parseNode = new ParseNode(ParseNodeType.MemberAccess, index, currentIndex - index);

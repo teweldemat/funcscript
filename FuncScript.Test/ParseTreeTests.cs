@@ -140,8 +140,8 @@ namespace FuncScript.Test
 
             var pars = function.Parameter as ListExpression;
             var leftExp =pars.GetItemExpression(0);
-            Assert.That(leftExp.Pos, Is.EqualTo(0));
-            Assert.That(leftExp.Length, Is.EqualTo(1));
+            Assert.That(leftExp.CodeLocation.Position, Is.EqualTo(0));
+            Assert.That(leftExp.CodeLocation.Length, Is.EqualTo(1));
 
             var rightExp = pars.GetItemExpression(1);
             Assert.That(rightExp.CodeLocation.Position, Is.EqualTo(2));
@@ -515,22 +515,20 @@ namespace FuncScript.Test
             //expression block
             Assert.That(block is FunctionCallExpression);
             var func = (FunctionCallExpression)block;
-            Assert.That(func.Pos,Is.EqualTo(0));
-            Assert.That(func.Length,Is.EqualTo(expression.Length));
+            Assert.That(func.CodeLocation.Position,Is.EqualTo(0));
+            Assert.That(func.CodeLocation.Length,Is.EqualTo(expression.Length));
 
             var pars = (ListExpression)func.Parameter;
-            Assert.That(pars.Length,Is.EqualTo(2));
+            Assert.That(pars.ValueExpressions.Length,Is.EqualTo(2));
 
-            Assert.That(func.Function.Pos,Is.EqualTo(1+part1.Length+1));
-            Assert.That(func.Function.Length,Is.EqualTo(part2.Length));
+            Assert.That(func.Function.CodeLocation.Position,Is.EqualTo(1+part1.Length+1));
+            Assert.That(func.Function.CodeLocation.Length,Is.EqualTo(part2.Length));
 
+            Assert.That(pars.GetItemExpression(0).CodeLocation.Position,Is.EqualTo(0));
+            Assert.That(pars.GetItemExpression(0).CodeLocation.Length,Is.EqualTo(1+part1.Length));
 
-            
-            Assert.That(pars.GetItemExpression(0).Pos,Is.EqualTo(0));
-            Assert.That(pars.GetItemExpression(0).Length,Is.EqualTo(1+part1.Length));
-
-            Assert.That(pars.GetItemExpression(1).Pos,Is.EqualTo(1+part1.Length+1+part2.Length+1));
-            Assert.That(pars.GetItemExpression(1).Length,Is.EqualTo(part3.Length));
+            Assert.That(pars.GetItemExpression(1).CodeLocation.Position,Is.EqualTo(1+part1.Length+1+part2.Length+1));
+            Assert.That(pars.GetItemExpression(1).CodeLocation.Length,Is.EqualTo(part3.Length));
 
         }
 

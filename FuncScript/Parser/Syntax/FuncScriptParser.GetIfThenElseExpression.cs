@@ -28,8 +28,7 @@ namespace FuncScript.Core
             var name = exp.Substring(keywordStart, i2 - keywordStart);
             var functionBlock = new ReferenceBlock(name,name.ToLower(),ReferenceMode.Standard)
             {
-                Pos = keywordStart,
-                Length = i2 - keywordStart
+                CodeLocation = new CodeLocation(keywordStart, i2 - keywordStart)
             };
             currentIndex = i2;
             
@@ -70,8 +69,7 @@ namespace FuncScript.Core
                 functionBlock,
                 new ListExpression( new[] { condition.ExpressionBlock, trueValue.ExpressionBlock, elseValue.ExpressionBlock })
                 ){
-                Pos = index,
-                Length = currentIndex - index
+                CodeLocation = new CodeLocation(index, currentIndex - index)
             };
 
             var functionCallNode = new ParseNode(ParseNodeType.IfExpression, index, currentIndex - index,

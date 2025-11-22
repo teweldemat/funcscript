@@ -65,6 +65,30 @@ const KEY_NODE_CHILD_TYPES = new Set([
   ParseNodeType.StringTemplate
 ]);
 
+function getCodeLocation(block) {
+  if (!block || typeof block !== 'object') {
+    return { position: 0, length: 0 };
+  }
+  const location = block.CodeLocation;
+  if (!location || typeof location !== 'object') {
+    return { position: 0, length: 0 };
+  }
+  const position = typeof location.Position === 'number' ? location.Position : 0;
+  const length = typeof location.Length === 'number' ? location.Length : 0;
+  return { position, length };
+}
+
+function setCodeLocation(block, position, length) {
+  if (!block || typeof block !== 'object') {
+    return;
+  }
+  const normalizedPos =
+    typeof position === 'number' && Number.isFinite(position) ? position : 0;
+  const normalizedLength =
+    typeof length === 'number' && Number.isFinite(length) ? Math.max(0, length) : 0;
+  block.CodeLocation = { Position: normalizedPos, Length: normalizedLength };
+}
+
 function unwrapRootNode(node) {
   if (!node) {
     return null;
@@ -187,15 +211,15 @@ function getInfixExpressionSingleLevel(context, siblings, level, candidates, ind
       return ParseResult.noAdvance(indexBeforeOperator);
     }
 
-    const startPos = operands[0].Pos;
+    const { position: startPos } = getCodeLocation(operands[0]);
     const last = operands[operands.length - 1];
-    const endPos = last.Pos + last.Length;
+    const lastLocation = getCodeLocation(last);
+    const endPos = lastLocation.position + lastLocation.length;
 
     const fnValue = context.Provider.get(symbol);
     const fnLiteral = new LiteralBlock(fnValue);
     if (operatorNode) {
-      fnLiteral.Pos = operatorNode.Pos;
-      fnLiteral.Length = operatorNode.Length;
+      setCodeLocation(fnLiteral, operatorNode.Pos, operatorNode.Length);
     }
     const combined = new FunctionCallExpression(fnLiteral, operands.slice(), startPos, endPos - startPos);
 
@@ -286,9 +310,10 @@ function getInfixExpressionSingleOp(context, siblings, level, candidates, index)
       return ParseResult.noAdvance(indexBeforeOperator);
     }
 
-    const startPos = operands[0].Pos;
+    const { position: startPos } = getCodeLocation(operands[0]);
     const last = operands[operands.length - 1];
-    const endPos = last.Pos + last.Length;
+    const lastLocation = getCodeLocation(last);
+    const endPos = lastLocation.position + lastLocation.length;
 
     const fnValue = context.Provider.get(symbol);
     const fnLiteral = new LiteralBlock(fnValue);
@@ -389,8 +414,7 @@ function getInfixFunctionCall(context, siblings, index) {
   }
 
   const fnLiteral = new LiteralBlock(fnTyped);
-  fnLiteral.Pos = iden.StartIndex;
-  fnLiteral.Length = iden.Length;
+  setCodeLocation(fnLiteral, iden.StartIndex, iden.Length);
 
   const firstNode = buffer.find((n) => n.NodeType !== ParseNodeType.WhiteSpace);
   const startPos = firstNode ? firstNode.Pos : (buffer.length > 0 ? buffer[0].Pos : index);
@@ -453,9 +477,8 @@ function getCallAndMemberAccess(context, siblings, index) {
       const selector = new SelectorExpression();
       selector.Source = expression;
       selector.Selector = selectorResult.ExpressionBlock;
-      const selectorStart = typeof expression.Pos === 'number' ? expression.Pos : currentIndex;
-      selector.Pos = selectorStart;
-      selector.Length = selectorResult.NextIndex - selectorStart;
+      const { position: selectorStart } = getCodeLocation(expression);
+      setCodeLocation(selector, selectorStart, selectorResult.NextIndex - selectorStart);
       expression = selector;
       currentIndex = selectorResult.NextIndex;
       for (const node of selectorChildren) {
@@ -540,11 +563,12 @@ function parseParameters(context, siblings, funcExpression, index, openToken, cl
   );
   siblings.push(node);
 
+  const { position: functionStart } = getCodeLocation(funcExpression);
   const call = new FunctionCallExpression(
     funcExpression,
     parameters.slice(),
-    funcExpression.Pos,
-    currentIndex - funcExpression.Pos
+    functionStart,
+    currentIndex - functionStart
   );
 
   return new ParseBlockResult(currentIndex, call);
@@ -608,11 +632,12 @@ function parseMemberAccessOperator(context, siblings, oper, source, index) {
   }
   const fnLiteral = new LiteralBlock(functionTyped);
   const nameLiteral = new LiteralBlock(iden.Iden);
+  const { position: sourceStart } = getCodeLocation(source);
   const expression = new FunctionCallExpression(
     fnLiteral,
     [source, nameLiteral],
-    source.Pos,
-    afterIdentifier - source.Pos
+    sourceStart,
+    afterIdentifier - sourceStart
   );
 
   const parseNode = new ParseNode(ParseNodeType.MemberAccess, index, afterIdentifier - index);
@@ -688,8 +713,7 @@ function getKvcExpression(context, siblings, nakedMode, index) {
   }
 
   if (typeof kvc === 'object') {
-    kvc.Pos = index;
-    kvc.Length = currentIndex - index;
+    setCodeLocation(kvc, index, currentIndex - index);
   }
 
   const parseNode = new ParseNode(
@@ -864,8 +888,7 @@ function getReturnDefinition(context, siblings, index) {
 
   currentIndex = valueResult.NextIndex;
   const expression = valueResult.ExpressionBlock;
-  expression.Pos = index;
-  expression.Length = currentIndex - index;
+  setCodeLocation(expression, index, currentIndex - index);
 
   const node = new ParseNode(
     ParseNodeType.ExpressionInBrace,
@@ -928,8 +951,7 @@ function getListExpression(context, siblings, index) {
   currentIndex = afterClose;
   const list = new ListExpression();
   list.ValueExpressions = items;
-  list.Pos = listStart;
-  list.Length = currentIndex - listStart;
+  setCodeLocation(list, listStart, currentIndex - listStart);
   const parseNode = new ParseNode(ParseNodeType.List, listStart, currentIndex - listStart, nodes);
   siblings.push(parseNode);
   return new ParseBlockResult(currentIndex, list);
@@ -1039,8 +1061,7 @@ function getExpInParenthesis(context, siblings, index) {
 
   currentIndex = afterClose;
   const expression = expressionResult.ExpressionBlock;
-  expression.Pos = index;
-  expression.Length = currentIndex - index;
+  setCodeLocation(expression, index, currentIndex - index);
 
   const parseNode = new ParseNode(
     ParseNodeType.ExpressionInBrace,
@@ -1072,8 +1093,7 @@ function getIfThenElseExpression(context, siblings, index) {
 
   const functionStart = keywordIndex - functionName.length;
   const functionBlock = new ReferenceBlock(functionName);
-  functionBlock.Pos = functionStart;
-  functionBlock.Length = functionName.length;
+  setCodeLocation(functionBlock, functionStart, functionName.length);
 
   let currentIndex = keywordIndex;
   const condition = getExpression(context, childNodes, currentIndex);
@@ -1808,9 +1828,9 @@ function getRootExpression(context, index) {
   if (kvcResult.hasProgress(index) && kvcResult.ExpressionBlock) {
     context.ErrorsList.push(...kvcErrors);
     const kvcExpression = kvcResult.ExpressionBlock;
-    if (!kvcExpression.Length) {
-      kvcExpression.Pos = index;
-      kvcExpression.Length = kvcResult.NextIndex - index;
+    const { length: kvcLength } = getCodeLocation(kvcExpression);
+    if (!kvcLength) {
+      setCodeLocation(kvcExpression, index, kvcResult.NextIndex - index);
     }
     const last = skipSpace(context, nodes, kvcResult.NextIndex);
     const rootNode = new ParseNode(
@@ -1825,9 +1845,9 @@ function getRootExpression(context, index) {
   const expressionResult = getExpression(context, nodes, index);
   if (expressionResult.hasProgress(index) && expressionResult.ExpressionBlock) {
     const expression = expressionResult.ExpressionBlock;
-    if (!expression.Length) {
-      expression.Pos = index;
-      expression.Length = expressionResult.NextIndex - index;
+    const { length: expressionLength } = getCodeLocation(expression);
+    if (!expressionLength) {
+      setCodeLocation(expression, index, expressionResult.NextIndex - index);
     }
     const last = skipSpace(context, nodes, expressionResult.NextIndex);
     const rootNode = new ParseNode(

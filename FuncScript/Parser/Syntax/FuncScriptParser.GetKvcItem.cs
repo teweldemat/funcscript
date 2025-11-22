@@ -50,8 +50,7 @@ namespace FuncScript.Core
                     CommitNodeBuffer(siblings, identifierBuffer);
                     var reference = new ReferenceBlock(iden.Iden, iden.IdenLower, ReferenceMode.SkipSiblings)
                     {
-                        Pos = iden.StartIndex,
-                        Length = iden.Length
+                        CodeLocation = new CodeLocation(iden.StartIndex, iden.Length)
                     };
                     var item = new KvcExpression.KeyValueExpression
                     {
@@ -70,8 +69,7 @@ namespace FuncScript.Core
                     CommitNodeBuffer(siblings, stringBuffer);
                     var reference = new ReferenceBlock( stringResult.Value, stringResult.Value.ToLowerInvariant(), referenceMode)
                     {
-                        Pos = stringResult.StartIndex,
-                        Length = stringResult.Length
+                        CodeLocation = new CodeLocation(stringResult.StartIndex, stringResult.Length)
                     };
                     var item = new KvcExpression.KeyValueExpression
                     {

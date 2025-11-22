@@ -61,8 +61,8 @@ namespace FuncScript.Test
             var found = matches[0];
             var expectedPos = expression.IndexOf(literalText, StringComparison.Ordinal);
             Assert.That(expectedPos, Is.GreaterThanOrEqualTo(0));
-            Assert.That(found.Pos, Is.EqualTo(expectedPos));
-            Assert.That(found.Length, Is.EqualTo(literalText.Length));
+            Assert.That(found.CodeLocation.Position, Is.EqualTo(expectedPos));
+            Assert.That(found.CodeLocation.Length, Is.EqualTo(literalText.Length));
         }
 
         [Test]
@@ -87,8 +87,8 @@ namespace FuncScript.Test
             var findRes = FindBlocks(res.ExpressionBlock, b => b is LiteralBlock lb && (int)lb.Value == 456);
             Assert.That(findRes, Has.Count.EqualTo(1));
             var found = findRes[0];
-            Assert.That(found.Pos,Is.EqualTo(left.Length));
-            Assert.That(found.Length,Is.EqualTo(target.Length));
+            Assert.That(found.CodeLocation.Position,Is.EqualTo(left.Length));
+            Assert.That(found.CodeLocation.Length,Is.EqualTo(target.Length));
         }
         [Test]
         public static  void FuzzCodeLocationTest2()
@@ -106,8 +106,8 @@ namespace FuncScript.Test
             var findRes = FindBlocks(res.ExpressionBlock, b => b is FunctionCallExpression f && ((LiteralBlock)f.Function).Value is KvcMemberFunction);
             Assert.That(findRes, Has.Count.EqualTo(1));
             var found = findRes[0];
-            Assert.That(found.Pos,Is.EqualTo(left.Length));
-            Assert.That(found.Length,Is.EqualTo(target.Length));
+            Assert.That(found.CodeLocation.Position,Is.EqualTo(left.Length));
+            Assert.That(found.CodeLocation.Length,Is.EqualTo(target.Length));
         }
 
         [Test]
@@ -123,8 +123,8 @@ namespace FuncScript.Test
 
             Assert.That(matches, Has.Count.EqualTo(1));
             var found = matches[0];
-            Assert.That(found.Pos, Is.EqualTo(0));
-            Assert.That(found.Length, Is.EqualTo(expression.Length));
+            Assert.That(found.CodeLocation.Position, Is.EqualTo(0));
+            Assert.That(found.CodeLocation.Length, Is.EqualTo(expression.Length));
         }
 
         [Test]
@@ -140,8 +140,8 @@ namespace FuncScript.Test
 
             Assert.That(matches, Has.Count.EqualTo(1));
             var found = matches[0];
-            Assert.That(found.Pos, Is.EqualTo(0));
-            Assert.That(found.Length, Is.EqualTo(expression.Length));
+            Assert.That(found.CodeLocation.Position, Is.EqualTo(0));
+            Assert.That(found.CodeLocation.Length, Is.EqualTo(expression.Length));
         }
 
         [Test]
@@ -158,8 +158,8 @@ namespace FuncScript.Test
             Assert.That(matches, Has.Count.EqualTo(1));
             var found = matches[0];
             var expectedStart = expression.IndexOf("\"line\\nvalue\"", StringComparison.Ordinal);
-            Assert.That(found.Pos, Is.EqualTo(expectedStart));
-            Assert.That(found.Length, Is.EqualTo("\"line\\nvalue\"".Length));
+            Assert.That(found.CodeLocation.Position, Is.EqualTo(expectedStart));
+            Assert.That(found.CodeLocation.Length, Is.EqualTo("\"line\\nvalue\"".Length));
         }
 
         [Test]
@@ -172,12 +172,12 @@ namespace FuncScript.Test
 
             var matches = FindBlocks(res.ExpressionBlock, block =>
                 block is FunctionCallExpression f && f.Function is LiteralBlock literal &&
-                literal.Value is KvcMemberFunction && f.Length == expression.Length);
+                literal.Value is KvcMemberFunction && f.CodeLocation.Length == expression.Length);
 
             Assert.That(matches, Has.Count.EqualTo(1));
             var found = matches[0];
-            Assert.That(found.Pos, Is.EqualTo(0));
-            Assert.That(found.Length, Is.EqualTo(expression.Length));
+            Assert.That(found.CodeLocation.Position, Is.EqualTo(0));
+            Assert.That(found.CodeLocation.Length, Is.EqualTo(expression.Length));
         }
 
         [Test]
@@ -194,8 +194,8 @@ namespace FuncScript.Test
             Assert.That(matches, Has.Count.EqualTo(1));
             var found = matches[0];
             var expectedStart = expression.IndexOf("SomeIdentifier", StringComparison.Ordinal);
-            Assert.That(found.Pos, Is.EqualTo(expectedStart));
-            Assert.That(found.Length, Is.EqualTo("SomeIdentifier".Length));
+            Assert.That(found.CodeLocation.Position, Is.EqualTo(expectedStart));
+            Assert.That(found.CodeLocation.Length, Is.EqualTo("SomeIdentifier".Length));
         }
         [Test]
         public void FuzzCodeLocation_ListLiteralMaintainsMiddleValueLocation()

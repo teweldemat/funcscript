@@ -36,8 +36,7 @@ namespace FuncScript.Core
             currentIndex = valueResult.NextIndex;
 
             var expression = valueResult.ExpressionBlock;
-            expression.Pos = index;
-            expression.Length = currentIndex - index;
+            expression.CodeLocation = new CodeLocation(index, currentIndex - index);
 
             var parseNode = new ParseNode(ParseNodeType.ExpressionInBrace, index, currentIndex - index,
                 childNodes);

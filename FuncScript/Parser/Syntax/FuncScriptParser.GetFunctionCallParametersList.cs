@@ -79,14 +79,14 @@ namespace FuncScript.Core
                 nodeItems);
             siblings.Add(parseNode);
 
+            var functionStart = function.CodeLocation.Position;
             var callExpression = new FunctionCallExpression
             (
                 function,
                 new ListExpression(parameters.ToArray())
                 )
             {
-                Pos = function.Pos,
-                Length = currentIndex - function.Pos
+                CodeLocation = new CodeLocation(functionStart, currentIndex - functionStart)
             };
 
             return new ParseBlockResult(currentIndex, callExpression, errors);

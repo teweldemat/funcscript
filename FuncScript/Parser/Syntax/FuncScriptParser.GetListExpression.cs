@@ -67,9 +67,10 @@ namespace FuncScript.Core
             }
 
             currentIndex = afterClose;
-            var listExpression = new ListExpression(items.ToArray());
-            ((ExpressionBlock)listExpression).Pos = listStart;
-            ((ExpressionBlock)listExpression).Length = currentIndex - listStart;
+            var listExpression = new ListExpression(items.ToArray())
+            {
+                CodeLocation = new CodeLocation(listStart, currentIndex - listStart)
+            };
 
             var parseNode = new ParseNode(ParseNodeType.List, listStart, currentIndex - listStart, nodes);
             siblings.Add(parseNode);

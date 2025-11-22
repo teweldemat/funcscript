@@ -74,13 +74,17 @@ namespace FuncScript.Core
                 currentIndex = valueResult.NextIndex;
             }
 
+            var caseLiteral = new LiteralBlock(context.Provider.Get(KW_CASE))
+            {
+                CodeLocation = new CodeLocation(index, keywordResult - index)
+            };
+
             var functionCall = new FunctionCallExpression(
-                new LiteralBlock(context.Provider.Get(KW_CASE)),
+                caseLiteral,
              new ListExpression(parameters.ToArray()))
             {
-                Pos = index,
-                Length = currentIndex - index,
-                
+                CodeLocation = new CodeLocation(index, currentIndex - index)
+
             };
 
             var parseNode = new ParseNode(ParseNodeType.Case, index, currentIndex - index, childNodes);

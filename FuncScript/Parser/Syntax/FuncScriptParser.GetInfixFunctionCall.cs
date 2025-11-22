@@ -85,26 +85,32 @@ namespace FuncScript.Core
 
             var functionLiteral = new LiteralBlock(function)
             {
-                Pos = iden.StartIndex,
-                Length = iden.Length
+                CodeLocation = new CodeLocation(iden.StartIndex, iden.Length)
             };
 
             var startPos = index;
             var expressionLength = Math.Max(0, currentIndex - startPos);
 
-            var parametersExpression = new ListExpression(operands.ToArray())
+            var parametersExpression = new ListExpression(operands.ToArray());
+            if (operands.Count > 0)
             {
-                Pos = operands.Count > 0 ? operands[0].Pos : startPos,
-                Length = operands.Count
-            };
+                var firstOperand = operands[0].CodeLocation;
+                var lastOperand = operands[^1].CodeLocation;
+                var parametersStart = firstOperand.Position;
+                var parametersEnd = lastOperand.Position + lastOperand.Length;
+                parametersExpression.CodeLocation = new CodeLocation(parametersStart, parametersEnd - parametersStart);
+            }
+            else
+            {
+                parametersExpression.CodeLocation = new CodeLocation(startPos, 0);
+            }
 
             var expression = new FunctionCallExpression
             (
                 functionLiteral,
                 parametersExpression
                 ){
-                Pos = startPos,
-                Length = expressionLength
+                CodeLocation = new CodeLocation(startPos, expressionLength)
             };
             var parseNode = new ParseNode(ParseNodeType.GeneralInfixExpression, index, currentIndex-index, buffer);
             siblings.Add(parseNode);

@@ -67,14 +67,18 @@ namespace FuncScript.Core
                 currentIndex = branchResult.NextIndex;
             }
 
+            var switchLiteral = new LiteralBlock(context.Provider.Get(KW_SWITCH))
+            {
+                CodeLocation = new CodeLocation(index, keywordResult - index)
+            };
+
             var functionCall = new FunctionCallExpression
                 (
-                new LiteralBlock(context.Provider.Get(KW_SWITCH)),
+                switchLiteral,
                 new ListExpression(parameters.ToArray())
                 ){
-                Pos = index,
-                Length = currentIndex - index,
-                
+                CodeLocation = new CodeLocation(index, currentIndex - index),
+
             };
 
             var parseNode = new ParseNode(ParseNodeType.Case, index, currentIndex - index, childNodes);

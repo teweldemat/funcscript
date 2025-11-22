@@ -13,9 +13,14 @@ namespace FuncScript.Core
     {
         internal const int MaxEvaluationDepth = 4096;
         private static readonly AsyncLocal<int> s_currentDepth = new();
-        public int Pos;
-        public int Length;
-        public CodeLocation CodeLocation => new (Pos, Length);
+        private static readonly CodeLocation s_defaultLocation = new CodeLocation(0, 0);
+        private CodeLocation _codeLocation = s_defaultLocation;
+
+        public CodeLocation CodeLocation
+        {
+            get => _codeLocation;
+            set => _codeLocation = value ?? s_defaultLocation;
+        }
         internal static int CurrentDepth => s_currentDepth.Value;
 
         protected DepthScope TrackDepth(int depth)

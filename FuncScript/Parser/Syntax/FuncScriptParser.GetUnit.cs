@@ -28,8 +28,7 @@ namespace FuncScript.Core
             {
                 var block = new LiteralBlock(stringResult.Value)
                 {
-                    Pos = stringResult.StartIndex,
-                    Length = stringResult.Length
+                    CodeLocation = new CodeLocation(stringResult.StartIndex, stringResult.Length)
                 };
                 return new ParseBlockResult(stringResult.NextIndex, block, errors);
             }
@@ -40,8 +39,7 @@ namespace FuncScript.Core
             {
                 var block = new LiteralBlock(numberResult.Value)
                 {
-                    Pos = numberResult.StartIndex,
-                    Length = numberResult.Length
+                    CodeLocation = new CodeLocation(numberResult.StartIndex, numberResult.Length)
                 };
                 return new ParseBlockResult(numberResult.NextIndex, block, errors);
             }
@@ -103,8 +101,7 @@ namespace FuncScript.Core
             {
                 var block = new LiteralBlock(lambdaResult.Value)
                 {
-                    Pos = index,
-                    Length = lambdaResult.NextIndex - index
+                    CodeLocation = new CodeLocation(index, lambdaResult.NextIndex - index)
                 };
                 return new ParseBlockResult(lambdaResult.NextIndex, block, errors);
             }
@@ -121,8 +118,7 @@ namespace FuncScript.Core
                 var literalLength = keywordNode?.Length ?? (keywordIndex - literalPos);
                 var block = new LiteralBlock(keywordValue)
                 {
-                    Pos = literalPos,
-                    Length = literalLength
+                    CodeLocation = new CodeLocation(literalPos, literalLength)
                 };
                 return new ParseBlockResult(keywordIndex, block, errors);
             }
@@ -134,8 +130,7 @@ namespace FuncScript.Core
             {
                 var reference = new ReferenceBlock( iden.Iden,iden.IdenLower,referenceMode)
                 {
-                    Pos = iden.StartIndex,
-                    Length = iden.Length
+                    CodeLocation = new CodeLocation(iden.StartIndex, iden.Length)
                 };
                 return new ParseBlockResult(identifierIndex, reference, errors);
             }

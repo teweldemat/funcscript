@@ -72,15 +72,15 @@ namespace FuncScript.Core
                 if (operands.Count < 2)
                     return ParseBlockResult.NoAdvance(indexBeforeOperator, errors);
 
-                var startPos = operands[0].Pos;
-                var endPos = operands[^1].Pos + operands[^1].Length;
+                var startPos = operands[0].CodeLocation.Position;
+                var lastOperand = operands[^1].CodeLocation;
+                var endPos = lastOperand.Position + lastOperand.Length;
 
                 var function = context.Provider.Get(symbol);
                 var functionLiteral = new LiteralBlock(function);
                 if (operatorNode != null)
                 {
-                    functionLiteral.Pos = operatorNode.Pos;
-                    functionLiteral.Length = operatorNode.Length;
+                    functionLiteral.CodeLocation = new CodeLocation(operatorNode.Pos, operatorNode.Length);
                 }
 
                 var combined = new FunctionCallExpression
@@ -88,8 +88,7 @@ namespace FuncScript.Core
                     functionLiteral,
                     new ListExpression( operands.ToArray()))
                 {
-                    Pos = startPos,
-                    Length = endPos - startPos
+                    CodeLocation = new CodeLocation(startPos, endPos - startPos)
                 };
 
                 currentExpression = combined;
