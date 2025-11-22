@@ -31,6 +31,7 @@ namespace FuncScript.Core
 
             while (true)
             {
+                var loopErrorStartIndex = errors.Count;
 
                 var itemResult = GetKvcItem(context, nodeItems,referenceMode, nakedMode, currentIndex);
                 if (!itemResult.HasProgress(currentIndex))
@@ -57,8 +58,45 @@ namespace FuncScript.Core
 
                 var afterSeparator = GetToken(context, currentIndex, nodeItems, ParseNodeType.ListSeparator, ",", ";");
                 if (afterSeparator > currentIndex)
+                {
                     currentIndex = afterSeparator;
+                    continue;
+                }
+
+                var afterWhitespace = SkipSpace(context, nodeItems, currentIndex);
+                if (afterWhitespace >= exp.Length)
+                {
+                    currentIndex = afterWhitespace;
+                    continue;
+                }
+
+                if (!nakedMode)
+                {
+                    var peekNodes = new List<ParseNode>();
+                    var afterClose = GetToken(context, afterWhitespace, peekNodes, ParseNodeType.CloseBrance, "}");
+                    if (afterClose > afterWhitespace)
+                    {
+                        currentIndex = afterWhitespace;
+                        break;
+                    }
+                }
+
+                var hasLineBreakSeparator = afterWhitespace > currentIndex &&
+                                            exp.AsSpan(currentIndex, afterWhitespace - currentIndex).IndexOfAny('\r', '\n') != -1;
+                if (hasLineBreakSeparator)
+                {
+                    currentIndex = afterWhitespace;
+                    continue;
+                }
+
+                var span = Math.Max(1, afterWhitespace - currentIndex);
+                if (errors.Count > loopErrorStartIndex)
+                    errors.RemoveRange(loopErrorStartIndex, errors.Count - loopErrorStartIndex);
+                errors.Add(new SyntaxErrorData(currentIndex, span, "Property separator (';' or ',') expected between entries"));
+                return new ParseBlockResult(afterWhitespace, null);
             }
+
+            currentIndex = SkipSpace(context, nodeItems, currentIndex);
 
             if (!nakedMode)
             {

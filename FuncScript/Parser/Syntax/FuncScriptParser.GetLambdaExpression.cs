@@ -44,7 +44,8 @@ namespace FuncScript.Core
             var bodyResult = GetExpression(context, childNodes, ReferenceMode.Standard, currentIndex);
             if (!bodyResult.HasProgress(currentIndex) || bodyResult.ExpressionBlock == null)
             {
-                errors.Add(new SyntaxErrorData(currentIndex, 0, "defination of lambda expression expected"));
+                var arrowLength = Math.Max(1, afterArrow - arrowIndex);
+                errors.Add(new SyntaxErrorData(arrowIndex, arrowLength, "Lambda body expected after '=>'"));
                 return new ValueParseResult<ExpressionFunction>(index, null);
             }
 

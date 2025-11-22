@@ -15,18 +15,28 @@ namespace FuncScript.Core
             var kvcErrors = new List<SyntaxErrorData>();
             var kvcContext = context.CreateChild(context.Expression, kvcErrors);
             var kvcResult = GetKvcExpression(kvcContext, nodes,ReferenceMode.Standard, true, index);
-            if (kvcResult.HasProgress(index) && kvcResult.ExpressionBlock != null)
+            if (kvcResult.HasProgress(index))
             {
                 context.ErrorsList.AddRange(kvcErrors);
-                var kvcExpression = kvcResult.ExpressionBlock;
-                if (kvcExpression.Length == 0)
+                if (kvcResult.ExpressionBlock != null)
                 {
-                    kvcExpression.Pos = index;
-                    kvcExpression.Length = kvcResult.NextIndex - index;
+                    var kvcExpression = kvcResult.ExpressionBlock;
+                    if (kvcExpression.Length == 0)
+                    {
+                        kvcExpression.Pos = index;
+                        kvcExpression.Length = kvcResult.NextIndex - index;
+                    }
+
+                    var last = SkipSpace(context, nodes, kvcResult.NextIndex);
+                    return new ParseBlockResultWithNode(last, kvcExpression,new ParseNode(ParseNodeType.RootExpression,index,last - index,nodes));
                 }
 
-                var last = SkipSpace(context, nodes, kvcResult.NextIndex);
-                return new ParseBlockResultWithNode(last, kvcExpression,new ParseNode(ParseNodeType.RootExpression,index,last - index,nodes));
+                return new ParseBlockResultWithNode(kvcResult.NextIndex, null, null);
+            }
+            else if (kvcErrors.Count > 0)
+            {
+                context.ErrorsList.AddRange(kvcErrors);
+                return new ParseBlockResultWithNode(index, null, null);
             }
 
             var expressionResult = GetExpression(context, nodes, ReferenceMode.Standard, index);
@@ -41,6 +51,18 @@ namespace FuncScript.Core
                 var last = SkipSpace(context, nodes, expressionResult.NextIndex);
 
                 return new ParseBlockResultWithNode(last, expressionResult.ExpressionBlock,new ParseNode(ParseNodeType.RootExpression,index,last - index,nodes));;
+            }
+
+            if (context.ErrorsList.Count == 0)
+            {
+                var expression = context.Expression ?? string.Empty;
+                var firstNonWhitespace = 0;
+                while (firstNonWhitespace < expression.Length && char.IsWhiteSpace(expression[firstNonWhitespace]))
+                    firstNonWhitespace++;
+
+                var errorLoc = firstNonWhitespace < expression.Length ? firstNonWhitespace : 0;
+                var errorLength = firstNonWhitespace < expression.Length ? 1 : 0;
+                context.ErrorsList.Add(new SyntaxErrorData(errorLoc, errorLength, "expression expected"));
             }
 
             return new ParseBlockResultWithNode(index,null,null);
