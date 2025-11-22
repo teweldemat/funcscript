@@ -22,13 +22,8 @@ namespace FuncScript.Core
         }
 
 
-        protected void PreventTooDeep(int depth)
-        {
-            if (depth > MaxEvaluationDepth)
-            {
-                throw new EvaluationException($"Maximum evaluation depth of {MaxEvaluationDepth} exceeded.", CodeLocation, null);
-            }
-        }
+        protected static bool IsTooDeep(int depth)
+            => depth > MaxEvaluationDepth;
 
         
         public object Evaluate(KeyValueCollection provider, int _)
@@ -36,8 +31,15 @@ namespace FuncScript.Core
             var previousDepth = ExecContext.EnterScope();
             try
             {
-                PreventTooDeep(ExecContext.CurrentDepth);
-                var result = EvaluateCore(provider);
+                object result;
+                if (IsTooDeep(ExecContext.CurrentDepth))
+                {
+                    result = FsError.EvaluationDepthError;
+                }
+                else
+                {
+                    result = EvaluateCore(provider);
+                }
                 if (result is FsError fsError && fsError.CodeLocation == null)
                 {
                     fsError.CodeLocation = CodeLocation;

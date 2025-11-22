@@ -1,4 +1,4 @@
-﻿using FuncScript.Error;
+﻿using FuncScript.Model;
 using NUnit.Framework;
 
 namespace FuncScript.Test
@@ -7,8 +7,10 @@ namespace FuncScript.Test
     {
         private static void AssertDepthOverflow(string expression)
         {
-            var exception = Assert.Throws<EvaluationException>(() => FuncScriptRuntime.Evaluate(expression));
-            Assert.That(exception!.Message, Does.Contain("Maximum evaluation depth"));
+            var result = FuncScriptRuntime.Evaluate(expression);
+            Assert.That(result, Is.TypeOf<FsError>());
+            var fsError = (FsError)result;
+            Assert.That(fsError.ErrorMessage, Does.Contain("Maximum evaluation depth"));
         }
 
         [Test]

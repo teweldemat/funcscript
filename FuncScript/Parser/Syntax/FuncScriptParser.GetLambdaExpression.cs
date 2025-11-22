@@ -14,7 +14,22 @@ namespace FuncScript.Core
             var parameterNodes = new List<ParseNode>();
             var currentIndex = GetIdentifierList(context, index, parameterNodes, out var parameters, out var parametersNode);
             if (currentIndex == index)
-                return new ValueParseResult<ExpressionFunction>(index, null, errors);
+            {
+                var identifierBuffer = CreateNodeBuffer(parameterNodes);
+                var singleParameter = GetIdentifier(context, identifierBuffer, index);
+                if (singleParameter.NextIndex == index || string.IsNullOrEmpty(singleParameter.Iden))
+                    return new ValueParseResult<ExpressionFunction>(index, null, errors);
+
+                var arrowProbeBuffer = CreateNodeBuffer(parameterNodes);
+                var arrowProbe = GetToken(context, singleParameter.NextIndex, arrowProbeBuffer, ParseNodeType.LambdaArrow, "=>");
+                if (arrowProbe == singleParameter.NextIndex)
+                    return new ValueParseResult<ExpressionFunction>(index, null, errors);
+
+                CommitNodeBuffer(parameterNodes, identifierBuffer);
+                parameters = new List<string> { singleParameter.Iden };
+                parametersNode = parameterNodes.Count > 0 ? parameterNodes[parameterNodes.Count - 1] : null;
+                currentIndex = singleParameter.NextIndex;
+            }
 
             var arrowIndex = currentIndex;
 

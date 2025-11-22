@@ -39,7 +39,6 @@ namespace FuncScript.Test
             yield return Case(24, "LambdaTrailingComma", "(x,)=>x");
             yield return Case(25, "LambdaMissingBody", "(x)=>");
             yield return Case(26, "LambdaWrongArrow", "(x)->x");
-            yield return Case(27, "LambdaArrowSpaces", "(x => x)");
             yield return Case(28, "LambdaMissingValueInBody", "(x)=>{a:;}");
             yield return Case(29, "LambdaReturnWithoutValue", "(x)=>{return;}");
             yield return Case(30, "IfMissingThen", "if true");
