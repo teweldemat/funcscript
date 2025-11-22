@@ -9,8 +9,7 @@ namespace FuncScript.Core
     {
         public static ParseBlockResultWithNode Parse(ParseContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
+            context ??= new ParseContext(null, string.Empty);
             return GetRootExpression(context, 0);
         }
 

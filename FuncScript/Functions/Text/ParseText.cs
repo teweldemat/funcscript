@@ -20,7 +20,7 @@ namespace FuncScript.Functions.Text
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length == 0)
-                throw new Error.TypeMismatchError($"{this.Symbol} requires at least one parameter");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, $"{this.Symbol} requires at least one parameter");
             var par0 = pars[0];
             
             if (par0 == null)
@@ -77,7 +77,7 @@ namespace FuncScript.Functions.Text
         public IFsDataProvider ParentProvider { get; }
         public bool IsDefined(string key)
         {
-            throw new NotImplementedException();
+            return false;
         }
     }
 }

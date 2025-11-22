@@ -76,7 +76,7 @@ namespace FuncScript.Test
         public void TestNullString()
         {
             string exp = null;
-            Assert.Throws<ArgumentNullException>(() => FuncScriptParser.GetLiteralMatch(exp, 0, "Hello"));
+            Assert.AreEqual(0, FuncScriptParser.GetLiteralMatch(exp, 0, "Hello"));
         }
 
         [Test]
@@ -120,4 +120,3 @@ namespace FuncScript.Test
 
     }
 }
-

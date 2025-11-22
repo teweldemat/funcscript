@@ -9,8 +9,6 @@ namespace FuncScript.Core
         static ParseBlockResult GetListExpression(ParseContext context, IList<ParseNode> siblings,
             ReferenceMode referenceMode, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
             var errors = CreateErrorBuffer();
             var nodes = new List<ParseNode>();

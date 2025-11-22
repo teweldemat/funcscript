@@ -7,13 +7,16 @@ namespace FuncScript.Core
     {
         static public int GetLiteralMatch(string exp, int index, params string[] keyWord)
         {
-            if (exp == null)
-            {
-                throw new ArgumentNullException(nameof(exp), "The input expression cannot be null.");
-            }
+            exp ??= string.Empty;
+
+            if (keyWord == null || keyWord.Length == 0)
+                return index;
 
             foreach (var k in keyWord)
             {
+                if (string.IsNullOrEmpty(k))
+                    continue;
+
                 bool matchFound = true;
                 if (index + k.Length <= exp.Length)
                 {
@@ -41,7 +44,20 @@ namespace FuncScript.Core
             var node = new ParseNode(nodeType);
 
             if (tokens == null || tokens.Length == 0)
-                throw new ArgumentException("At least one token must be provided.", nameof(tokens));
+                return index;
+
+            var hasValue = false;
+            for (var i = 0; i < tokens.Length; i++)
+            {
+                if (!string.IsNullOrEmpty(tokens[i]))
+                {
+                    hasValue = true;
+                    break;
+                }
+            }
+
+            if (!hasValue)
+                return index;
 
             var searchIndex = SkipSpace(context,siblings, index);
             var nextIndex = GetLiteralMatch(context.Expression, searchIndex, tokens);

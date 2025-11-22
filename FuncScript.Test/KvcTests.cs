@@ -13,6 +13,12 @@ namespace FuncScript.Test
 
     internal class KvcTests
     {
+        private static FsError AssertIsFsError(object value, string reason = null)
+        {
+            Assert.That(value, Is.TypeOf<FsError>(), reason ?? "Expected evaluation to return FsError");
+            return (FsError)value;
+        }
+
         [Test]
         public void TestKvcSimple()
         {
@@ -306,35 +312,28 @@ return Map(z,(x)=>x*x);
         [Test]
         public void TestDelegateRejectOut()
         {
-            var ex = Assert.Throws<Error.EvaluationException>(() =>
+            var vars = new
             {
-                var vars = new
+                f = new DelegateWithOut((int x, out int y) =>
                 {
-                    f = new DelegateWithOut((int x, out int y) =>
-                    {
-                        y = 2;
-                        return x + 1;
-                    }
-                    )
-                };
-                var ret = FuncScriptRuntime.EvaluateWithVars("f(3)", vars);
-            });
-
-            Assert.That(ex!.InnerException, Is.TypeOf<Error.TypeMismatchError>());
+                    y = 2;
+                    return x + 1;
+                })
+            };
+            var result = FuncScriptRuntime.EvaluateWithVars("f(3)", vars);
+            var fsError = AssertIsFsError(result);
+            Assert.That(fsError.ErrorMessage, Does.Contain("output parameters not supported"));
         }
         [Test]
         public void TestDelegateRejectVoid()
         {
-            var ex = Assert.Throws<Error.EvaluationException>(() =>
+            var vars = new
             {
-                var vars = new
-                {
-                    f = new VoidDelegate((x) => { })
-                };
-                var ret = FuncScriptRuntime.EvaluateWithVars("f(3)", vars);
-            });
-
-            Assert.That(ex!.InnerException, Is.TypeOf<Error.TypeMismatchError>());
+                f = new VoidDelegate((x) => { })
+            };
+            var result = FuncScriptRuntime.EvaluateWithVars("f(3)", vars);
+            var fsError = AssertIsFsError(result);
+            Assert.That(fsError.ErrorMessage, Does.Contain("Delegate with no return is not supported"));
         }
         [Test]
         public void ByteArray()

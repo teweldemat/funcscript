@@ -22,16 +22,17 @@ namespace FuncScript.Functions.OS
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length != this.MaxParsCount)
-                throw new Error.EvaluationTimeException($"{this.Symbol} function: invalid parameter count. {this.MaxParsCount} expected, got {pars.Length}");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{this.Symbol} function: invalid parameter count. {this.MaxParsCount} expected, got {pars.Length}");
 
             var par0 = pars[0];
-            if (par0 == null || !(par0 is string))
-                throw new Error.TypeMismatchError($"Function {this.Symbol}. Invalid parameter type, expected a string");
+            if (par0 == null || par0 is not string)
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"Function {this.Symbol}. Invalid parameter type, expected a string");
 
             var directoryPath = (string)par0;
 
             if (!Directory.Exists(directoryPath))
-                throw new Error.TypeMismatchError($"Function {this.Symbol}. Directory '{directoryPath}' does not exist");
+                return new FsError(FsError.ERROR_TYPE_INVALID_PARAMETER, $"Function {this.Symbol}. Directory '{directoryPath}' does not exist");
             try
             {
                 var files = Directory.GetDirectories(directoryPath).Concat(Directory.GetFiles(directoryPath)).ToArray();
@@ -39,7 +40,7 @@ namespace FuncScript.Functions.OS
             }
             catch (Exception ex)
             {
-                throw new Error.EvaluationTimeException($"Function {this.Symbol}. Error retrieving files from '{directoryPath}': {ex.Message}");
+                return new FsError(FsError.ERROR_DEFAULT, $"Function {this.Symbol}. Error retrieving files from '{directoryPath}': {ex.Message}");
             }
         }
 

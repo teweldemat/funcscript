@@ -1,4 +1,5 @@
 ﻿using FuncScript.Core;
+using FuncScript.Model;
 
 namespace FuncScript.Functions.Text
 {
@@ -18,13 +19,13 @@ namespace FuncScript.Functions.Text
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length < 1)
-                throw new Error.TypeMismatchError($"{this.Symbol}: argument expected");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, $"{this.Symbol}: argument expected");
 
             if (pars[0] == null)
                 return true;
 
             if (pars[0] is not string str)
-                throw new Error.TypeMismatchError($"{this.Symbol}: string expected");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: string expected");
 
             return string.IsNullOrEmpty(str.Trim());
         }

@@ -19,7 +19,7 @@ namespace FuncScript.Functions.Logic
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length != MaxParsCount)
-                throw new Error.TypeMismatchError($"{Symbol} function expects exactly two parameters.");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, $"{Symbol} function expects exactly two parameters.");
 
             var val = pars[0];
 

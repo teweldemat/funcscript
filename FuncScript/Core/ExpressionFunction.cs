@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics.SymbolStore;
 using System.Runtime.Serialization;
 using FuncScript.Core;
@@ -45,7 +46,25 @@ namespace FuncScript.Core
 
             public IList<KeyValuePair<string, object>> GetAll()
             {
-                throw new NotImplementedException();
+                var parameterNames = expressionFunction._parameters ?? Array.Empty<string>();
+                if (parameterNames.Length == 0)
+                    return Array.Empty<KeyValuePair<string, object>>();
+
+                var list = new List<KeyValuePair<string, object>>(parameterNames.Length);
+                for (var i = 0; i < parameterNames.Length; i++)
+                {
+                    var name = parameterNames[i];
+                    if (string.IsNullOrWhiteSpace(name))
+                        continue;
+
+                    object value = null;
+                    if (parameters != null && i < parameters.Length)
+                        value = parameters[i];
+
+                    list.Add(new KeyValuePair<string, object>(name.ToLowerInvariant(), value));
+                }
+
+                return list;
             }
 
             public object Get(string name)

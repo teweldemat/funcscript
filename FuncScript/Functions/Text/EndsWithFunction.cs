@@ -19,7 +19,8 @@ namespace FuncScript.Functions.Text
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length != MaxParsCount)
-                throw new Error.TypeMismatchError($"{this.Symbol} function: Invalid parameter count. Expected {MaxParsCount}, but got {pars.Length}");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{this.Symbol} function: Invalid parameter count. Expected {MaxParsCount}, but got {pars.Length}");
 
             var par0 = pars[0];
             var par1 = pars[1];
@@ -33,7 +34,7 @@ namespace FuncScript.Functions.Text
                 return false;
 
             if (!(par0 is string) || !(par1 is string))
-                throw new Error.TypeMismatchError($"Function {this.Symbol}. Both parameters must be strings");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"Function {this.Symbol}. Both parameters must be strings");
 
             var mainString = (string)par0;
             var ending = (string)par1;

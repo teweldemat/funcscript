@@ -9,8 +9,6 @@ namespace FuncScript.Core
         static ParseBlockResult GetCallAndMemberAccess(ParseContext context, IList<ParseNode> siblings,
             ReferenceMode referenceMode, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
             var exp = context.Expression;
             var errors = CreateErrorBuffer();

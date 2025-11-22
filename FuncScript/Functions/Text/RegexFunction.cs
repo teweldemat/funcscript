@@ -1,4 +1,5 @@
 using FuncScript.Core;
+using FuncScript.Model;
 using System.Text.RegularExpressions;
 
 namespace FuncScript.Functions.Text
@@ -19,32 +20,34 @@ namespace FuncScript.Functions.Text
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length < 2 || pars.Length > MaxParsCount)
-                throw new Error.TypeMismatchError($"{this.Symbol}: two or three parameters expected");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, $"{this.Symbol}: two or three parameters expected");
 
             var textValue = pars[0];
             var patternValue = pars[1];
             var flagsValue = pars.Length > 2 ? pars[2] : null;
 
             if (textValue == null || patternValue == null)
-                throw new Error.TypeMismatchError($"{this.Symbol}: text and pattern are required");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: text and pattern are required");
 
             if (textValue is not string text)
-                throw new Error.TypeMismatchError($"{this.Symbol}: text parameter must be string");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: text parameter must be string");
 
             if (patternValue is not string pattern)
-                throw new Error.TypeMismatchError($"{this.Symbol}: pattern parameter must be string");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: pattern parameter must be string");
 
-            var options = ParseOptions(flagsValue);
+            if (!TryParseOptions(flagsValue, out var options, out var optionError))
+                return optionError;
 
             return Regex.IsMatch(text, pattern, options);
         }
 
-        static RegexOptions ParseOptions(object flagsValue)
+        static bool TryParseOptions(object flagsValue, out RegexOptions options, out FsError error)
         {
-            var options = RegexOptions.CultureInvariant;
+            options = RegexOptions.CultureInvariant;
+            error = null;
 
             if (flagsValue == null)
-                return options;
+                return true;
 
             if (flagsValue is string flagsText)
             {
@@ -68,14 +71,16 @@ namespace FuncScript.Functions.Text
                             options |= RegexOptions.IgnorePatternWhitespace;
                             break;
                         default:
-                            throw new Error.TypeMismatchError($"regex: unsupported regex option '{ch}'");
+                            error = new FsError(FsError.ERROR_TYPE_INVALID_PARAMETER, $"regex: unsupported regex option '{ch}'");
+                            return false;
                     }
                 }
 
-                return options;
+                return true;
             }
 
-            throw new Error.TypeMismatchError("regex: flags parameter must be string");
+            error = new FsError(FsError.ERROR_TYPE_MISMATCH, "regex: flags parameter must be string");
+            return false;
         }
 
         public string ParName(int index)

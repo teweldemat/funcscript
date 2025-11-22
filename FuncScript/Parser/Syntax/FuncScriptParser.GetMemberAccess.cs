@@ -9,10 +9,6 @@ namespace FuncScript.Core
         static ParseBlockResult GetMemberAccess(ParseContext context, IList<ParseNode> siblings,
             ExpressionBlock source, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-            if (source == null)
-                throw new ArgumentNullException(nameof(source));
 
             var dotBuffer = CreateNodeBuffer(siblings);
             var dotResult = GetMemberAccess(context, dotBuffer, ".", source, index);
@@ -36,12 +32,6 @@ namespace FuncScript.Core
         static ParseBlockResult GetMemberAccess(ParseContext context, IList<ParseNode> siblings, string oper,
             ExpressionBlock source, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-            if (oper == null)
-                throw new ArgumentNullException(nameof(oper));
-            if (source == null)
-                throw new ArgumentNullException(nameof(source));
 
             var errors = CreateErrorBuffer();
             var exp = context.Expression;

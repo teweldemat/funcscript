@@ -44,10 +44,11 @@ namespace FuncScript.Functions.Misc
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length == 0)
-                throw new Error.EvaluationTimeException($"{this.Symbol} function: {this.ParName(0)} expected");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, $"{this.Symbol} function: {this.ParName(0)} expected");
 
             if (pars.Length > this.MaxParsCount)
-                throw new Error.EvaluationTimeException($"{this.Symbol} function: Invalid parameter count. Expected at most {this.MaxParsCount}, but got {pars.Length}");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{this.Symbol} function: Invalid parameter count. Expected at most {this.MaxParsCount}, but got {pars.Length}");
 
             var value = pars[0];
 

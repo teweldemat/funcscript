@@ -9,10 +9,6 @@ namespace FuncScript.Core
         static ParseBlockResult GetInfixExpressionSingleLevel(ParseContext context, IList<ParseNode> siblings,
             ReferenceMode referenceMode, int level, string[] candidates, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-            if (candidates == null)
-                throw new ArgumentNullException(nameof(candidates));
 
             var nodes = new List<ParseNode>();
 

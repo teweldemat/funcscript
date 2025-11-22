@@ -20,7 +20,8 @@ namespace FuncScript.Functions.List
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length != this.MaxParsCount)
-                throw new Error.TypeMismatchError($"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Length}");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Length}");
 
             var par0 = pars[0];
             return EvaluateInternal(par0);
@@ -33,7 +34,7 @@ namespace FuncScript.Functions.List
                 null => 0,
                 FsList list => list.Length,
                 string s => s.Length,
-                _ => throw new Error.TypeMismatchError($"{this.Symbol} function doesn't apply to {par0.GetType()}")
+                _ => new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol} function doesn't apply to {par0.GetType()}")
             };
         }
 

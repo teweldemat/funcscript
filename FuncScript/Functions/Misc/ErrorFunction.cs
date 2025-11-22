@@ -20,11 +20,11 @@ namespace FuncScript.Functions.Misc
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length < 1 || pars.Length > MaxParsCount)
-                throw new Error.TypeMismatchError($"{this.Symbol}: message and optional type expected");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, $"{this.Symbol}: message and optional type expected");
 
             var messageValue = pars[0];
             if (messageValue is not string message)
-                throw new Error.TypeMismatchError($"{this.Symbol}: message must be a string");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: message must be a string");
 
             string type = null;
             if (pars.Length > 1)
@@ -35,7 +35,7 @@ namespace FuncScript.Functions.Misc
                 else if (typeValue is string typeString)
                     type = typeString;
                 else
-                    throw new Error.TypeMismatchError($"{this.Symbol}: optional type must be a string");
+                    return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: optional type must be a string");
             }
 
             if (string.IsNullOrEmpty(type))

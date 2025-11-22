@@ -21,9 +21,13 @@ namespace FuncScript.Functions.List
         {
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
+            if (pars.Length < 2 || pars.Length > this.MaxParsCount)
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{this.Symbol} function: Invalid parameter count. Expected between 2 and {this.MaxParsCount}, but got {pars.Length}");
+
             var par0 = pars[0];
             var par1 = pars[1];
-            var par2 = pars[2];
+            var par2 = pars.Length > 2 ? pars[2] : null;
             return EvaluateInternal(par0, par1, par2);
         }
 
@@ -32,13 +36,13 @@ namespace FuncScript.Functions.List
             if (par0 == null)
                 return null;
 
-            if (!(par0 is FsList))
-                throw new Error.TypeMismatchError($"{this.Symbol} function: The first parameter should be {this.ParName(0)}");
+            if (par0 is not FsList)
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol} function: The first parameter should be {this.ParName(0)}");
 
             var func = par1 as IFsFunction;
 
             if (func == null)
-                throw new Error.TypeMismatchError($"{this.Symbol} function: The second parameter didn't evaluate to a function");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol} function: The second parameter didn't evaluate to a function");
 
 
             var total = par2;

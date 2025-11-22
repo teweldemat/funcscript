@@ -1,6 +1,5 @@
 ﻿using System.Data;
 using FuncScript.Core;
-using FuncScript.Error;
 using FuncScript.Model;
 
 namespace FuncScript.Block
@@ -40,8 +39,8 @@ namespace FuncScript.Block
                     return provider.Get(_nameLower);
             }
 
-            throw new EvaluationTimeException("Unsupported reference mode " + _referenceMode);
-
+            return new FsError(FsError.ERROR_TYPE_INVALID_PARAMETER,
+                $"Unsupported reference mode {_referenceMode}");
         }
 
         public override IEnumerable<ExpressionBlock> GetChilds() => Array.Empty<ExpressionBlock>();

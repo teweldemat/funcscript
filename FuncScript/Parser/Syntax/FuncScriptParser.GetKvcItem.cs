@@ -9,8 +9,6 @@ namespace FuncScript.Core
         static ValueParseResult<KvcExpression.KeyValueExpression> GetKvcItem(ParseContext context,
             List<ParseNode> siblings, ReferenceMode referenceMode, bool nakedKvc, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
             var exp = context.Expression;
             var errors = CreateErrorBuffer();

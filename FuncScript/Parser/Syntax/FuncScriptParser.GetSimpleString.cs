@@ -31,8 +31,6 @@ namespace FuncScript.Core
         static SimpleStringResult GetSimpleString(ParseContext context, List<ParseNode> siblings, int index,
             List<SyntaxErrorData> serrors)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
             var buffer = CreateNodeBuffer(siblings);
             var currentIndex = SkipSpace(context, buffer, index);
@@ -90,14 +88,6 @@ namespace FuncScript.Core
         }
         static SimpleStringResult GetSimpleString(ParseContext context, IList<ParseNode> siblings, string delimator, bool multiLine, int index, List<SyntaxErrorData> serrors)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-            if (siblings == null)
-                throw new ArgumentNullException(nameof(siblings));
-            if (delimator == null)
-                throw new ArgumentNullException(nameof(delimator));
-            if (serrors == null)
-                throw new ArgumentNullException(nameof(serrors));
 
             var nextIndex = GetLiteralMatch(context.Expression, index, delimator);
             if (nextIndex == index)

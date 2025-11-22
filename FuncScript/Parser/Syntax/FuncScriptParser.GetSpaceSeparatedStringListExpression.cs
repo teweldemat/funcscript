@@ -8,8 +8,6 @@ namespace FuncScript.Core
         static ValueParseResult<IReadOnlyList<string>> GetSpaceSeparatedStringListExpression(ParseContext context,
             List<ParseNode> siblings, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
             var errors = CreateErrorBuffer();
             var exp = context.Expression;

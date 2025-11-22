@@ -7,11 +7,7 @@ namespace FuncScript.Core
     {
         static int GetKeyWord(ParseContext context, IList<ParseNode> siblings, int index, string keyword)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
-            if (keyword == null)
-                throw new ArgumentNullException(nameof(keyword));
 
             var exp = context.Expression;
 

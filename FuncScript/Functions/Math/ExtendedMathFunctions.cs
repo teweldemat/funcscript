@@ -1,5 +1,5 @@
 using FuncScript.Core;
-using FuncScript.Error;
+using FuncScript.Model;
 
 namespace FuncScript.Functions.Math
 {
@@ -10,20 +10,43 @@ namespace FuncScript.Functions.Math
         Double
     }
 
+    internal readonly struct NumberResult
+    {
+        public NumberResult(double value, NumericKind kind)
+        {
+            Value = value;
+            Kind = kind;
+            Error = null;
+        }
+
+        public NumberResult(FsError error)
+        {
+            Value = 0;
+            Kind = NumericKind.Int;
+            Error = error;
+        }
+
+        public double Value { get; }
+        public NumericKind Kind { get; }
+        public FsError Error { get; }
+        public bool HasError => Error != null;
+    }
+
     internal static class MathFunctionHelper
     {
-        public static (double Value, NumericKind Kind) RequireNumber(IFsFunction function, object value, string parameterName)
+        public static NumberResult RequireNumber(IFsFunction function, object value, string parameterName)
         {
             switch (value)
             {
                 case int i:
-                    return (i, NumericKind.Int);
+                    return new NumberResult(i, NumericKind.Int);
                 case long l:
-                    return (l, NumericKind.Long);
+                    return new NumberResult(l, NumericKind.Long);
                 case double d:
-                    return (d, NumericKind.Double);
+                    return new NumberResult(d, NumericKind.Double);
                 default:
-                    throw new TypeMismatchError($"{function.Symbol}: {parameterName} must be a number.");
+                    return new NumberResult(new FsError(FsError.ERROR_TYPE_MISMATCH,
+                        $"{function.Symbol}: {parameterName} must be a number."));
             }
         }
 
@@ -60,6 +83,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var input = MathFunctionHelper.RequireNumber(this, pars[0], "number");
+            if (input.HasError)
+                return input.Error;
             return System.Math.Tan(input.Value);
         }
 
@@ -79,6 +104,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var input = MathFunctionHelper.RequireNumber(this, pars[0], "number");
+            if (input.HasError)
+                return input.Error;
             return System.Math.Asin(input.Value);
         }
 
@@ -98,6 +125,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var input = MathFunctionHelper.RequireNumber(this, pars[0], "number");
+            if (input.HasError)
+                return input.Error;
             return System.Math.Acos(input.Value);
         }
 
@@ -117,6 +146,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var input = MathFunctionHelper.RequireNumber(this, pars[0], "number");
+            if (input.HasError)
+                return input.Error;
             return System.Math.Atan(input.Value);
         }
 
@@ -136,8 +167,10 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var input = MathFunctionHelper.RequireNumber(this, pars[0], "number");
+            if (input.HasError)
+                return input.Error;
             if (input.Value < 0)
-                throw new TypeMismatchError($"{Symbol}: number must be non-negative.");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{Symbol}: number must be non-negative.");
             return System.Math.Sqrt(input.Value);
         }
 
@@ -162,7 +195,7 @@ namespace FuncScript.Functions.Math
                 int i => System.Math.Abs(i),
                 long l => System.Math.Abs(l),
                 double d => System.Math.Abs(d),
-                _ => throw new TypeMismatchError($"{Symbol}: number expected.")
+                _ => new FsError(FsError.ERROR_TYPE_MISMATCH, $"{Symbol}: number expected.")
             };
         }
 
@@ -183,10 +216,15 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length != 2)
-                throw new TypeMismatchError($"{Symbol}: Expected 2 parameters, received {pars.Length}.");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{Symbol}: Expected 2 parameters, received {pars.Length}.");
 
             var baseValue = MathFunctionHelper.RequireNumber(this, pars[0], "base");
+            if (baseValue.HasError)
+                return baseValue.Error;
             var exponent = MathFunctionHelper.RequireNumber(this, pars[1], "exponent");
+            if (exponent.HasError)
+                return exponent.Error;
             return System.Math.Pow(baseValue.Value, exponent.Value);
         }
 
@@ -205,14 +243,19 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length < 2)
-                throw new TypeMismatchError($"{Symbol}: Expected at least 2 parameters, received {pars.Length}.");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{Symbol}: Expected at least 2 parameters, received {pars.Length}.");
 
             var result = MathFunctionHelper.RequireNumber(this, pars[0], "base");
+            if (result.HasError)
+                return result.Error;
             double current = result.Value;
 
             for (int i = 1; i < pars.Length; i++)
             {
                 var exponent = MathFunctionHelper.RequireNumber(this, pars[i], $"exponent{i}");
+                if (exponent.HasError)
+                    return exponent.Error;
                 current = System.Math.Pow(current, exponent.Value);
             }
 
@@ -235,6 +278,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var input = MathFunctionHelper.RequireNumber(this, pars[0], "number");
+            if (input.HasError)
+                return input.Error;
             return System.Math.Exp(input.Value);
         }
 
@@ -254,18 +299,23 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length == 0 || pars.Length > 2)
-                throw new TypeMismatchError($"{Symbol}: Expecting 1 or 2 parameters, received {pars.Length}.");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{Symbol}: Expecting 1 or 2 parameters, received {pars.Length}.");
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
+            if (value.HasError)
+                return value.Error;
             if (value.Value <= 0)
-                throw new TypeMismatchError($"{Symbol}: value must be greater than 0.");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{Symbol}: value must be greater than 0.");
 
             if (pars.Length == 1)
                 return System.Math.Log(value.Value);
 
             var baseValue = MathFunctionHelper.RequireNumber(this, pars[1], "base");
+            if (baseValue.HasError)
+                return baseValue.Error;
             if (baseValue.Value <= 0 || System.Math.Abs(baseValue.Value - 1.0) < double.Epsilon)
-                throw new TypeMismatchError($"{Symbol}: base must be greater than 0 and not equal to 1.");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{Symbol}: base must be greater than 0 and not equal to 1.");
 
             return System.Math.Log(value.Value, baseValue.Value);
         }
@@ -286,8 +336,10 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
+            if (value.HasError)
+                return value.Error;
             if (value.Value <= 0)
-                throw new TypeMismatchError($"{Symbol}: value must be greater than 0.");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{Symbol}: value must be greater than 0.");
             return System.Math.Log10(value.Value);
         }
 
@@ -308,6 +360,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
+            if (value.HasError)
+                return value.Error;
             return System.Math.Ceiling(value.Value);
         }
 
@@ -327,6 +381,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
+            if (value.HasError)
+                return value.Error;
             return System.Math.Floor(value.Value);
         }
 
@@ -346,15 +402,18 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length == 0 || pars.Length > 2)
-                throw new TypeMismatchError($"{Symbol}: Expecting 1 or 2 parameters, received {pars.Length}.");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{Symbol}: Expecting 1 or 2 parameters, received {pars.Length}.");
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
+            if (value.HasError)
+                return value.Error;
             if (pars.Length == 1)
                 return System.Math.Round(value.Value);
 
             var digitsParam = pars[1];
             if (digitsParam is not int digits)
-                throw new TypeMismatchError($"{Symbol}: digits must be an integer.");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{Symbol}: digits must be an integer.");
 
             return System.Math.Round(value.Value, digits);
         }
@@ -375,6 +434,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
+            if (value.HasError)
+                return value.Error;
             return System.Math.Truncate(value.Value);
         }
 
@@ -394,6 +455,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
+            if (value.HasError)
+                return value.Error;
             return System.Math.Sign(value.Value);
         }
 
@@ -413,15 +476,20 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length == 0)
-                throw new TypeMismatchError($"{Symbol}: At least one parameter is required.");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{Symbol}: At least one parameter is required.");
 
             var first = MathFunctionHelper.RequireNumber(this, pars[0], "value");
+            if (first.HasError)
+                return first.Error;
             double best = first.Value;
             NumericKind kind = first.Kind;
 
             for (int i = 1; i < pars.Length; i++)
             {
                 var current = MathFunctionHelper.RequireNumber(this, pars[i], $"value{i + 1}");
+                if (current.HasError)
+                    return current.Error;
                 kind = MathFunctionHelper.Promote(kind, current.Kind);
                 if (current.Value < best)
                     best = current.Value;
@@ -446,15 +514,20 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length == 0)
-                throw new TypeMismatchError($"{Symbol}: At least one parameter is required.");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{Symbol}: At least one parameter is required.");
 
             var first = MathFunctionHelper.RequireNumber(this, pars[0], "value");
+            if (first.HasError)
+                return first.Error;
             double best = first.Value;
             NumericKind kind = first.Kind;
 
             for (int i = 1; i < pars.Length; i++)
             {
                 var current = MathFunctionHelper.RequireNumber(this, pars[i], $"value{i + 1}");
+                if (current.HasError)
+                    return current.Error;
                 kind = MathFunctionHelper.Promote(kind, current.Kind);
                 if (current.Value > best)
                     best = current.Value;
@@ -479,14 +552,21 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length != 3)
-                throw new TypeMismatchError($"{Symbol}: Expected 3 parameters, received {pars.Length}.");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{Symbol}: Expected 3 parameters, received {pars.Length}.");
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
+            if (value.HasError)
+                return value.Error;
             var min = MathFunctionHelper.RequireNumber(this, pars[1], "min");
+            if (min.HasError)
+                return min.Error;
             var max = MathFunctionHelper.RequireNumber(this, pars[2], "max");
+            if (max.HasError)
+                return max.Error;
 
             if (min.Value > max.Value)
-                throw new TypeMismatchError($"{Symbol}: min cannot be greater than max.");
+                return new FsError(FsError.ERROR_TYPE_INVALID_PARAMETER, $"{Symbol}: min cannot be greater than max.");
 
             var promotedKind = MathFunctionHelper.Promote(value.Kind, MathFunctionHelper.Promote(min.Kind, max.Kind));
             var result = System.Math.Max(min.Value, System.Math.Min(max.Value, value.Value));
@@ -515,7 +595,7 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length != 0)
-                throw new TypeMismatchError($"{Symbol}: This function does not accept parameters.");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, $"{Symbol}: This function does not accept parameters.");
             return System.Random.Shared.NextDouble();
         }
 
@@ -535,6 +615,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "number");
+            if (value.HasError)
+                return value.Error;
             return System.Math.Sinh(value.Value);
         }
 
@@ -554,6 +636,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "number");
+            if (value.HasError)
+                return value.Error;
             return System.Math.Cosh(value.Value);
         }
 
@@ -573,6 +657,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "number");
+            if (value.HasError)
+                return value.Error;
             return System.Math.Tanh(value.Value);
         }
 
@@ -592,6 +678,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "number");
+            if (value.HasError)
+                return value.Error;
             return System.Math.Asinh(value.Value);
         }
 
@@ -611,8 +699,10 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "number");
+            if (value.HasError)
+                return value.Error;
             if (value.Value < 1)
-                throw new TypeMismatchError($"{Symbol}: number must be greater than or equal to 1.");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{Symbol}: number must be greater than or equal to 1.");
             return System.Math.Acosh(value.Value);
         }
 
@@ -632,8 +722,10 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "number");
+            if (value.HasError)
+                return value.Error;
             if (value.Value <= -1 || value.Value >= 1)
-                throw new TypeMismatchError($"{Symbol}: number must be between -1 and 1 (exclusive).");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{Symbol}: number must be between -1 and 1 (exclusive).");
             return System.Math.Atanh(value.Value);
         }
 
@@ -653,10 +745,15 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length != 2)
-                throw new TypeMismatchError($"{Symbol}: Expected 2 parameters, received {pars.Length}.");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{Symbol}: Expected 2 parameters, received {pars.Length}.");
 
             var y = MathFunctionHelper.RequireNumber(this, pars[0], "y");
+            if (y.HasError)
+                return y.Error;
             var x = MathFunctionHelper.RequireNumber(this, pars[1], "x");
+            if (x.HasError)
+                return x.Error;
             return System.Math.Atan2(y.Value, x.Value);
         }
 
@@ -676,8 +773,10 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
+            if (value.HasError)
+                return value.Error;
             if (value.Value <= 0)
-                throw new TypeMismatchError($"{Symbol}: value must be greater than 0.");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{Symbol}: value must be greater than 0.");
             return System.Math.Log2(value.Value);
         }
 
@@ -697,6 +796,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "value");
+            if (value.HasError)
+                return value.Error;
             return System.Math.Cbrt(value.Value);
         }
 
@@ -717,6 +818,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "degrees");
+            if (value.HasError)
+                return value.Error;
             return value.Value * System.Math.PI / 180.0;
         }
 
@@ -737,6 +840,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var value = MathFunctionHelper.RequireNumber(this, pars[0], "radians");
+            if (value.HasError)
+                return value.Error;
             return value.Value * 180.0 / System.Math.PI;
         }
 

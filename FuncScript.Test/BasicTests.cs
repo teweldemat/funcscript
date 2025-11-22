@@ -31,11 +31,9 @@ namespace FuncScript.Test
         public void CallingNoneFunction()
         {
             
-            Assert.Throws(typeof(EvaluationException), () =>
-            {
-                var g = new DefaultFsDataProvider();
-                FuncScriptRuntime.Evaluate(g,"3(4,5)");
-            });
+            var g = new DefaultFsDataProvider();
+            var result = FuncScriptRuntime.Evaluate(g,"3(4,5)");
+            Assert.That(result, Is.TypeOf<FsError>());
         }
         [Test]
         public void DuplicateKeyInCollection()

@@ -10,8 +10,6 @@ namespace FuncScript.Core
         static ParseBlockResult GetUnit(ParseContext context, List<ParseNode> siblings, ReferenceMode referenceMode,
             int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
             var errors = CreateErrorBuffer();
             // String template

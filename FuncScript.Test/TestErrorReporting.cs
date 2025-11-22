@@ -90,16 +90,8 @@ namespace FuncScript.Test
         {
             var error_exp = "len(5)";
             var exp = $"10+{error_exp}";
-            try
-            {
-                FuncScriptRuntime.Evaluate(exp);
-                throw new Exception("No error");
-            }
-            catch (Exception ex)
-            {
-                AnalyzeError(ex, exp, exp.IndexOf(error_exp), error_exp.Length);
-                Assert.AreEqual(typeof(Error.TypeMismatchError), ex.InnerException.GetType());
-            }
+            var fsError = AssertExpressionReturnsFsError(exp, error_exp);
+            Assert.That(fsError.ErrorType, Is.EqualTo(FsError.ERROR_TYPE_MISMATCH));
         }
         [Test]
         public void TestNullMemberAccessError()
@@ -122,8 +114,8 @@ namespace FuncScript.Test
         public void FunctionCallErrorMessageContainsOriginalExpression()
         {
             var expression = "1+z(a)";
-            var exception = Assert.Throws<Error.EvaluationException>(() => FuncScriptRuntime.Evaluate(expression));
-            Assert.That(exception!.Message, Does.Contain("z(a)"));
+            var fsError = AssertExpressionReturnsFsError(expression, "z(a)");
+            Assert.That(fsError.ErrorMessage, Does.Contain("null target"));
         }
         [Test]
         public void TestListMemberAccessError()
@@ -229,21 +221,18 @@ namespace FuncScript.Test
             var error_exp = "f(3)";
             var exp = $"10+{error_exp}";
             var msg = Guid.NewGuid().ToString();
-            try
+            var result = FuncScriptRuntime.EvaluateWithVars(exp, new
             {
-                //FuncScriptRuntime.Evaluate(exp, new { f = new Func<int, int>((x) => { throw new Exception("internal"); }) });
-                FuncScriptRuntime.EvaluateWithVars(exp, new { f = new Func<int, int>((x) =>
+                f = new Func<int, int>((x) =>
                 {
                     throw new Exception(msg);
-                })});
-                throw new Exception("No error");
-            }
-            catch (Exception ex)
-            {
-                AnalyzeError(ex, exp, exp.IndexOf(error_exp), error_exp.Length);
-                Assert.AreEqual(msg, ex.InnerException.InnerException.Message);
-            }
-
+                })
+            });
+            Assert.That(result, Is.TypeOf<FsError>());
+            var fsError = (FsError)result;
+            Assert.That(fsError.CodeLocation.Position, Is.EqualTo(exp.IndexOf(error_exp)));
+            Assert.That(fsError.CodeLocation.Length, Is.EqualTo(error_exp.Length));
+            Assert.That(fsError.ErrorMessage, Is.EqualTo(msg));
         }
     }
 }

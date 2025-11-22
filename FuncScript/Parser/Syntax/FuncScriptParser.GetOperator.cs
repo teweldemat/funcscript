@@ -8,10 +8,6 @@ namespace FuncScript.Core
         static ValueParseResult<(string symbol, IFsFunction function)> GetOperator(ParseContext context,IList<ParseNode> siblings,
             string[] candidates, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-            if (candidates == null)
-                throw new ArgumentNullException(nameof(candidates));
 
             var errors = CreateErrorBuffer();
             var exp = context.Expression;

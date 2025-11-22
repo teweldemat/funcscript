@@ -10,8 +10,6 @@ namespace FuncScript.Core
         static ParseBlockResult GetStringTemplate(ParseContext context, List<ParseNode> siblings,
             ReferenceMode referenceMode, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
             var errors = CreateErrorBuffer();
             var tripleBuffer = CreateNodeBuffer(siblings);
@@ -47,10 +45,6 @@ namespace FuncScript.Core
         static ParseBlockResult GetStringTemplate(ParseContext context, List<ParseNode> siblings, ReferenceMode referenceMode,
             string delimiter, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-            if (delimiter == null)
-                throw new ArgumentNullException(nameof(delimiter));
 
             var errors = CreateErrorBuffer();
             var exp = context.Expression;

@@ -8,21 +8,40 @@ namespace FuncScript.Functions.Test
 {
     internal static class AssertHelpers
     {
-        public static double ToDouble(string symbol, object value, string parameterName)
+        public static bool TryToDouble(string symbol, object value, string parameterName, out double result, out FsError error)
         {
+            result = 0;
+            error = null;
             if (value == null)
-                throw new Error.TypeMismatchError($"{symbol}: {parameterName} must be numeric");
-
-            return value switch
             {
-                int i => i,
-                long l => l,
-                float f => f,
-                double d => d,
-                decimal dec => (double)dec,
-                BigInteger big => (double)big,
-                _ => throw new Error.TypeMismatchError($"{symbol}: {parameterName} must be numeric")
-            };
+                error = new FsError(FsError.ERROR_TYPE_MISMATCH, $"{symbol}: {parameterName} must be numeric");
+                return false;
+            }
+
+            switch (value)
+            {
+                case int i:
+                    result = i;
+                    return true;
+                case long l:
+                    result = l;
+                    return true;
+                case float f:
+                    result = f;
+                    return true;
+                case double d:
+                    result = d;
+                    return true;
+                case decimal dec:
+                    result = (double)dec;
+                    return true;
+                case BigInteger big:
+                    result = (double)big;
+                    return true;
+                default:
+                    error = new FsError(FsError.ERROR_TYPE_MISMATCH, $"{symbol}: {parameterName} must be numeric");
+                    return false;
+            }
         }
 
         public static string FormatValue(object value)
@@ -112,6 +131,12 @@ namespace FuncScript.Functions.Test
         protected FsError Failure(string message)
             => new FsError(FsError.ERROR_DEFAULT, $"{Symbol}: {message}");
 
+        protected FsError ParameterError(string message)
+            => new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, $"{Symbol}: {message}");
+
+        protected FsError TypeError(string message)
+            => new FsError(FsError.ERROR_TYPE_MISMATCH, $"{Symbol}: {message}");
+
         public virtual string ParName(int index) => string.Empty;
     }
 
@@ -128,7 +153,7 @@ namespace FuncScript.Functions.Test
         {
             var pars = ExpectParameters(par);
             if (pars.Length != 2)
-                throw new Error.TypeMismatchError($"{Symbol}: expected two parameters");
+                return ParameterError("expected two parameters");
 
             var left = pars[0];
             var right = pars[1];
@@ -153,7 +178,7 @@ namespace FuncScript.Functions.Test
         {
             var pars = ExpectParameters(par);
             if (pars.Length != 2)
-                throw new Error.TypeMismatchError($"{Symbol}: expected two parameters");
+                return ParameterError("expected two parameters");
 
             var left = pars[0];
             var right = pars[1];
@@ -178,7 +203,7 @@ namespace FuncScript.Functions.Test
         {
             var pars = ExpectParameters(par);
             if (pars.Length != 2)
-                throw new Error.TypeMismatchError($"{Symbol}: expected two parameters");
+                return ParameterError("expected two parameters");
 
             var left = pars[0];
             var right = pars[1];
@@ -206,7 +231,7 @@ namespace FuncScript.Functions.Test
         {
             var pars = ExpectParameters(par);
             if (pars.Length != 2)
-                throw new Error.TypeMismatchError($"{Symbol}: expected two parameters");
+                return ParameterError("expected two parameters");
 
             var left = pars[0];
             var right = pars[1];
@@ -234,13 +259,13 @@ namespace FuncScript.Functions.Test
         {
             var pars = ExpectParameters(par);
             if (pars.Length != 1)
-                throw new Error.TypeMismatchError($"{Symbol}: boolean argument expected");
+                return TypeError("boolean argument expected");
 
             var value = pars[0];
             if (value is bool boolValue)
                 return boolValue ? true : Failure($"Expected true but was {AssertHelpers.FormatValue(value)}");
 
-            throw new Error.TypeMismatchError($"{Symbol}: boolean argument expected");
+            return TypeError("boolean argument expected");
         }
 
         public override string ParName(int index) => "value";
@@ -255,13 +280,13 @@ namespace FuncScript.Functions.Test
         {
             var pars = ExpectParameters(par);
             if (pars.Length != 1)
-                throw new Error.TypeMismatchError($"{Symbol}: boolean argument expected");
+                return TypeError("boolean argument expected");
 
             var value = pars[0];
             if (value is bool boolValue)
                 return !boolValue ? true : Failure($"Expected false but was {AssertHelpers.FormatValue(value)}");
 
-            throw new Error.TypeMismatchError($"{Symbol}: boolean argument expected");
+            return TypeError("boolean argument expected");
         }
 
         public override string ParName(int index) => "value";
@@ -278,11 +303,15 @@ namespace FuncScript.Functions.Test
         {
             var pars = ExpectParameters(par);
             if (pars.Length != 3)
-                throw new Error.TypeMismatchError($"{Symbol}: expected 3 parameters");
+                return ParameterError("expected 3 parameters");
 
-            var left = AssertHelpers.ToDouble(Symbol, pars[0], "left");
-            var right = AssertHelpers.ToDouble(Symbol, pars[1], "right");
-            var epsilon = System.Math.Abs(AssertHelpers.ToDouble(Symbol, pars[2], "epsilon"));
+            if (!AssertHelpers.TryToDouble(Symbol, pars[0], "left", out var left, out var error))
+                return error;
+            if (!AssertHelpers.TryToDouble(Symbol, pars[1], "right", out var right, out error))
+                return error;
+            if (!AssertHelpers.TryToDouble(Symbol, pars[2], "epsilon", out var epsilonValue, out error))
+                return error;
+            var epsilon = System.Math.Abs(epsilonValue);
             var difference = System.Math.Abs(left - right);
 
             if (difference <= epsilon)
@@ -309,7 +338,7 @@ namespace FuncScript.Functions.Test
         {
             var pars = ExpectParameters(par);
             if (pars.Length != 1)
-                throw new Error.TypeMismatchError($"{Symbol}: argument expected");
+                return ParameterError("argument expected");
 
             var value = pars[0];
             if (value is FsError error)
@@ -330,7 +359,7 @@ namespace FuncScript.Functions.Test
         {
             var pars = ExpectParameters(par);
             if (pars.Length != 1)
-                throw new Error.TypeMismatchError($"{Symbol}: argument expected");
+                return ParameterError("argument expected");
 
             if (pars[0] is FsError)
                 return true;
@@ -352,11 +381,11 @@ namespace FuncScript.Functions.Test
         {
             var pars = ExpectParameters(par);
             if (pars.Length != 2)
-                throw new Error.TypeMismatchError($"{Symbol}: expected value and type name");
+                return ParameterError("expected value and type name");
 
             var first = pars[0];
-            var typeName = pars[1] as string
-                ?? throw new Error.TypeMismatchError($"{Symbol}: type name must be a string");
+            if (pars[1] is not string typeName)
+                return TypeError("type name must be a string");
 
             if (!AssertHelpers.IsError(first, out var error))
                 return Failure("Value is not an error result.");
@@ -381,11 +410,11 @@ namespace FuncScript.Functions.Test
         {
             var pars = ExpectParameters(par);
             if (pars.Length != 2)
-                throw new Error.TypeMismatchError($"{Symbol}: expected value and message");
+                return ParameterError("expected value and message");
 
             var first = pars[0];
-            var message = pars[1] as string
-                ?? throw new Error.TypeMismatchError($"{Symbol}: message must be a string");
+            if (pars[1] is not string message)
+                return TypeError("message must be a string");
 
             if (!AssertHelpers.IsError(first, out var error))
                 return Failure("Value is not an error result.");
@@ -411,7 +440,7 @@ namespace FuncScript.Functions.Test
         {
             var pars = ExpectParameters(par);
             if (pars.Length != 1)
-                throw new Error.TypeMismatchError($"{Symbol}: argument expected");
+                return ParameterError("argument expected");
 
             if (pars[0] == null)
                 return true;
@@ -431,7 +460,7 @@ namespace FuncScript.Functions.Test
         {
             var pars = ExpectParameters(par);
             if (pars.Length != 1)
-                throw new Error.TypeMismatchError($"{Symbol}: argument expected");
+                return ParameterError("argument expected");
 
             if (pars[0] != null)
                 return true;

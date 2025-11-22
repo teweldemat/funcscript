@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FuncScript;
 using FuncScript.Block;
 using FuncScript.Model;
 
@@ -11,8 +12,8 @@ namespace FuncScript.Core
         {
             public ParseContext(KeyValueCollection provider, string expression)
             {
-                Provider = provider;
-                Expression = expression ?? throw new ArgumentNullException(nameof(expression));
+                Provider = provider ?? new DefaultFsDataProvider();
+                Expression = expression ?? string.Empty;
             }
 
             public KeyValueCollection Provider { get; }

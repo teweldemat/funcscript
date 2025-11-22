@@ -17,7 +17,7 @@ namespace FuncScript.Functions.Text
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length < 1)
-                throw new Error.EvaluationTimeException($"{this.Symbol} requires at least one parameter.");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, $"{this.Symbol} requires at least one parameter.");
 
             var par0 = pars[0];
             var par1 = pars.Length > 1 ? pars[1] : null;

@@ -19,14 +19,14 @@ namespace FuncScript.Functions.Text
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length < 2 || pars.Length > MaxParsCount)
-                throw new Error.TypeMismatchError($"{this.Symbol}: Two or three parameters expected");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, $"{this.Symbol}: Two or three parameters expected");
 
             var par0 = pars[0];
             var par1 = pars[1];
             var par2 = pars.Length > 2 ? pars[2] : null;
 
             if (par0 == null || par1 == null)
-                throw new Error.TypeMismatchError($"{this.Symbol}: Two strings and optionally an index expected as parameters");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: Two strings and optionally an index expected as parameters");
 
             if (!(par0 is string text))
                 return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: first parameter should be string");

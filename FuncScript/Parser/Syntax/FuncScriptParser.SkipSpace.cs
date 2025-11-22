@@ -7,8 +7,6 @@ namespace FuncScript.Core
     {
         static int SkipSpace(ParseContext context,IList<ParseNode> siblings,  int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
             var exp = context.Expression;
 

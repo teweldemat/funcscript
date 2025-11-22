@@ -1,6 +1,7 @@
 using System;
 using FuncScript;
 using FuncScript.Error;
+using FuncScript.Model;
 using NUnit.Framework;
 
 namespace FuncScript.Test
@@ -51,8 +52,10 @@ namespace FuncScript.Test
         [TestCase("4 div null")]
         public void IntegerDivisionOperator_RejectsNonIntegerOperands(string expression)
         {
-            var ex = Assert.Throws<EvaluationException>(() => Engine.Evaluate(expression));
-            Assert.That(ex?.InnerException, Is.TypeOf<TypeMismatchError>());
+            var result = Engine.Evaluate(expression);
+            Assert.That(result, Is.TypeOf<FsError>());
+            var fsError = (FsError)result;
+            Assert.That(fsError.ErrorMessage, Does.Contain("integer parameters expected").IgnoreCase);
         }
     }
 }

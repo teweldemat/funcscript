@@ -9,10 +9,6 @@ namespace FuncScript.Core
         static ParseBlockResult GetFunctionCallParametersList(ParseContext context, IList<ParseNode> siblings,
             ReferenceMode referenceMode, ExpressionBlock function, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-            if (function == null)
-                throw new ArgumentNullException(nameof(function));
 
             var errors = CreateErrorBuffer();
             var roundResult = ParseParameters(context, siblings, referenceMode, function, index, "(", ")");

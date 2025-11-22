@@ -20,17 +20,17 @@ namespace FuncScript.Functions.Text
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length != MaxParsCount)
-                throw new Error.TypeMismatchError($"{this.Symbol}: Two parameters expected");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, $"{this.Symbol}: Two parameters expected");
 
             var par0 = pars[0];
             var par1 = pars[1];
 
             if (par0 == null || par1 == null)
-                throw new Error.TypeMismatchError($"{this.Symbol}: List and separator expected as parameters");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: List and separator expected as parameters");
             if(!(par0 is FsList list))
-               throw new InvalidOperationException($"{this.Symbol}: first parameter should be list");
+               return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: first parameter should be list");
             if(!(par1 is string separator))
-                throw new InvalidOperationException($"{this.Symbol}: second parameter should be string");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: second parameter should be string");
             
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < list.Length; i++)
