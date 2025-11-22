@@ -39,6 +39,8 @@ describe('Basic', () => {
 
   it('evaluates lambda expressions', () => {
     expect(toPlain(evalExpression('((a)=>a*a+a)(3)'))).to.equal(12);
+    expect(toPlain(evalExpression('(x => x)(3)'))).to.equal(3);
+    expect(toPlain(evalExpression('{return x=>x+3;}(3)'))).to.equal(6);
   });
 
   it('supports list literals and indexing', () => {
@@ -50,6 +52,7 @@ describe('Basic', () => {
 
   it('maps and reduces lists', () => {
     expect(toPlain(evalExpression('Map([1,2,4],(x)=>x*x)'))).to.deep.equal([1, 4, 16]);
+    expect(toPlain(evalExpression('Map([1,2,4],x=>x*x)'))).to.deep.equal([1, 4, 16]);
     expect(toPlain(evalExpression('Reduce(Map([1,2,4],(x)=>x*x),(x,s)=>s+x,0)'))).to.equal(21);
   });
 

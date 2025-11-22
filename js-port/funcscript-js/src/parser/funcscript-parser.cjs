@@ -1313,15 +1313,37 @@ function getLambdaExpression(context, siblings, index) {
   const parameterNodes = [];
   let parametersNode = null;
   const identifierList = [];
-  const afterParameters = getIdentifierList(context, index, parameterNodes, identifierList, (node) => {
+  let currentIndex = getIdentifierList(context, index, parameterNodes, identifierList, (node) => {
     parametersNode = node;
   });
 
-  if (afterParameters === index) {
-    return new ValueParseResult(index, null);
+  if (currentIndex === index) {
+    const identifierBuffer = createNodeBuffer(parameterNodes);
+    const singleParameter = getIdentifier(context, identifierBuffer, index, KEYWORDS);
+    const nextIndex = singleParameter.NextIndex;
+    if (nextIndex === index || !singleParameter.Iden) {
+      return new ValueParseResult(index, null);
+    }
+
+    const arrowProbeBuffer = createNodeBuffer(parameterNodes);
+    const arrowProbe = getToken(
+      context,
+      nextIndex,
+      arrowProbeBuffer,
+      ParseNodeType.LambdaArrow,
+      '=>'
+    );
+    if (arrowProbe === nextIndex) {
+      return new ValueParseResult(index, null);
+    }
+
+    commitNodeBuffer(parameterNodes, identifierBuffer);
+    identifierList.length = 0;
+    identifierList.push(singleParameter.Iden);
+    parametersNode = parameterNodes.length > 0 ? parameterNodes[parameterNodes.length - 1] : null;
+    currentIndex = nextIndex;
   }
 
-  let currentIndex = afterParameters;
   const childNodes = [];
   if (parametersNode) {
     childNodes.push(parametersNode);
