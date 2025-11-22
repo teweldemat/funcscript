@@ -11,15 +11,35 @@ namespace FuncScript.Block
 {
     public class KvcExpression : ExpressionBlock
     {
-        public class KvcExpressionCollection(KeyValueCollection provider,KvcExpression thisKvc) : KeyValueCollection
+        public class KvcExpressionCollection : KeyValueCollection
         {
+            private readonly KeyValueCollection provider;
+            private readonly KvcExpression thisKvc;
+            private readonly int baseDepth;
+
+            public KvcExpressionCollection(KeyValueCollection provider, KvcExpression thisKvc, int baseDepth)
+            {
+                this.provider = provider;
+                this.thisKvc = thisKvc;
+                this.baseDepth = baseDepth < 1 ? 1 : baseDepth;
+            }
 
             public KeyValueCollection ParentProvider => provider;
+
+            private int ResolveDepth()
+            {
+                var current = ExpressionBlock.CurrentDepth;
+                var next = current + 1;
+                if (next < baseDepth)
+                    return baseDepth;
+                return next;
+            }
+
             public object Get(string key)
             {
                 if (thisKvc.index.TryGetValue(key, out var exp) && exp.ValueExpression != null)
                 {
-                    var v = exp.ValueExpression.Evaluate(this);
+                    var v = exp.ValueExpression.Evaluate(this, ResolveDepth());
                     return v;
                 }
 
@@ -40,7 +60,9 @@ namespace FuncScript.Block
 
             public IList<KeyValuePair<string, object>> GetAll()
             {
-                return thisKvc._keyValues.Select(kv => KeyValuePair.Create(kv.Key, kv.ValueExpression.Evaluate(this))).ToList();
+                return thisKvc._keyValues
+                    .Select(kv => KeyValuePair.Create(kv.Key, kv.ValueExpression.Evaluate(this, ResolveDepth())))
+                    .ToList();
             }
 
             public override bool Equals(object obj)
@@ -82,9 +104,17 @@ namespace FuncScript.Block
             return (null,theKvc);
         }
 
-        public override object Evaluate(KeyValueCollection provider) => evalExpresion!=null
-            ?evalExpresion.Evaluate(new KvcExpressionCollection(provider,this))
-            :  new KvcExpressionCollection(provider,this);
+        public override object Evaluate(KeyValueCollection provider, int depth)
+        {
+            using var scope = TrackDepth(depth);
+            var collection = new KvcExpressionCollection(provider, this, depth + 1);
+            if (evalExpresion != null)
+            {
+                return evalExpresion.Evaluate(collection, depth + 1);
+            }
+
+            return collection;
+        }
 
         public override string ToString()
         {

@@ -414,3 +414,4 @@ js-port/funcscript-js/.npm-cache
 js-port/funcscript-vscode/dist
 .vercel
 docs/assets/generated
+js-port/examples/funcscript-editor-cra-demo/build

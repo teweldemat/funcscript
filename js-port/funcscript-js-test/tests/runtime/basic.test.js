@@ -50,7 +50,7 @@ describe('Basic', () => {
 
   it('maps and reduces lists', () => {
     expect(toPlain(evalExpression('Map([1,2,4],(x)=>x*x)'))).to.deep.equal([1, 4, 16]);
-    expect(toPlain(evalExpression('Reduce(Map([1,2,4],(x)=>x*x),(c,t)=>t+c,0)'))).to.equal(21);
+    expect(toPlain(evalExpression('Reduce(Map([1,2,4],(x)=>x*x),(x,s)=>s+x,0)'))).to.equal(21);
   });
 
   it('supports triple-quoted multiline strings', () => {

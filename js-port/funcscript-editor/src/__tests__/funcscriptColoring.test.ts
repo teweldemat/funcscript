@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FuncScriptParser, DefaultFsDataProvider } from '@tewelde/funcscript/browser';
+import { FuncScriptParser, DefaultFsDataProvider } from '@tewelde/funcscript';
 import { computeColoredSegments } from '../funcscriptColoring.js';
 
 const provider = new DefaultFsDataProvider();

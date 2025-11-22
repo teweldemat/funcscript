@@ -26,8 +26,9 @@ namespace FuncScript.Block
         }
 
 
-        public override object Evaluate(KeyValueCollection provider)
+        public override object Evaluate(KeyValueCollection provider, int depth)
         {
+            using var scope = TrackDepth(depth);
             switch (_referenceMode)
             {
                 case ReferenceMode.Standard:

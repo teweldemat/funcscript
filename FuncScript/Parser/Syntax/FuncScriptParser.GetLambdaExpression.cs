@@ -41,7 +41,7 @@ namespace FuncScript.Core
             if (arrowNodes.Count > 0)
                 childNodes.AddRange(arrowNodes);
 
-            var bodyResult = GetExpression(context, childNodes, referenceMode, currentIndex);
+            var bodyResult = GetExpression(context, childNodes, ReferenceMode.Standard, currentIndex);
             if (!bodyResult.HasProgress(currentIndex) || bodyResult.ExpressionBlock == null)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, 0, "defination of lambda expression expected"));

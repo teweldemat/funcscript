@@ -138,4 +138,28 @@ testData.Samples map (sample) => sample
         var n = kvc.Get("x");
         Assert.That(n,Is.EqualTo(2));
     }
+
+    [Test]
+    public void Bug20251120_3()
+    {
+        string fn = "./data/test-file.txt";
+        var exp = $"file('{fn}')";
+        Assert.That(System.IO.File.Exists(fn),"This test requires file to exists");
+        var res = Engine.Evaluate(exp);
+        Assert.That(res,Is.EqualTo(System.IO.File.ReadAllText(fn)));
+    }
+    [Test]
+    public void Bug20251121()
+    {
+        var exp = @"{list: [3],count: 1} {List: List map (x) => 2+x}";
+
+        var res = Engine.Evaluate( new DefaultFsDataProvider(), exp);
+        Assert.That(res is KeyValueCollection);
+        var kvc = (KeyValueCollection)res;
+        var l = kvc.Get("list");
+        Assert.That(l is FsList);
+        var list = (FsList)l;
+        Assert.That(list[0],Is.EqualTo(5));
+
+    }
 }

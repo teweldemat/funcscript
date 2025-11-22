@@ -53,8 +53,8 @@ class ReduceListFunction extends BaseFunction {
 
     for (let i = indexStart; i < list.length; i += 1) {
       const args = new helpers.ArrayParameterList([
-        total,
         list.get(i),
+        total,
         helpers.makeValue(FSDataType.Integer, i)
       ]);
       total = fn.evaluate(provider, args);

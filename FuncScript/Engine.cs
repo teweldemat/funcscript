@@ -685,7 +685,7 @@ namespace FuncScript
         {
             try
             {
-                var ret = exp.Evaluate(provider);
+                var ret = exp.Evaluate(provider, 0);
 
                 if (ret is Block.KvcExpression.KvcExpressionCollection kvc)
                 {

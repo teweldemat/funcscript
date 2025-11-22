@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using FuncScript.Block;
+using FuncScript.Model;
 
 namespace FuncScript.Core
 {
@@ -50,7 +51,7 @@ namespace FuncScript.Core
                 return listResult;
 
             // Key-value collection or selector definition
-            var kvcResult = GetKvcExpression(context, siblings, referenceMode, false, index);
+            var kvcResult = GetKvcExpression(context, siblings, ReferenceMode.Standard, false, index);
             if (kvcResult.HasProgress(index) && kvcResult.ExpressionBlock != null) return kvcResult;
 
             // If-then-else

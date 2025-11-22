@@ -22,9 +22,10 @@ namespace FuncScript.Block
             return sb.ToString();
         }
 
-        public override object Evaluate(KeyValueCollection provider)
+        public override object Evaluate(KeyValueCollection provider, int depth)
         {
-            if(Value is ExpressionFunction expFunc)
+            using var scope = TrackDepth(depth);
+            if (Value is ExpressionFunction expFunc)
                 return new ExpressionFunction.ExpressionFunctionCaller(provider, expFunc);
             return Value;
         }

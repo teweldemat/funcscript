@@ -13,8 +13,8 @@ import {
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { foldGutter, foldKeymap, foldService } from '@codemirror/language';
 import { lineNumbers } from '@codemirror/view';
-import { Engine, FuncScriptParser } from '@tewelde/funcscript/browser';
-import type { DefaultFsDataProvider } from '@tewelde/funcscript/browser';
+import { Engine, FuncScriptParser } from '@tewelde/funcscript';
+import type { DefaultFsDataProvider } from '@tewelde/funcscript';
 import type { ColoredSegment } from './funcscriptColoring.js';
 import { computeColoredSegments } from './funcscriptColoring.js';
 
