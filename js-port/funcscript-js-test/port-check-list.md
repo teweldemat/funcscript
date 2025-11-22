@@ -18,6 +18,7 @@
 | FuncScript.Test/ClosureTests.cs | tests/runtime/closures.test.js | ✅ Ported | Closure scoping plus new context mix-up regressions. |
 | FuncScript.Test/TextFunctionTests.cs | tests/runtime/text-functions.test.js | ✅ Ported | Mirrors text helpers; JS runtime now exposes `lower` globally. |
 | FuncScript.Test/CircularReferences.cs | tests/runtime/circular-references.test.js | ✅ Ported | Depth overflow guard added to align with C# semantics. |
+| FuncScript.Test/SyntaxErrorReporting/* | tests/parser/syntax-error-reporting.test.js & tests/runtime/syntax-error-reporting.test.js | ✅ Ported | Parser diagnostics and runtime syntax error cases. |
 | FuncScript.Test/FsToDotNet.cs | – | Not Applicable | Used to integrate runtime with .net code. |
 | FuncScript.Test/DotNetExperiment.cs | – | Not Applicable | .Net framework specific
 | FuncScript.Test/TestCommons.cs | tests/helpers | ✅ Covered | Helper utilities mirrored in JS harness. |

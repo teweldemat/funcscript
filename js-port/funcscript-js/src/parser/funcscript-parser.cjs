@@ -840,9 +840,33 @@ function getKeyValuePair(context, siblings, index) {
   }
 
   currentIndex = afterColon;
-  const valueResult = getExpression(context, childNodes, currentIndex);
+  const errorCount = context.ErrorsList.length;
+  let valueResult = getExpression(context, childNodes, currentIndex);
+  let capturedErrors = context.ErrorsList.slice(errorCount);
+  context.ErrorsList.length = errorCount;
   if (!valueResult.hasProgress(currentIndex) || !valueResult.ExpressionBlock) {
-    context.ErrorsList.push(new SyntaxErrorData(currentIndex, 0, 'value expression expected'));
+    const recoveryResult = getUnit(context, childNodes, currentIndex);
+    const recoveryErrors = context.ErrorsList.slice(errorCount);
+    context.ErrorsList.length = errorCount;
+    if (recoveryResult.hasProgress(currentIndex) && recoveryResult.ExpressionBlock) {
+      valueResult = recoveryResult;
+      capturedErrors = [];
+    } else {
+      capturedErrors = capturedErrors.concat(recoveryErrors);
+    }
+  }
+
+  if (capturedErrors.length > 0) {
+    context.ErrorsList.push(...capturedErrors);
+  }
+
+  if (!valueResult.hasProgress(currentIndex) || !valueResult.ExpressionBlock) {
+    const message = name
+      ? `Value expression expected for property '${name}'`
+      : 'value expression expected';
+    const errorStart = keyLength > 0 ? keyStart : currentIndex;
+    const errorLength = keyLength > 0 ? keyLength : 0;
+    context.ErrorsList.push(new SyntaxErrorData(errorStart, errorLength, message));
     return new ValueParseResult(index, null);
   }
 
@@ -926,11 +950,22 @@ function getListExpression(context, siblings, index) {
     currentIndex = firstResult.NextIndex;
 
     while (true) {
-      const afterComma = getToken(context, currentIndex, nodes, ParseNodeType.ListSeparator, ',');
-      if (afterComma === currentIndex) {
-        break;
+      let separatorIndex = getToken(context, currentIndex, nodes, ParseNodeType.ListSeparator, ',');
+      if (separatorIndex === currentIndex) {
+        const afterWhitespace = getWhitespaceToken(context.Expression, nodes, currentIndex);
+        if (afterWhitespace === currentIndex) {
+          break;
+        }
+        const nextChar = context.Expression[afterWhitespace];
+        if (!nextChar || nextChar === ']') {
+          currentIndex = afterWhitespace;
+          break;
+        }
+        currentIndex = afterWhitespace;
+      } else {
+        currentIndex = separatorIndex;
       }
-      currentIndex = afterComma;
+
       const nextResult = getExpression(context, nodes, currentIndex);
       if (!nextResult.hasProgress(currentIndex)) {
         break;
@@ -1303,7 +1338,16 @@ function getLambdaExpression(context, siblings, index) {
 
   const bodyResult = getExpression(context, childNodes, currentIndex);
   if (!bodyResult.hasProgress(currentIndex) || !bodyResult.ExpressionBlock) {
-    context.ErrorsList.push(new SyntaxErrorData(currentIndex, 0, 'defination of lambda expression expected'));
+    const arrowNode = arrowNodes.length > 0 ? arrowNodes[arrowNodes.length - 1] : null;
+    const errorPos = arrowNode ? arrowNode.Pos : currentIndex;
+    const errorLength = arrowNode ? arrowNode.Length : 2;
+    context.ErrorsList.push(
+      new SyntaxErrorData(
+        errorPos,
+        errorLength,
+        'Lambda body expression expected'
+      )
+    );
     return new ValueParseResult(index, null);
   }
   currentIndex = bodyResult.NextIndex;
@@ -1857,6 +1901,13 @@ function getRootExpression(context, index) {
       nodes
     );
     return new ParseBlockResultWithNode(last, expressionResult.ExpressionBlock, rootNode);
+  }
+
+  if (context.ErrorsList.length === 0) {
+    const trimmed = context.Expression ? context.Expression.trim() : '';
+    if (!trimmed) {
+      context.ErrorsList.push(new SyntaxErrorData(0, 0, 'Expression expected'));
+    }
   }
 
   return new ParseBlockResultWithNode(index, null, null);
