@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { DefaultFsDataProvider, FuncScriptParser } from '@tewelde/funcscript';
+import { DefaultFsDataProvider } from '@tewelde/funcscript';
+import { FuncScriptParser } from '@tewelde/funcscript/parser';
 import './App.css';
 
 const SAMPLE_SCRIPT = `{ net:(x)=>x*(1-taxRate);
@@ -11,6 +12,22 @@ function App() {
   const [feedback, setFeedback] = useState(null);
 
   const handleParse = () => {
+    if (!FuncScriptParser?.parse) {
+      setFeedback({
+        status: 'error',
+        errors: [
+          {
+            key: 'parser-missing',
+            message:
+              'Parser is unavailable. Ensure that @tewelde/funcscript/parser is bundled correctly.',
+            position: null,
+            length: null
+          }
+        ]
+      });
+      return;
+    }
+
     const provider = new DefaultFsDataProvider();
     const expression = script ?? '';
     const errors = [];
