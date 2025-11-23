@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DefaultFsDataProvider } from '@tewelde/funcscript';
-import { FuncScriptParser } from '@tewelde/funcscript/parser';
+import * as FuncScriptParserModule from '@tewelde/funcscript/parser';
 import './App.css';
 
 const SAMPLE_SCRIPT = `{ net:(x)=>x*(1-taxRate);
@@ -11,8 +11,11 @@ function App() {
   const [script, setScript] = useState(SAMPLE_SCRIPT);
   const [feedback, setFeedback] = useState(null);
 
+  const parser =
+    FuncScriptParserModule?.FuncScriptParser ?? FuncScriptParserModule?.default;
+
   const handleParse = () => {
-    if (!FuncScriptParser?.parse) {
+    if (!parser?.parse) {
       setFeedback({
         status: 'error',
         errors: [
@@ -33,7 +36,7 @@ function App() {
     const errors = [];
 
     try {
-      const parseOutcome = FuncScriptParser.parse(provider, expression, errors);
+      const parseOutcome = parser.parse(provider, expression, errors);
       // The parser writes syntax issues either into the provided array or into the return object.
       const parseErrors = errors.length > 0 ? errors : parseOutcome?.errors || [];
       if (!parseOutcome?.block || parseErrors.length > 0) {
