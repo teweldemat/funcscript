@@ -10,14 +10,11 @@ namespace FuncScript.Core
         public static ExpressionBlock ParseFsTemplate(KeyValueCollection provider, string expression,
             List<SyntaxErrorData> errors)
         {
-            if (provider == null)
-                throw new ArgumentNullException(nameof(provider));
-            if (expression == null)
-                throw new ArgumentNullException(nameof(expression));
 
             var errorList = errors ?? new List<SyntaxErrorData>();
-            var context = new ParseContext(provider, expression, errorList);
+            var context = new ParseContext(provider, expression);
             var result = GetFSTemplate(context, new List<ParseNode>(), ReferenceMode.Standard, 0);
+            AppendErrors(errorList, result.Errors);
             return result.ExpressionBlock;
         }
     }

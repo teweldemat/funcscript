@@ -170,13 +170,21 @@ namespace FuncScript
                 var obj = Engine.Evaluate(json);
                 return obj;
             }
-            if (FsList.IsListType(t))
+            if (IsListType(t))
             {
                 return new ArrayFsList(value);
             }
             
             return new ObjectKvc(value);
         }
+        static bool IsListType(Type t) =>
+            t.IsAssignableTo(typeof(System.Collections.IEnumerable)) || t.IsAssignableTo(typeof(System.Collections.IList)) || IsGenericList(t);
+        static bool IsGenericList(Type t)
+        {
+            return t != typeof(byte[]) && t.IsGenericType && (t.GetGenericTypeDefinition().IsAssignableTo(typeof(IList<>))
+                || t.GetGenericTypeDefinition().IsAssignableTo(typeof(List<>)));
+        }
+
         static object Collect(JsonElement el)
         {
             return el.ValueKind switch
@@ -685,7 +693,7 @@ namespace FuncScript
         {
             try
             {
-                var ret = exp.Evaluate(provider);
+                var ret = exp.Evaluate(provider, 0);
 
                 if (ret is Block.KvcExpression.KvcExpressionCollection kvc)
                 {
@@ -696,12 +704,27 @@ namespace FuncScript
             }
             catch (EvaluationException ex)
             {
-                String msg;
+                string locationMessage;
                 if (ex.Len + ex.Pos <= expression.Length && ex.Len > 0)
-                    msg = $"Evaluation error at '{expression.Substring(ex.Pos, ex.Len)}'";
+                    locationMessage = $"Evaluation error at '{expression.Substring(ex.Pos, ex.Len)}'";
                 else
-                    msg = $"Evaluation Error. Location information invalid"; ;
-                throw new EvaluationException(msg, ex.Pos, ex.Len, ex.InnerException);
+                    locationMessage = "Evaluation Error. Location information invalid";
+
+                string finalMessage;
+                if (string.IsNullOrEmpty(ex.Message))
+                {
+                    finalMessage = locationMessage;
+                }
+                else if (string.Equals(ex.Message, locationMessage, StringComparison.Ordinal))
+                {
+                    finalMessage = ex.Message;
+                }
+                else
+                {
+                    finalMessage = $"{ex.Message} ({locationMessage})";
+                }
+
+                throw new EvaluationException(finalMessage, ex.Pos, ex.Len, ex.InnerException);
             }
         }
 
@@ -757,7 +780,7 @@ namespace FuncScript
         {
 
             if (target == null)
-                throw new Error.TypeMismatchError($"null target not supported");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, "null target not supported");
 
             if (target is KeyValueCollection kvc)
             {
@@ -766,7 +789,7 @@ namespace FuncScript
                 if(input is FsList lst && lst.Length>0 && lst[0] is string lstkey)
                     return kvc.Get(lstkey.ToLower());
 
-                throw new Error.TypeMismatchError($"Only string key can be applied to a key-value collection");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, "Only string key can be applied to a key-value collection");
             }
 
             if (target is IFsFunction func)
@@ -782,9 +805,9 @@ namespace FuncScript
                     return list[intIndex];
                 if (input is long lngIndex)
                     return list[(int)lngIndex];
-                throw new Error.TypeMismatchError($"Only integer index can be applied to a key-value collection");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, "Only integer index can be applied to a key-value collection");
             }
-            throw new Error.TypeMismatchError("Unsupported target type");
+            return new FsError(FsError.ERROR_TYPE_MISMATCH, "Unsupported target type");
         }
     }
 }

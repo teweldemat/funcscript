@@ -43,6 +43,67 @@ That snippet resolves to an object:
 
 You are still shaping JSON, but now it reacts to the inputs around it.
 
+Cross references between properties mean you can build derived sequences without leaving the JSON
+shape. The `Range` helper, for example, produces a list of consecutive numbers driven entirely by
+previous bindings:
+
+```funcscript
+{
+  start: 3;
+  count: 4;
+  steps: Range(start, count);
+}
+```
+
+```json
+{ start: 3; count: 4; steps: [3, 4, 5, 6] }
+```
+
+Properties are not limited to literal data—they can hold lambda expressions that capture behavior.
+That means you can store reusable transformations next to the values they depend on and combine the
+two with higher-order helpers such as `map`:
+
+```funcscript
+{
+  base: 2;
+  values: Range(1, 4);
+  shape: (value) => { raw: value; scaled: value * base };
+  transformed: values map (value) => shape(value);
+}
+```
+
+```json
+{ base: 2; values: [1, 2, 3, 4]; shape:'[Function]',transformed: [{ raw: 1; scaled: 2 }, { raw: 2; scaled: 4 }, { raw: 3; scaled: 6 }, { raw: 4; scaled: 8 }] }
+```
+
+The lambda bound to `shape` composes with the inline lambda passed to `map`, keeping the block’s
+structure while producing a shaped list alongside the intermediate bindings. As there is no naive representation of expression function in json it is represented by the string '[Function]'. FuncScript also has 64 bit integer as native data type, in which case the json output will also be a string.
+
+## `eval` Picks the Block Result
+
+`eval` is a FuncScript-specific keyword (unrelated to JavaScript's `eval`) that designates which
+expression inside a block should become the final value. Without it the block would evaluate to a
+JSON object containing every binding; with `eval` you still declare the intermediate fields you need
+but return a single value derived from them:
+
+```funcscript
+{
+  principal: 2000;
+  rate: 0.07;
+  years: 5;
+  growth: principal * math.Pow(1 + rate, years);
+  eval growth;
+}
+```
+
+```number
+2805.1034614
+```
+
+Only the `growth` computation runs, and the block collapses into that number instead of
+`{ principal, rate, years, growth }`. Use `eval` when you want declarative bindings to feed a
+scalar, list, or nested record without exposing the helper fields.
+
 ## Execution Model
 Scripts always collapse to a single JSON-compatible value—numbers, strings, booleans, arrays, and
 object-like records. FuncScript keeps execution pure: there is no mutation or hidden state. The host

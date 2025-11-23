@@ -9,20 +9,19 @@ namespace FuncScript.Core
         static ParseBlockResult GetExpInParenthesis(ParseContext context, IList<ParseNode> siblings,
             ReferenceMode referenceMode, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
-            var errors = context.ErrorsList;
+            var errors = CreateErrorBuffer();
             var exp = context.Expression;
 
             var currentIndex = index;
             var afterOpen = GetToken(context, currentIndex,siblings,ParseNodeType.OpenBrace, "(");
             if (afterOpen == currentIndex)
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
 
             currentIndex = afterOpen;
             var childNodes = new List<ParseNode>();
             var expressionResult = GetExpression(context, childNodes, referenceMode, currentIndex);
+            AppendErrors(errors, expressionResult);
             ExpressionBlock expressionBlock = null;
             ParseNode expressionNode = null;
             if (expressionResult.HasProgress(currentIndex))
@@ -35,7 +34,7 @@ namespace FuncScript.Core
             if (afterClose == currentIndex)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, 0, "')' expected"));
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
             }
 
             currentIndex = afterClose;
@@ -47,7 +46,7 @@ namespace FuncScript.Core
 
             siblings.Add(parseNode);
 
-            return new ParseBlockResult(currentIndex, expressionBlock);
+            return new ParseBlockResult(currentIndex, expressionBlock, errors);
         }
     }
 }

@@ -16,14 +16,16 @@ namespace FuncScript.Functions.KeyValue
 
         private object EvaluateInternal(object target, object key)
         {
-            if (!(key is string))
-                throw new Error.TypeMismatchError($"{Symbol} function: The second parameter should be a string (Member key).");
+            if (key is not string)
+                return new FsError(FsError.ERROR_TYPE_MISMATCH,
+                    $"{Symbol} function: The second parameter should be a string (Member key).");
 
             if (target == null)
                 return null;
 
-            if (!(target is KeyValueCollection))
-                throw new Error.TypeMismatchError($"{Symbol} function: Cannot access member '{key}' on non-KeyValueCollection type '{Engine.GetFsDataType(target)}'.");
+            if (target is not KeyValueCollection)
+                return new FsError(FsError.ERROR_TYPE_MISMATCH,
+                    $"{Symbol} function: Cannot access member '{key}' on non-KeyValueCollection type '{Engine.GetFsDataType(target)}'.");
 
             return ((KeyValueCollection)target).Get(((string)key).ToLower());
         }
@@ -33,7 +35,8 @@ namespace FuncScript.Functions.KeyValue
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length != MaxParsCount)
-                throw new Error.TypeMismatchError($"{Symbol} function: Expected {MaxParsCount} parameters, received {pars.Length}.");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{Symbol} function: Expected {MaxParsCount} parameters, received {pars.Length}.");
 
             
             var key = pars[1];

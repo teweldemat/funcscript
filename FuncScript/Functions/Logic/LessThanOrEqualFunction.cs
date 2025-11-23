@@ -18,7 +18,7 @@ namespace FuncScript.Functions.Logic
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length != this.MaxParsCount)
-                throw new Error.EvaluationTimeException(
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
                     $"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Length}");
 
             var par0 = pars[0];

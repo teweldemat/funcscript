@@ -550,23 +550,19 @@ class RandomFunction extends BaseFunction {
   }
 
   evaluate(provider, parameters) {
-    if (parameters.count > 1) {
+    if (parameters.count !== 1) {
       return makeError(
         FsError.ERROR_PARAMETER_COUNT_MISMATCH,
-        `${this.symbol}: Expected at most 1 parameter, received ${parameters.count}`
+        `${this.symbol}: Expected 1 parameter (seed), received ${parameters.count}`
       );
     }
 
-    let seedValue = 0;
-    if (parameters.count === 1) {
-      const seedResult = ensureNumeric(this.symbol, parameters.getParameter(provider, 0), 'seed');
-      if (!seedResult.ok) {
-        return seedResult.error;
-      }
-      seedValue = seedResult.number;
+    const seedResult = ensureNumeric(this.symbol, parameters.getParameter(provider, 0), 'seed');
+    if (!seedResult.ok) {
+      return seedResult.error;
     }
 
-    return makeValue(FSDataType.Float, generateSeededRandom(seedValue));
+    return makeValue(FSDataType.Float, generateSeededRandom(seedResult.number));
   }
 }
 

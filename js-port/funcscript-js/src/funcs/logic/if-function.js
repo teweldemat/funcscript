@@ -22,14 +22,14 @@ class IFFunction extends BaseFunction {
       return condition;
     }
 
-    if (conditionType !== FSDataType.Boolean) {
-      return makeValue(
-        FSDataType.Error,
-        new FsError(FsError.ERROR_TYPE_MISMATCH, `${this.symbol}: The first parameter must be a boolean value.`)
-      );
+    let conditionValue;
+    if (conditionType === FSDataType.Boolean) {
+      conditionValue = valueOf(condition);
+    } else if (conditionType === FSDataType.Null) {
+      conditionValue = false;
+    } else {
+      conditionValue = true;
     }
-
-    const conditionValue = valueOf(condition);
 
     if (conditionValue) {
       if (parameters.count > 1) {

@@ -120,19 +120,19 @@ describe('ParseTreeTests', () => {
     );
 
     expect(block).to.be.instanceOf(FunctionCallExpression);
-    expect(block.Pos).to.equal(0);
-    expect(block.Length).to.equal(3);
+    expect(block.CodeLocation.Position).to.equal(0);
+    expect(block.CodeLocation.Length).to.equal(3);
 
-    expect(block.Function.Pos).to.equal(1);
-    expect(block.Function.Length).to.equal(1);
+    expect(block.Function.CodeLocation.Position).to.equal(1);
+    expect(block.Function.CodeLocation.Length).to.equal(1);
 
     const leftExp = block.Parameters[0];
-    expect(leftExp.Pos).to.equal(0);
-    expect(leftExp.Length).to.equal(1);
+    expect(leftExp.CodeLocation.Position).to.equal(0);
+    expect(leftExp.CodeLocation.Length).to.equal(1);
 
     const rightExp = block.Parameters[1];
-    expect(rightExp.Pos).to.equal(2);
-    expect(rightExp.Length).to.equal(1);
+    expect(rightExp.CodeLocation.Position).to.equal(2);
+    expect(rightExp.CodeLocation.Length).to.equal(1);
   });
 
   it('InfixWithSpace', () => {
@@ -436,17 +436,17 @@ describe('ParseTreeTests', () => {
       [ParseNodeType.CloseBrance, 1]
     );
 
-    expect(block.Pos).to.equal(0);
-    expect(block.Length).to.equal(expression.length);
+    expect(block.CodeLocation.Position).to.equal(0);
+    expect(block.CodeLocation.Length).to.equal(expression.length);
     expect(block.Parameters).to.have.lengthOf(2);
 
-    expect(block.Function.Pos).to.equal(1 + part1.length + 1);
-    expect(block.Function.Length).to.equal(part2.length);
+    expect(block.Function.CodeLocation.Position).to.equal(1 + part1.length + 1);
+    expect(block.Function.CodeLocation.Length).to.equal(part2.length);
 
-    expect(block.Parameters[0].Pos).to.equal(0);
-    expect(block.Parameters[0].Length).to.equal(1 + part1.length);
-    expect(block.Parameters[1].Pos).to.equal(1 + part1.length + 1 + part2.length + 1);
-    expect(block.Parameters[1].Length).to.equal(part3.length);
+    expect(block.Parameters[0].CodeLocation.Position).to.equal(0);
+    expect(block.Parameters[0].CodeLocation.Length).to.equal(1 + part1.length);
+    expect(block.Parameters[1].CodeLocation.Position).to.equal(1 + part1.length + 1 + part2.length + 1);
+    expect(block.Parameters[1].CodeLocation.Length).to.equal(part3.length);
   });
 
   it('GeneralInfixFunctionLiteralCapturesIdentifierSpan', () => {

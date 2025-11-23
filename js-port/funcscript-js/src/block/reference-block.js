@@ -8,7 +8,7 @@ class ReferenceBlock extends ExpressionBlock {
     this.fromParent = fromParent;
   }
 
-  evaluate(provider) {
+  evaluateInternal(provider) {
     if (!provider) {
       return null;
     }

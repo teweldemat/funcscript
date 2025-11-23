@@ -9,8 +9,6 @@ namespace FuncScript.Core
         static ParseBlockResult GetExpression(ParseContext context, IList<ParseNode> siblings,
             ReferenceMode referenceMode, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
             return GetInfixExpression(context, siblings, referenceMode, index);
         }

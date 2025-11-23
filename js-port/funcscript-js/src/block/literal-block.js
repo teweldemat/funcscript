@@ -8,7 +8,7 @@ class LiteralBlock extends ExpressionBlock {
     this.value = ensureTyped(value);
   }
 
-  evaluate(provider) {
+  evaluateInternal(provider) {
     const raw = this.value[1];
     if (raw instanceof ExpressionFunction) {
       const instance = raw.clone();

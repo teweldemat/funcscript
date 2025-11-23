@@ -11,13 +11,14 @@ describe('math runtime values', () => {
   it('exposes random pi and e', () => {
     const provider = createProvider();
 
-    const random = valueOf(Engine.evaluate('math.random()', provider));
+    const random = valueOf(Engine.evaluate('math.random(1)', provider));
     const pi = valueOf(Engine.evaluate('math.pi', provider));
     const e = valueOf(Engine.evaluate('math.e', provider));
 
     expect(typeof random).toBe('number');
     expect(random).toBeGreaterThanOrEqual(0);
     expect(random).toBeLessThanOrEqual(1);
+    expect(random).toBeCloseTo(0.06221687328070402, 12);
 
     expect(pi).toBeCloseTo(Math.PI, 12);
     expect(e).toBeCloseTo(Math.E, 12);

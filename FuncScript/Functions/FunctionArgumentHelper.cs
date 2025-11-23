@@ -1,5 +1,3 @@
-using System;
-using FuncScript.Error;
 using FuncScript.Model;
 
 namespace FuncScript.Functions
@@ -12,7 +10,12 @@ namespace FuncScript.Functions
                 return list;
 
             var name = string.IsNullOrEmpty(symbol) ? "Function" : symbol;
-            throw new Error.EvaluationTimeException($"{name}: List expected");
+            var error = new FsError(FsError.ERROR_TYPE_MISMATCH, $"{name}: List expected")
+            {
+                ErrorData = parameters
+            };
+
+            return new ArrayFsList(new object[] { error });
         }
 
         public static FsList Create(params object[] values)

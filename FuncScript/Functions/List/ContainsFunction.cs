@@ -19,7 +19,8 @@ namespace FuncScript.Functions.List
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length != this.MaxParsCount)
-                throw new Error.TypeMismatchError($"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Length}");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Length}");
 
             var container = pars[0];
             var item = pars[1];
@@ -40,7 +41,7 @@ namespace FuncScript.Functions.List
                 return str.Contains(substr, StringComparison.OrdinalIgnoreCase);
             }
 
-            throw new Error.TypeMismatchError($"{this.Symbol} function: Invalid types for parameters");
+            return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol} function: Invalid types for parameters");
         }
 
 

@@ -13,8 +13,8 @@ import {
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { foldGutter, foldKeymap, foldService } from '@codemirror/language';
 import { lineNumbers } from '@codemirror/view';
-import { Engine, FuncScriptParser } from '@tewelde/funcscript/browser';
-import type { DefaultFsDataProvider } from '@tewelde/funcscript/browser';
+import { Engine, FuncScriptParser } from '@tewelde/funcscript';
+import type { DefaultFsDataProvider } from '@tewelde/funcscript';
 import type { ColoredSegment } from './funcscriptColoring.js';
 import { computeColoredSegments } from './funcscriptColoring.js';
 
@@ -239,9 +239,14 @@ const createFuncScriptExtensions = (
     let errorMessage: string | null = null;
     let expressionBlock: FuncScriptExpressionBlock = null;
 
+    const activeParser = FuncScriptParser ?? (Engine as unknown as { FuncScriptParser?: typeof FuncScriptParser })?.FuncScriptParser ?? null;
+
     if (expression.trim().length > 0) {
       try {
-        const result = FuncScriptParser.parse(provider, expression);
+        if (!activeParser) {
+          throw new Error('FuncScript parser is unavailable');
+        }
+        const result = activeParser.parse(provider, expression);
         parseNode = (result?.parseNode as RawParseNode) ?? null;
         expressionBlock = (result?.block as FuncScriptExpressionBlock) ?? null;
       } catch (error) {

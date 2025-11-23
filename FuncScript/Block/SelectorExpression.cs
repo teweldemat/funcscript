@@ -17,19 +17,22 @@ namespace FuncScript.Block
         }
 
 
-        public override object Evaluate(KeyValueCollection provider)
+        protected override object EvaluateCore(KeyValueCollection provider)
         {
-            var sourceVal = Source.Evaluate(provider);
+            var sourceVal = Source.Evaluate(provider, 0);
             if (sourceVal is FsList)
             {
                 var lst = (FsList)sourceVal;
                 var ret = new object[lst.Length];
                 int i = 0;
-                
+
                 foreach (var l in lst)
                 {
-                    if(l is KeyValueCollection kvc)
-                        ret[i] = Selector.Evaluate(kvc);
+                    if (l is KeyValueCollection kvc)
+                    {
+                        var selectorProvider = CreateSelectorProvider(kvc, provider);
+                        ret[i] = Selector.Evaluate(selectorProvider, 0);
+                    }
                     else
                     {
                         ret[i] = null;
@@ -41,10 +44,22 @@ namespace FuncScript.Block
             }
             else
             {
-                if(sourceVal is KeyValueCollection kvc)
-                    return Selector.Evaluate(kvc);
+                if (sourceVal is KeyValueCollection kvc)
+                {
+                    var selectorProvider = CreateSelectorProvider(kvc, provider);
+                    return Selector.Evaluate(selectorProvider, 0);
+                }
                 return null;
             }
+        }
+
+        private static KeyValueCollection CreateSelectorProvider(KeyValueCollection current, KeyValueCollection parent)
+        {
+            if (current == null)
+                return null;
+            if (parent == null)
+                return current;
+            return new KvcProvider(current, parent);
         }
 
         public override IEnumerable<ExpressionBlock> GetChilds()

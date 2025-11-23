@@ -66,11 +66,14 @@ describe('MathFunctions', () => {
   });
 
   it('returns deterministic seeded math.random values', () => {
-    const defaultRandom = evaluate('math.random()');
-    const seededZero = evaluate('math.random(0)');
-    expect(typeOf(defaultRandom)).to.equal(FSDataType.Float);
-    expect(valueOf(defaultRandom)).to.be.within(0, 1);
-    expect(valueOf(defaultRandom)).to.equal(valueOf(seededZero));
+    const missingSeed = evaluate('math.random()');
+    expect(typeOf(missingSeed)).to.equal(FSDataType.Error);
+
+    const zeroSeed = evaluate('math.random(0)');
+    const zeroSeedAgain = evaluate('math.random(0)');
+    expect(typeOf(zeroSeed)).to.equal(FSDataType.Float);
+    expect(valueOf(zeroSeed)).to.equal(valueOf(zeroSeedAgain));
+    expect(valueOf(zeroSeed)).to.be.within(0, 1);
 
     const seeded = evaluate('math.random(42)');
     const seededAgain = evaluate('math.random(42)');
@@ -103,7 +106,7 @@ describe('MathFunctions', () => {
   });
 
   it('guards math functions from the global namespace', () => {
-    const cases = ['sin(0)', 'cos(0)', 'abs(-1)', 'sqrt(4)', 'random()'];
+    const cases = ['sin(0)', 'cos(0)', 'abs(-1)', 'sqrt(4)', 'random(0)'];
     for (const expression of cases) {
       expect(() => evaluate(expression)).to.throw();
     }

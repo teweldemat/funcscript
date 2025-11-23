@@ -11,18 +11,17 @@ namespace FuncScript.Core
         static ParseBlockResult GetInfixFunctionCall(ParseContext context, IList<ParseNode> siblings,
             ReferenceMode referenceMode, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
-            var errors = context.ErrorsList;
+            var errors = CreateErrorBuffer();
             var exp = context.Expression;
             var buffer = CreateNodeBuffer(siblings);
 
             var operands = new List<ExpressionBlock>();
 
             var firstOperandResult = GetCallAndMemberAccess(context, buffer, referenceMode, index);
+            AppendErrors(errors, firstOperandResult);
             if (!firstOperandResult.HasProgress(index) || firstOperandResult.ExpressionBlock == null)
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
             
 
             operands.Add(firstOperandResult.ExpressionBlock);
@@ -32,20 +31,20 @@ namespace FuncScript.Core
             if (afterIdentifier == currentIndex)
             {
                 CommitNodeBuffer(siblings,buffer);
-                return firstOperandResult;
+                return MergeErrors(firstOperandResult, errors);
             }
 
             var function = context.Provider.Get(iden.IdenLower);
             if (function is not IFsFunction infixFunction)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, afterIdentifier - currentIndex, "A function expected"));
-                return ParseResult.NoAdvance(index);
+                return ParseResult.NoAdvance(index, errors);
             }
 
             if (infixFunction.CallType != CallType.Dual)
             {
                 CommitNodeBuffer(siblings,buffer);
-                return firstOperandResult;
+                return MergeErrors(firstOperandResult, errors);
             }
 
             currentIndex = afterIdentifier;
@@ -54,8 +53,9 @@ namespace FuncScript.Core
             if (!secondOperandResult.HasProgress(currentIndex) || secondOperandResult.ExpressionBlock == null)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, 0, $"Right side operand expected for {iden.Iden}"));
-                return ParseResult.NoAdvance(index);
+                return ParseResult.NoAdvance(index, errors);
             }
+            AppendErrors(errors, secondOperandResult);
 
             operands.Add(secondOperandResult.ExpressionBlock);
             currentIndex = secondOperandResult.NextIndex;
@@ -71,42 +71,49 @@ namespace FuncScript.Core
                 if (!nextOperand.HasProgress(currentIndex) || nextOperand.ExpressionBlock == null)
                     break;
 
+                AppendErrors(errors, nextOperand);
                 operands.Add(nextOperand.ExpressionBlock);
                 currentIndex = nextOperand.NextIndex;
             }
 
             if (operands.Count < 2)
-                return ParseResult.NoAdvance(index);
+                return ParseResult.NoAdvance(index, errors);
 
 
 
             var functionLiteral = new LiteralBlock(function)
             {
-                Pos = iden.StartIndex,
-                Length = iden.Length
+                CodeLocation = new CodeLocation(iden.StartIndex, iden.Length)
             };
 
             var startPos = index;
             var expressionLength = Math.Max(0, currentIndex - startPos);
 
-            var parametersExpression = new ListExpression(operands.ToArray())
+            var parametersExpression = new ListExpression(operands.ToArray());
+            if (operands.Count > 0)
             {
-                Pos = operands.Count > 0 ? operands[0].Pos : startPos,
-                Length = operands.Count
-            };
+                var firstOperand = operands[0].CodeLocation;
+                var lastOperand = operands[^1].CodeLocation;
+                var parametersStart = firstOperand.Position;
+                var parametersEnd = lastOperand.Position + lastOperand.Length;
+                parametersExpression.CodeLocation = new CodeLocation(parametersStart, parametersEnd - parametersStart);
+            }
+            else
+            {
+                parametersExpression.CodeLocation = new CodeLocation(startPos, 0);
+            }
 
             var expression = new FunctionCallExpression
             (
                 functionLiteral,
                 parametersExpression
                 ){
-                Pos = startPos,
-                Length = expressionLength
+                CodeLocation = new CodeLocation(startPos, expressionLength)
             };
             var parseNode = new ParseNode(ParseNodeType.GeneralInfixExpression, index, currentIndex-index, buffer);
             siblings.Add(parseNode);
 
-            return new ParseBlockResult(currentIndex, expression);
+            return new ParseBlockResult(currentIndex, expression, errors);
         }
     }
 }

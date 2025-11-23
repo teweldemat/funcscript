@@ -14,26 +14,28 @@ function resolveExpressionSource(provider) {
   return null;
 }
 
+function getExpressionLocation(block) {
+  if (!block || typeof block !== 'object') {
+    return { position: 0, length: 0 };
+  }
+  const location = block.CodeLocation;
+  if (!location || typeof location !== 'object') {
+    return { position: 0, length: 0 };
+  }
+  const position = typeof location.Position === 'number' ? location.Position : 0;
+  const length = typeof location.Length === 'number' ? location.Length : 0;
+  return { position, length };
+}
+
 function sliceExpression(expressionSource, expressionBlock) {
   if (!expressionSource || !expressionBlock) {
     return null;
   }
-  const start =
-    typeof expressionBlock.position === 'number'
-      ? expressionBlock.position
-      : typeof expressionBlock.Pos === 'number'
-        ? expressionBlock.Pos
-        : 0;
-  const length =
-    typeof expressionBlock.length === 'number'
-      ? expressionBlock.length
-      : typeof expressionBlock.Length === 'number'
-        ? expressionBlock.Length
-        : 0;
+  const { position, length } = getExpressionLocation(expressionBlock);
   if (length <= 0) {
     return null;
   }
-  return expressionSource.slice(start, start + length);
+  return expressionSource.slice(position, position + length);
 }
 
 function normalizeSnippet(snippet) {
@@ -109,10 +111,16 @@ class FunctionCallExpression extends ExpressionBlock {
     this.Parameters = this.parameters;
   }
 
-  evaluate(provider) {
+  evaluateInternal(provider) {
     const expressionSource = resolveExpressionSource(provider);
     const fnValue = ensureTyped(this.functionExpression.evaluate(provider));
     const fnType = typeOf(fnValue);
+
+    if (fnType === FSDataType.Error) {
+      const fsError = valueOf(fnValue);
+      annotateFsError(fsError, expressionSource, this.functionExpression);
+      return fnValue;
+    }
 
     if (fnType === FSDataType.Function) {
       const fn = valueOf(fnValue);

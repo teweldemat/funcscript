@@ -37,8 +37,15 @@ describe('Basic', () => {
     expect(toPlain(evalExpression('null??null??null??5'))).to.equal(5);
   });
 
+  it('skips null operands when adding', () => {
+    expect(toPlain(evalExpression('null+5+null'))).to.equal(5);
+    expect(toPlain(evalExpression('null+null'))).to.equal(null);
+  });
+
   it('evaluates lambda expressions', () => {
     expect(toPlain(evalExpression('((a)=>a*a+a)(3)'))).to.equal(12);
+    expect(toPlain(evalExpression('(x => x)(3)'))).to.equal(3);
+    expect(toPlain(evalExpression('{return x=>x+3;}(3)'))).to.equal(6);
   });
 
   it('supports list literals and indexing', () => {
@@ -50,7 +57,8 @@ describe('Basic', () => {
 
   it('maps and reduces lists', () => {
     expect(toPlain(evalExpression('Map([1,2,4],(x)=>x*x)'))).to.deep.equal([1, 4, 16]);
-    expect(toPlain(evalExpression('Reduce(Map([1,2,4],(x)=>x*x),(c,t)=>t+c,0)'))).to.equal(21);
+    expect(toPlain(evalExpression('Map([1,2,4],x=>x*x)'))).to.deep.equal([1, 4, 16]);
+    expect(toPlain(evalExpression('Reduce(Map([1,2,4],(x)=>x*x),(x,s)=>s+x,0)'))).to.equal(21);
   });
 
   it('supports triple-quoted multiline strings', () => {
@@ -72,5 +80,24 @@ describe('Basic', () => {
     const result = evalExpression('{a:5,b:6}');
     expect(typeOf(result)).to.equal(FSDataType.KeyValueCollection);
     expect(toPlain(result)).to.deep.equal({ a: 5, b: 6 });
+  });
+
+  it('logs formatted value when no message is provided', () => {
+    const originalLog = console.log;
+    const calls = [];
+    console.log = (...args) => {
+      calls.push(args);
+    };
+
+    try {
+      const result = evalExpression('log({a:1})');
+      expect(typeOf(result)).to.equal(FSDataType.KeyValueCollection);
+    } finally {
+      console.log = originalLog;
+    }
+
+    expect(calls).to.have.lengthOf(1);
+    expect(calls[0][0]).to.equal('FuncScript:');
+    expect(calls[0][1]).to.equal('{"a":1}');
   });
 });

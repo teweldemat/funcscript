@@ -17,17 +17,25 @@ namespace FuncScript.Functions.Logic
         {
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
+            var hasBooleanValue = false;
             for (int i = 0; i < pars.Length; i++)
             {
                 var thePar = pars[i];
 
-                if (!(thePar is bool b))
+                if (thePar == null)
+                    continue;
+
+                if (thePar is not bool b)
                     return new FsError(FsError.ERROR_TYPE_MISMATCH,
                         $"{this.Symbol} doesn't apply to this type:{(thePar == null ? "null" : thePar.GetType().ToString())}");
 
+                hasBooleanValue = true;
                 if (b)
                     return true;
             }
+
+            if (!hasBooleanValue)
+                return null;
 
             return false;
         }

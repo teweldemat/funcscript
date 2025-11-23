@@ -19,14 +19,20 @@ namespace FuncScript.Functions.Logic
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length < MaxParsCount)
-                throw new Error.TypeMismatchError("IfConditionFunction requires three parameters: condition, trueResult, and falseResult.");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    "IfConditionFunction requires three parameters: condition, trueResult, and falseResult.");
 
             var condition = pars[0];
 
-            if (!(condition is bool))
-                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: The first parameter must be a boolean value.");
+            if (condition is FsError fsError)
+                return fsError;
 
-            bool evalCondition = (bool)condition;
+            bool evalCondition = condition switch
+            {
+                bool b => b,
+                null => false,
+                _ => true
+            };
             int resultIndex = evalCondition ? 1 : 2;
             var result = pars[resultIndex];
 

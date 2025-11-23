@@ -1,179 +1,3 @@
-'use strict';
-
-const { ParseNodeType, ParseNode, SyntaxErrorData } = require('./parse-node');
-const {
-  ParseContext,
-  ParseResult,
-  ParseBlockResult,
-  ParseBlockResultWithNode,
-  ValueParseResult,
-  IdenResult
-} = require('./context');
-const {
-  createNodeBuffer,
-  commitNodeBuffer,
-  getLiteralMatch,
-  getToken,
-  getWhitespaceToken,
-  skipSpace,
-  getSimpleString,
-  getSpaceLessString,
-  getIdentifier,
-  getKeyWord,
-  getKeyWordLiteral,
-  getNumber,
-  getInt,
-  getCommentBlock,
-  isIdentifierOtherChar,
-  isIdentifierFirstChar,
-  identifierMetrics,
-  literalMatchMetrics,
-  resetIdentifierMetrics,
-  resetLiteralMatchMetrics
-} = require('./helpers/utils');
-const { FunctionCallExpression } = require('../block/function-call-expression');
-const { LiteralBlock } = require('../block/literal-block');
-const { ListExpression } = require('../block/list-expression');
-const { KvcExpression, KeyValueExpression } = require('../block/kvc-expression');
-const { SelectorExpression } = require('../block/selector-expression');
-const { ReferenceBlock } = require('../block/reference-block');
-const { NullExpressionBlock } = require('../block/null-expression-block');
-const { ExpressionFunction } = require('../core/expression-function');
-const { CallType } = require('../core/function-base');
-
-// Mirrors FuncScript/Parser/FuncScriptParser.Main.cs :: s_operatorSymols
-const OPERATOR_SYMBOLS = [
-  ['^'],
-  ['*', 'div', '/', '%'],
-  ['+', '-'],
-  ['>=', '<=', '!=', '>', '<', 'in'],
-  ['==', '=', '??', '?!', '?.'],
-  ['or', 'and']
-];
-
-// Mirrors FuncScript/Parser/FuncScriptParser.Main.cs :: s_prefixOp
-const PREFIX_OPERATORS = [
-  ['!', '!'],
-  ['-', 'negate']
-];
-
-// Mirrors FuncScript/Parser/FuncScriptParser.Main.cs keyword initialization
-const KEYWORDS = new Set(['return', 'eval', 'fault', 'case', 'switch', 'then', 'else']);
-const KEY_NODE_CHILD_TYPES = new Set([
-  ParseNodeType.Identifier,
-  ParseNodeType.LiteralString,
-  ParseNodeType.StringTemplate
-]);
-
-function unwrapRootNode(node) {
-  if (!node) {
-    return null;
-  }
-  if (node.NodeType === ParseNodeType.RootExpression && Array.isArray(node.Childs) && node.Childs.length === 1) {
-    return node.Childs[0];
-  }
-  return node;
-}
-
-// ---------------------------------------------------------------------------
-// Syntax helpers ported from FuncScript/Parser/Syntax/*.cs
-// ---------------------------------------------------------------------------
-
-// Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetExpression.cs :: GetExpression
-function getExpression(context, siblings, index) {
-  return getInfixExpression(context, siblings, index);
-}
-
-// Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetInfixExpression.cs :: GetInfixExpression
-function getInfixExpression(context, siblings, index) {
-  const childNodes = [];
-  const result = getInfixExpressionSingleLevel(
-    context,
-    childNodes,
-    OPERATOR_SYMBOLS.length - 1,
-    OPERATOR_SYMBOLS[OPERATOR_SYMBOLS.length - 1],
-    index
-  );
-
-  if (result.hasProgress(index)) {
-    const hasOperator = childNodes.some((n) => n.NodeType === ParseNodeType.Operator);
-    if (!hasOperator) {
-      for (const node of childNodes) {
-        siblings.push(node);
-      }
-    } else {
-      siblings.push(new ParseNode(ParseNodeType.InfixExpression, index, result.NextIndex - index, childNodes));
-    }
-    return result;
-  }
-
-  return ParseResult.noAdvance(index);
-}
-
-// Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetInfixExpressionSingleLevel.cs :: GetInfixExpressionSingleLevel
-function getInfixExpressionSingleLevel(context, siblings, level, candidates, index) {
-  if (!context) {
-    throw new Error('context is required');
-  }
-  if (!candidates) {
-    throw new Error('candidates are required');
-  }
-
-  const nodes = [];
-
-  let operandResult;
-  let currentIndex = index;
-  if (level === 0) {
-    operandResult = getInfixFunctionCall(context, nodes, currentIndex);
-  } else {
-    operandResult = getInfixExpressionSingleLevel(
-      context,
-      nodes,
-      level - 1,
-      OPERATOR_SYMBOLS[level - 1],
-      currentIndex
-    );
-  }
-
-  if (!operandResult.hasProgress(currentIndex) || !operandResult.ExpressionBlock) {
-    return ParseResult.noAdvance(index);
-  }
-
-  let currentExpression = operandResult.ExpressionBlock;
-  currentIndex = operandResult.NextIndex;
-
-  while (true) {
-    const operatorResult = getOperator(context, nodes, candidates, currentIndex);
-    if (!operatorResult.hasProgress(currentIndex)) {
-      break;
-    }
-
-    const symbol = operatorResult.Value.symbol;
-    const operatorNode = nodes.length > 0 ? nodes[nodes.length - 1] : null;
-    currentIndex = operatorResult.NextIndex;
-    const indexBeforeOperator = currentIndex;
-
-    const operands = [currentExpression];
-
-    while (true) {
-      let nextOperand;
-      if (level === 0) {
-        nextOperand = getInfixFunctionCall(context, nodes, currentIndex);
-      } else {
-        nextOperand = getInfixExpressionSingleLevel(
-          context,
-          nodes,
-          level - 1,
-          OPERATOR_SYMBOLS[level - 1],
-          currentIndex
-        );
-      }
-
-      if (!nextOperand.hasProgress(currentIndex) || !nextOperand.ExpressionBlock) {
-        return ParseResult.noAdvance(indexBeforeOperator);
-      }
-
-      operands.push(nextOperand.ExpressionBlock);
       currentIndex = nextOperand.NextIndex;
 
       const repeated = getToken(context, currentIndex, nodes, ParseNodeType.Operator, symbol);
@@ -187,15 +11,15 @@ function getInfixExpressionSingleLevel(context, siblings, level, candidates, ind
       return ParseResult.noAdvance(indexBeforeOperator);
     }
 
-    const startPos = operands[0].Pos;
+    const { position: startPos } = getCodeLocation(operands[0]);
     const last = operands[operands.length - 1];
-    const endPos = last.Pos + last.Length;
+    const lastLocation = getCodeLocation(last);
+    const endPos = lastLocation.position + lastLocation.length;
 
     const fnValue = context.Provider.get(symbol);
     const fnLiteral = new LiteralBlock(fnValue);
     if (operatorNode) {
-      fnLiteral.Pos = operatorNode.Pos;
-      fnLiteral.Length = operatorNode.Length;
+      setCodeLocation(fnLiteral, operatorNode.Pos, operatorNode.Length);
     }
     const combined = new FunctionCallExpression(fnLiteral, operands.slice(), startPos, endPos - startPos);
 
@@ -286,9 +110,10 @@ function getInfixExpressionSingleOp(context, siblings, level, candidates, index)
       return ParseResult.noAdvance(indexBeforeOperator);
     }
 
-    const startPos = operands[0].Pos;
+    const { position: startPos } = getCodeLocation(operands[0]);
     const last = operands[operands.length - 1];
-    const endPos = last.Pos + last.Length;
+    const lastLocation = getCodeLocation(last);
+    const endPos = lastLocation.position + lastLocation.length;
 
     const fnValue = context.Provider.get(symbol);
     const fnLiteral = new LiteralBlock(fnValue);
@@ -389,8 +214,7 @@ function getInfixFunctionCall(context, siblings, index) {
   }
 
   const fnLiteral = new LiteralBlock(fnTyped);
-  fnLiteral.Pos = iden.StartIndex;
-  fnLiteral.Length = iden.Length;
+  setCodeLocation(fnLiteral, iden.StartIndex, iden.Length);
 
   const firstNode = buffer.find((n) => n.NodeType !== ParseNodeType.WhiteSpace);
   const startPos = firstNode ? firstNode.Pos : (buffer.length > 0 ? buffer[0].Pos : index);
@@ -453,9 +277,8 @@ function getCallAndMemberAccess(context, siblings, index) {
       const selector = new SelectorExpression();
       selector.Source = expression;
       selector.Selector = selectorResult.ExpressionBlock;
-      const selectorStart = typeof expression.Pos === 'number' ? expression.Pos : currentIndex;
-      selector.Pos = selectorStart;
-      selector.Length = selectorResult.NextIndex - selectorStart;
+      const { position: selectorStart } = getCodeLocation(expression);
+      setCodeLocation(selector, selectorStart, selectorResult.NextIndex - selectorStart);
       expression = selector;
       currentIndex = selectorResult.NextIndex;
       for (const node of selectorChildren) {
@@ -540,11 +363,12 @@ function parseParameters(context, siblings, funcExpression, index, openToken, cl
   );
   siblings.push(node);
 
+  const { position: functionStart } = getCodeLocation(funcExpression);
   const call = new FunctionCallExpression(
     funcExpression,
     parameters.slice(),
-    funcExpression.Pos,
-    currentIndex - funcExpression.Pos
+    functionStart,
+    currentIndex - functionStart
   );
 
   return new ParseBlockResult(currentIndex, call);
@@ -608,11 +432,12 @@ function parseMemberAccessOperator(context, siblings, oper, source, index) {
   }
   const fnLiteral = new LiteralBlock(functionTyped);
   const nameLiteral = new LiteralBlock(iden.Iden);
+  const { position: sourceStart } = getCodeLocation(source);
   const expression = new FunctionCallExpression(
     fnLiteral,
     [source, nameLiteral],
-    source.Pos,
-    afterIdentifier - source.Pos
+    sourceStart,
+    afterIdentifier - sourceStart
   );
 
   const parseNode = new ParseNode(ParseNodeType.MemberAccess, index, afterIdentifier - index);
@@ -688,8 +513,7 @@ function getKvcExpression(context, siblings, nakedMode, index) {
   }
 
   if (typeof kvc === 'object') {
-    kvc.Pos = index;
-    kvc.Length = currentIndex - index;
+    setCodeLocation(kvc, index, currentIndex - index);
   }
 
   const parseNode = new ParseNode(
@@ -816,9 +640,33 @@ function getKeyValuePair(context, siblings, index) {
   }
 
   currentIndex = afterColon;
-  const valueResult = getExpression(context, childNodes, currentIndex);
+  const errorCount = context.ErrorsList.length;
+  let valueResult = getExpression(context, childNodes, currentIndex);
+  let capturedErrors = context.ErrorsList.slice(errorCount);
+  context.ErrorsList.length = errorCount;
   if (!valueResult.hasProgress(currentIndex) || !valueResult.ExpressionBlock) {
-    context.ErrorsList.push(new SyntaxErrorData(currentIndex, 0, 'value expression expected'));
+    const recoveryResult = getUnit(context, childNodes, currentIndex);
+    const recoveryErrors = context.ErrorsList.slice(errorCount);
+    context.ErrorsList.length = errorCount;
+    if (recoveryResult.hasProgress(currentIndex) && recoveryResult.ExpressionBlock) {
+      valueResult = recoveryResult;
+      capturedErrors = [];
+    } else {
+      capturedErrors = capturedErrors.concat(recoveryErrors);
+    }
+  }
+
+  if (capturedErrors.length > 0) {
+    context.ErrorsList.push(...capturedErrors);
+  }
+
+  if (!valueResult.hasProgress(currentIndex) || !valueResult.ExpressionBlock) {
+    const message = name
+      ? `Value expression expected for property '${name}'`
+      : 'value expression expected';
+    const errorStart = keyLength > 0 ? keyStart : currentIndex;
+    const errorLength = keyLength > 0 ? keyLength : 0;
+    context.ErrorsList.push(new SyntaxErrorData(errorStart, errorLength, message));
     return new ValueParseResult(index, null);
   }
 
@@ -864,8 +712,7 @@ function getReturnDefinition(context, siblings, index) {
 
   currentIndex = valueResult.NextIndex;
   const expression = valueResult.ExpressionBlock;
-  expression.Pos = index;
-  expression.Length = currentIndex - index;
+  setCodeLocation(expression, index, currentIndex - index);
 
   const node = new ParseNode(
     ParseNodeType.ExpressionInBrace,
@@ -903,11 +750,22 @@ function getListExpression(context, siblings, index) {
     currentIndex = firstResult.NextIndex;
 
     while (true) {
-      const afterComma = getToken(context, currentIndex, nodes, ParseNodeType.ListSeparator, ',');
-      if (afterComma === currentIndex) {
-        break;
+      let separatorIndex = getToken(context, currentIndex, nodes, ParseNodeType.ListSeparator, ',');
+      if (separatorIndex === currentIndex) {
+        const afterWhitespace = getWhitespaceToken(context.Expression, nodes, currentIndex);
+        if (afterWhitespace === currentIndex) {
+          break;
+        }
+        const nextChar = context.Expression[afterWhitespace];
+        if (!nextChar || nextChar === ']') {
+          currentIndex = afterWhitespace;
+          break;
+        }
+        currentIndex = afterWhitespace;
+      } else {
+        currentIndex = separatorIndex;
       }
-      currentIndex = afterComma;
+
       const nextResult = getExpression(context, nodes, currentIndex);
       if (!nextResult.hasProgress(currentIndex)) {
         break;
@@ -928,8 +786,7 @@ function getListExpression(context, siblings, index) {
   currentIndex = afterClose;
   const list = new ListExpression();
   list.ValueExpressions = items;
-  list.Pos = listStart;
-  list.Length = currentIndex - listStart;
+  setCodeLocation(list, listStart, currentIndex - listStart);
   const parseNode = new ParseNode(ParseNodeType.List, listStart, currentIndex - listStart, nodes);
   siblings.push(parseNode);
   return new ParseBlockResult(currentIndex, list);
@@ -1039,8 +896,7 @@ function getExpInParenthesis(context, siblings, index) {
 
   currentIndex = afterClose;
   const expression = expressionResult.ExpressionBlock;
-  expression.Pos = index;
-  expression.Length = currentIndex - index;
+  setCodeLocation(expression, index, currentIndex - index);
 
   const parseNode = new ParseNode(
     ParseNodeType.ExpressionInBrace,
@@ -1072,8 +928,7 @@ function getIfThenElseExpression(context, siblings, index) {
 
   const functionStart = keywordIndex - functionName.length;
   const functionBlock = new ReferenceBlock(functionName);
-  functionBlock.Pos = functionStart;
-  functionBlock.Length = functionName.length;
+  setCodeLocation(functionBlock, functionStart, functionName.length);
 
   let currentIndex = keywordIndex;
   const condition = getExpression(context, childNodes, currentIndex);
@@ -1258,15 +1113,37 @@ function getLambdaExpression(context, siblings, index) {
   const parameterNodes = [];
   let parametersNode = null;
   const identifierList = [];
-  const afterParameters = getIdentifierList(context, index, parameterNodes, identifierList, (node) => {
+  let currentIndex = getIdentifierList(context, index, parameterNodes, identifierList, (node) => {
     parametersNode = node;
   });
 
-  if (afterParameters === index) {
-    return new ValueParseResult(index, null);
+  if (currentIndex === index) {
+    const identifierBuffer = createNodeBuffer(parameterNodes);
+    const singleParameter = getIdentifier(context, identifierBuffer, index, KEYWORDS);
+    const nextIndex = singleParameter.NextIndex;
+    if (nextIndex === index || !singleParameter.Iden) {
+      return new ValueParseResult(index, null);
+    }
+
+    const arrowProbeBuffer = createNodeBuffer(parameterNodes);
+    const arrowProbe = getToken(
+      context,
+      nextIndex,
+      arrowProbeBuffer,
+      ParseNodeType.LambdaArrow,
+      '=>'
+    );
+    if (arrowProbe === nextIndex) {
+      return new ValueParseResult(index, null);
+    }
+
+    commitNodeBuffer(parameterNodes, identifierBuffer);
+    identifierList.length = 0;
+    identifierList.push(singleParameter.Iden);
+    parametersNode = parameterNodes.length > 0 ? parameterNodes[parameterNodes.length - 1] : null;
+    currentIndex = nextIndex;
   }
 
-  let currentIndex = afterParameters;
   const childNodes = [];
   if (parametersNode) {
     childNodes.push(parametersNode);
@@ -1283,7 +1160,16 @@ function getLambdaExpression(context, siblings, index) {
 
   const bodyResult = getExpression(context, childNodes, currentIndex);
   if (!bodyResult.hasProgress(currentIndex) || !bodyResult.ExpressionBlock) {
-    context.ErrorsList.push(new SyntaxErrorData(currentIndex, 0, 'defination of lambda expression expected'));
+    const arrowNode = arrowNodes.length > 0 ? arrowNodes[arrowNodes.length - 1] : null;
+    const errorPos = arrowNode ? arrowNode.Pos : currentIndex;
+    const errorLength = arrowNode ? arrowNode.Length : 2;
+    context.ErrorsList.push(
+      new SyntaxErrorData(
+        errorPos,
+        errorLength,
+        'Lambda body expression expected'
+      )
+    );
     return new ValueParseResult(index, null);
   }
   currentIndex = bodyResult.NextIndex;
@@ -1808,9 +1694,9 @@ function getRootExpression(context, index) {
   if (kvcResult.hasProgress(index) && kvcResult.ExpressionBlock) {
     context.ErrorsList.push(...kvcErrors);
     const kvcExpression = kvcResult.ExpressionBlock;
-    if (!kvcExpression.Length) {
-      kvcExpression.Pos = index;
-      kvcExpression.Length = kvcResult.NextIndex - index;
+    const { length: kvcLength } = getCodeLocation(kvcExpression);
+    if (!kvcLength) {
+      setCodeLocation(kvcExpression, index, kvcResult.NextIndex - index);
     }
     const last = skipSpace(context, nodes, kvcResult.NextIndex);
     const rootNode = new ParseNode(
@@ -1825,9 +1711,9 @@ function getRootExpression(context, index) {
   const expressionResult = getExpression(context, nodes, index);
   if (expressionResult.hasProgress(index) && expressionResult.ExpressionBlock) {
     const expression = expressionResult.ExpressionBlock;
-    if (!expression.Length) {
-      expression.Pos = index;
-      expression.Length = expressionResult.NextIndex - index;
+    const { length: expressionLength } = getCodeLocation(expression);
+    if (!expressionLength) {
+      setCodeLocation(expression, index, expressionResult.NextIndex - index);
     }
     const last = skipSpace(context, nodes, expressionResult.NextIndex);
     const rootNode = new ParseNode(
@@ -1837,6 +1723,13 @@ function getRootExpression(context, index) {
       nodes
     );
     return new ParseBlockResultWithNode(last, expressionResult.ExpressionBlock, rootNode);
+  }
+
+  if (context.ErrorsList.length === 0) {
+    const trimmed = context.Expression ? context.Expression.trim() : '';
+    if (!trimmed) {
+      context.ErrorsList.push(new SyntaxErrorData(0, 0, 'Expression expected'));
+    }
   }
 
   return new ParseBlockResultWithNode(index, null, null);
@@ -1953,5 +1846,11 @@ module.exports = {
   resetLiteralMatchMetrics
 };
 
+module.exports.__esModule = true;
+module.exports.default = module.exports;
+// Compatibility shim: keep the historical .cjs entry point alive while the canonical
+// implementation lives in funcscript-parser.js. CRA treats .cjs files as static assets,
+// so downstream bundles import the .js sibling instead.
+module.exports = require('./funcscript-parser.js');
 module.exports.__esModule = true;
 module.exports.default = module.exports;

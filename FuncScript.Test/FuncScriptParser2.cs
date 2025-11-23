@@ -12,8 +12,9 @@ namespace FuncScript.Test
         private static (FuncScriptParser.ParseBlockResultWithNode Result, List<FuncScriptParser.SyntaxErrorData> Errors) ParseExpression(string expression)
         {
             var errors = new List<FuncScriptParser.SyntaxErrorData>();
-            var context = new FuncScriptParser.ParseContext(new DefaultFsDataProvider(), expression, errors);
+            var context = new FuncScriptParser.ParseContext(new DefaultFsDataProvider(), expression);
             var result = FuncScriptParser.Parse(context);
+            errors.AddRange(result.Errors);
             return (result, errors);
         }
 
@@ -141,6 +142,54 @@ namespace FuncScript.Test
 
             var listBlock = (ListExpression)result.ExpressionBlock;
             Assert.That(listBlock.ValueExpressions, Has.Length.EqualTo(3));
+        }
+
+        [Test]
+        public void ListLiteral_WithWhitespaceSeparators_ParsesAllItems()
+        {
+            const string expression = "[1 2 3]";
+            var (result, errors) = ParseExpression(expression);
+
+            Assert.That(errors, Is.Empty, "Whitespace-separated list should parse without errors");
+            Assert.That(result.ExpressionBlock, Is.TypeOf<ListExpression>());
+
+            var listBlock = (ListExpression)result.ExpressionBlock;
+            Assert.That(listBlock.ValueExpressions, Has.Length.EqualTo(3), "All values should be captured");
+
+            var separatorNodes = EnumerateNodes(result.ParseNode)
+                .Count(n => n.NodeType == ParseNodeType.ListSeparator);
+            Assert.That(separatorNodes, Is.EqualTo(0), "Whitespace-only separators should not emit separator nodes");
+        }
+
+        [Test]
+        public void ListLiteral_WithSemicolonSeparators_ProducesSeparatorNodes()
+        {
+            const string expression = "[1;2;3]";
+            var (result, errors) = ParseExpression(expression);
+
+            Assert.That(errors, Is.Empty, "Semicolon-separated list should parse without errors");
+            Assert.That(result.ExpressionBlock, Is.TypeOf<ListExpression>());
+
+            var listBlock = (ListExpression)result.ExpressionBlock;
+            Assert.That(listBlock.ValueExpressions, Has.Length.EqualTo(3));
+
+            var separatorNodes = EnumerateNodes(result.ParseNode)
+                .Where(n => n.NodeType == ParseNodeType.ListSeparator)
+                .ToList();
+            Assert.That(separatorNodes.Count, Is.EqualTo(2), "Each semicolon should produce a separator node");
+        }
+
+        [Test]
+        public void ListLiteral_WithMixedSeparators_AllowsAllForms()
+        {
+            const string expression = "[1; 2 3;4,5]";
+            var (result, errors) = ParseExpression(expression);
+
+            Assert.That(errors, Is.Empty, "Mixed separators should parse without errors");
+            Assert.That(result.ExpressionBlock, Is.TypeOf<ListExpression>());
+
+            var listBlock = (ListExpression)result.ExpressionBlock;
+            Assert.That(listBlock.ValueExpressions, Has.Length.EqualTo(5), "List should capture every literal value");
         }
 
         [Test]

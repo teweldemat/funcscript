@@ -20,7 +20,7 @@ namespace FuncScript.Functions.Text
 
             
             if (pars.Length != 1)
-                throw new Error.TypeMismatchError($"{this.Symbol}: single string parameter expected");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, $"{this.Symbol}: single string parameter expected");
 
             var value = pars[0];
 
@@ -28,7 +28,7 @@ namespace FuncScript.Functions.Text
                 return null;
 
             if (value is not string text)
-                throw new Error.TypeMismatchError($"{this.Symbol}: string parameter expected");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: string parameter expected");
 
             return text.ToLowerInvariant();
         }

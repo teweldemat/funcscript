@@ -9,6 +9,7 @@ class SelectorProvider extends FsDataProvider {
     super(parent);
     this.sourceValue = typedNull();
     this.sourceCollection = null;
+    this.__fsSelectorProvider = true;
   }
 
   setSource(value) {
@@ -45,7 +46,7 @@ class SelectorExpression extends ExpressionBlock {
     this.Selector = null;
   }
 
-  evaluate(provider) {
+  evaluateInternal(provider) {
     const sourceTyped = ensureTyped(this.Source.evaluate(provider));
     const sourceType = typeOf(sourceTyped);
     const selectorProvider = new SelectorProvider(provider);

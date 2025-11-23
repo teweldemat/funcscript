@@ -17,6 +17,12 @@ describe('AdvancedSyntax', () => {
     expect(toPlain(result)).to.deep.equal({ a: 4, b: 5 });
   });
 
+  it('allows whitespace-separated key/value pairs', () => {
+    const result = evaluate('{x:3 y:4\nz:x+y}', provider);
+    expect(typeOf(result)).to.equal(FSDataType.KeyValueCollection);
+    expect(toPlain(result)).to.deep.equal({ x: 3, y: 4, z: 7 });
+  });
+
   const notCases = [
     ['!true', false],
     ['!false', true],
@@ -33,7 +39,9 @@ describe('AdvancedSyntax', () => {
     ['-5', -5],
     ['1--5', 6],
     ['1+-5', -4],
-    ['{x:-5;return -x}', 5]
+    ['{x:-5;return -x}', 5],
+    ['{x:-5;return 1--x}', -4],
+    ['{x:-5;return 1+-x}', 6]
   ];
   negCases.forEach(([expr, expected]) => {
     it(`handles negation in ${expr}`, () => {
@@ -46,7 +54,11 @@ describe('AdvancedSyntax', () => {
     ['reduce([4,5,6],(x,s)=>s+x,-2)', 13],
     ['[4,5,6] reduce (x,s)=>s+x ~ -2', 13],
     ['(range(0,4) reduce (x,s)=>s+x ~ 0)', 6],
-    ['x?![1,2,3] first(x)=>x*x', null]
+    ['range(0,4) reduce (x,s)=>s+x ~ 0', 6],
+    ['(range(1,3) map (a)=>a*a) reduce (x,s)=>s+x ~ 5', 19],
+    ['x?![1,2,3] first(x)=>x*x', null],
+    ['{ b:x?! [1,2,3] map(x) => 5; return b}', null],
+    ['{x:9; b:x?! [1,2,3] map(x) => 5; return b[1]}', 5]
   ];
   generalInfixCases.forEach(([expr, expected]) => {
     it(`evaluates general infix for ${expr}`, () => {

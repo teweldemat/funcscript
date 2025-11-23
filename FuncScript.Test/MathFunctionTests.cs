@@ -111,7 +111,7 @@ namespace FuncScript.Test
         [Test]
         public void RandomPiAndEValues()
         {
-            var random = Engine.Evaluate("math.random()");
+            var random = Engine.Evaluate("math.random(1)");
             var pi = Engine.Evaluate("math.pi");
             var e = Engine.Evaluate("math.e");
 

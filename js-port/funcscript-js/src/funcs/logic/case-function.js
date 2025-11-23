@@ -18,14 +18,16 @@ class CaseFunction extends BaseFunction {
         return condition;
       }
 
-      if (conditionType !== helpers.FSDataType.Boolean) {
-        return helpers.makeError(
-          helpers.FsError.ERROR_TYPE_MISMATCH,
-          `${this.symbol}: Condition ${i + 1} must evaluate to a boolean value.`
-        );
+      let conditionValue;
+      if (conditionType === helpers.FSDataType.Boolean) {
+        conditionValue = helpers.valueOf(condition);
+      } else if (conditionType === helpers.FSDataType.Null) {
+        conditionValue = false;
+      } else {
+        conditionValue = true;
       }
 
-      if (helpers.valueOf(condition)) {
+      if (conditionValue) {
         return helpers.ensureTyped(parameters.getParameter(provider, 2 * i + 1));
       }
     }

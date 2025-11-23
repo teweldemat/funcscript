@@ -1,0 +1,226 @@
+[
+  {
+    "expression": "",
+    "message": "(no message)"
+  },
+  {
+    "expression": " ",
+    "message": "(no message)"
+  },
+  {
+    "expression": "\n",
+    "message": "(no message)"
+  },
+  {
+    "expression": ")",
+    "message": "(no message)"
+  },
+  {
+    "expression": "1 +",
+    "message": "(no message)"
+  },
+  {
+    "expression": "+ 2",
+    "message": "(no message)"
+  },
+  {
+    "expression": "1 ++ 2",
+    "message": "(no message)"
+  },
+  {
+    "expression": "1 ** 2",
+    "message": "(no message)"
+  },
+  {
+    "expression": "=>1",
+    "message": "(no message)"
+  },
+  {
+    "expression": "return",
+    "message": "(no message)"
+  },
+  {
+    "expression": "eval",
+    "message": "(no message)"
+  },
+  {
+    "expression": "eval ;",
+    "message": "(no message)"
+  },
+  {
+    "expression": ".foo",
+    "message": "(no message)"
+  },
+  {
+    "expression": "//",
+    "message": "(no message)"
+  },
+  {
+    "expression": "/*",
+    "message": "(no message)"
+  },
+  {
+    "expression": "/* unterminated",
+    "message": "(no message)"
+  },
+  {
+    "expression": "(()",
+    "message": "')' expected"
+  },
+  {
+    "expression": "{a:1",
+    "message": "'}' expected"
+  },
+  {
+    "expression": "{a:1;",
+    "message": "'}' expected"
+  },
+  {
+    "expression": "{a:}",
+    "message": "value expression expected | '}' expected | Error occured at line: } | :}",
+    "line": "} | :}"
+  },
+  {
+    "expression": "{a:1 b:2}",
+    "message": "A function expected | value expression expected | '}' expected | Error occured at line:  b:2} | 1 b:2} | :1 b:2}",
+    "line": " b:2} | 1 b:2} | :1 b:2}"
+  },
+  {
+    "expression": "[1 2]",
+    "message": "']' expected | Error occured at line:  2]",
+    "line": " 2]"
+  },
+  {
+    "expression": "(x y)=>x",
+    "message": "A function expected | ')' expected | Error occured at line:  y)=>x | x y)=>x",
+    "line": " y)=>x | x y)=>x"
+  },
+  {
+    "expression": "(x,)=>x",
+    "message": "')' expected | Error occured at line: ,)=>x",
+    "line": ",)=>x"
+  },
+  {
+    "expression": "(x)=>",
+    "message": "defination of lambda expression expected"
+  },
+  {
+    "expression": "(x)->x",
+    "message": "'=>' expected | Error occured at line: ->x",
+    "line": "->x"
+  },
+  {
+    "expression": "(x => x)",
+    "message": "')' expected | Error occured at line: x => x)",
+    "line": "x => x)"
+  },
+  {
+    "expression": "(x)=>{a:;}",
+    "message": "value expression expected | '}' expected | defination of lambda expression expected | Error occured at line: ;} | :;} | {a:;}",
+    "line": ";} | :;} | {a:;}"
+  },
+  {
+    "expression": "(x)=>{return;}",
+    "message": "return/eval expression expected | '}' expected | defination of lambda expression expected | Error occured at line: ;} | return;} | {return;}",
+    "line": ";} | return;} | {return;}"
+  },
+  {
+    "expression": "if true",
+    "message": "A function expected | Error occured at line:  true",
+    "line": " true"
+  },
+  {
+    "expression": "if true else 5",
+    "message": "A function expected | Error occured at line:  true else 5",
+    "line": " true else 5"
+  },
+  {
+    "expression": "if true then",
+    "message": "A function expected | Error occured at line:  true then",
+    "line": " true then"
+  },
+  {
+    "expression": "switch",
+    "message": "Switch selector expected"
+  },
+  {
+    "expression": "switch {",
+    "message": "'}' expected | Switch selector expected | Error occured at line:  {",
+    "line": " {"
+  },
+  {
+    "expression": "switch { case 1: }",
+    "message": "'}' expected | Switch selector expected | Error occured at line:  case 1: } |  { case 1: }",
+    "line": " case 1: } |  { case 1: }"
+  },
+  {
+    "expression": "case",
+    "message": "Case condition expected"
+  },
+  {
+    "expression": "case x:",
+    "message": "Case value expected"
+  },
+  {
+    "expression": "case when x then 1",
+    "message": "A function expected | Case condition expected | Error occured at line:  x then 1 |  when x then 1",
+    "line": " x then 1 |  when x then 1"
+  },
+  {
+    "expression": "0x",
+    "message": "A function expected | Error occured at line: x",
+    "line": "x"
+  },
+  {
+    "expression": "0b2",
+    "message": "A function expected | Error occured at line: b2",
+    "line": "b2"
+  },
+  {
+    "expression": "\"unterminated",
+    "message": "'\"' expected"
+  },
+  {
+    "expression": "'also",
+    "message": "''' expected"
+  },
+  {
+    "expression": "\"multi\nline",
+    "message": "'\"' expected"
+  },
+  {
+    "expression": "{ eval; }",
+    "message": "return/eval expression expected | '}' expected | Error occured at line: ; } |  eval; }",
+    "line": "; } |  eval; }"
+  },
+  {
+    "expression": "{ eval: 1; }",
+    "message": "return/eval expression expected | '}' expected | Error occured at line: : 1; } |  eval: 1; }",
+    "line": ": 1; } |  eval: 1; }"
+  },
+  {
+    "expression": "{ eval 1 2; }",
+    "message": "'}' expected | Error occured at line:  2; }",
+    "line": " 2; }"
+  },
+  {
+    "expression": "{ eval ((1+2); }",
+    "message": "')' expected | return/eval expression expected | '}' expected | Error occured at line: ; } |  ((1+2); } |  eval ((1+2); }",
+    "line": "; } |  ((1+2); } |  eval ((1+2); }"
+  },
+  {
+    "expression": "{ eval (1+2;; }",
+    "message": "')' expected | return/eval expression expected | '}' expected | Error occured at line: ;; } |  (1+2;; } |  eval (1+2;; }",
+    "line": ";; } |  (1+2;; } |  eval (1+2;; }"
+  },
+  {
+    "expression": "(x)=>{a:1;",
+    "message": "'}' expected | defination of lambda expression expected | Error occured at line: {a:1;",
+    "line": "{a:1;"
+  },
+  {
+    "expression": "(x)=>{return}",
+    "message": "return/eval expression expected | '}' expected | defination of lambda expression expected | Error occured at line: } | return} | {return}",
+    "line": "} | return} | {return}"
+  }
+]

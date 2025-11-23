@@ -9,43 +9,50 @@ namespace FuncScript.Core
         static ValueParseResult<ExpressionFunction> GetLambdaExpression(ParseContext context,
             IList<ParseNode> siblings, ReferenceMode referenceMode, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
-            var errors = context.ErrorsList;
-            var exp = context.Expression;
-
+            var errors = CreateErrorBuffer();
             var parameterNodes = new List<ParseNode>();
             var currentIndex = GetIdentifierList(context, index, parameterNodes, out var parameters, out var parametersNode);
             if (currentIndex == index)
-                return new ValueParseResult<ExpressionFunction>(index, null);
+            {
+                var identifierBuffer = CreateNodeBuffer(parameterNodes);
+                var singleParameter = GetIdentifier(context, identifierBuffer, index);
+                if (singleParameter.NextIndex == index || string.IsNullOrEmpty(singleParameter.Iden))
+                    return new ValueParseResult<ExpressionFunction>(index, null, errors);
+
+                var arrowProbeBuffer = CreateNodeBuffer(parameterNodes);
+                var arrowProbe = GetToken(context, singleParameter.NextIndex, arrowProbeBuffer, ParseNodeType.LambdaArrow, "=>");
+                if (arrowProbe == singleParameter.NextIndex)
+                    return new ValueParseResult<ExpressionFunction>(index, null, errors);
+
+                CommitNodeBuffer(parameterNodes, identifierBuffer);
+                parameters = new List<string> { singleParameter.Iden };
+                parametersNode = parameterNodes.Count > 0 ? parameterNodes[parameterNodes.Count - 1] : null;
+                currentIndex = singleParameter.NextIndex;
+            }
 
             var arrowIndex = currentIndex;
-            if (arrowIndex >= exp.Length - 1)
-                return new ValueParseResult<ExpressionFunction>(index, null);
 
             var childNodes = new List<ParseNode>();
             if (parametersNode != null)
                 childNodes.Add(parametersNode);
 
-            var arrowNodes = new List<ParseNode>();
-            var afterArrow = GetToken(context, arrowIndex,arrowNodes,ParseNodeType.LambdaArrow, "=>");
+            var afterArrow = GetToken(context, arrowIndex,childNodes,ParseNodeType.LambdaArrow, "=>");
             if (afterArrow == arrowIndex)
             {
                 errors.Add(new SyntaxErrorData(arrowIndex, 0, "'=>' expected"));
-                return new ValueParseResult<ExpressionFunction>(index, null);
+                return new ValueParseResult<ExpressionFunction>(index, null, errors);
             }
 
             currentIndex = afterArrow;
 
-            if (arrowNodes.Count > 0)
-                childNodes.AddRange(arrowNodes);
-
-            var bodyResult = GetExpression(context, childNodes, referenceMode, currentIndex);
+            var bodyResult = GetExpression(context, childNodes, ReferenceMode.Standard, currentIndex);
+            AppendErrors(errors, bodyResult);
             if (!bodyResult.HasProgress(currentIndex) || bodyResult.ExpressionBlock == null)
             {
-                errors.Add(new SyntaxErrorData(currentIndex, 0, "defination of lambda expression expected"));
-                return new ValueParseResult<ExpressionFunction>(index, null);
+                var arrowLength = Math.Max(1, afterArrow - arrowIndex);
+                errors.Add(new SyntaxErrorData(arrowIndex, arrowLength, "Lambda body expected after '=>'"));
+                return new ValueParseResult<ExpressionFunction>(index, null, errors);
             }
 
             currentIndex = bodyResult.NextIndex;
@@ -55,7 +62,7 @@ namespace FuncScript.Core
             var parseNode = new ParseNode(ParseNodeType.LambdaExpression, index, currentIndex - index, childNodes);
             siblings.Add(parseNode);
 
-            return new ValueParseResult<ExpressionFunction>(currentIndex, function);
+            return new ValueParseResult<ExpressionFunction>(currentIndex, function, errors);
         }
     }
 }

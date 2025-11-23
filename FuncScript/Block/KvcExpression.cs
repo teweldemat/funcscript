@@ -11,15 +11,25 @@ namespace FuncScript.Block
 {
     public class KvcExpression : ExpressionBlock
     {
-        public class KvcExpressionCollection(KeyValueCollection provider,KvcExpression thisKvc) : KeyValueCollection
+        public class KvcExpressionCollection : KeyValueCollection
         {
+            private readonly KeyValueCollection provider;
+            private readonly KvcExpression thisKvc;
+            public KvcExpressionCollection(KeyValueCollection provider, KvcExpression thisKvc)
+            {
+                this.provider = provider;
+                this.thisKvc = thisKvc;
+            }
 
             public KeyValueCollection ParentProvider => provider;
+
+            
+
             public object Get(string key)
             {
                 if (thisKvc.index.TryGetValue(key, out var exp) && exp.ValueExpression != null)
                 {
-                    var v = exp.ValueExpression.Evaluate(this);
+                    var v = exp.ValueExpression.Evaluate(this, 0);
                     return v;
                 }
 
@@ -40,7 +50,9 @@ namespace FuncScript.Block
 
             public IList<KeyValuePair<string, object>> GetAll()
             {
-                return thisKvc._keyValues.Select(kv => KeyValuePair.Create(kv.Key, kv.ValueExpression.Evaluate(this))).ToList();
+                return thisKvc._keyValues
+                    .Select(kv => KeyValuePair.Create(kv.Key, kv.ValueExpression.Evaluate(this, 0)))
+                    .ToList();
             }
 
             public override bool Equals(object obj)
@@ -82,9 +94,16 @@ namespace FuncScript.Block
             return (null,theKvc);
         }
 
-        public override object Evaluate(KeyValueCollection provider) => evalExpresion!=null
-            ?evalExpresion.Evaluate(new KvcExpressionCollection(provider,this))
-            :  new KvcExpressionCollection(provider,this);
+        protected override object EvaluateCore(KeyValueCollection provider)
+        {
+            var collection = new KvcExpressionCollection(provider, this);
+            if (evalExpresion != null)
+            {
+                return evalExpresion.Evaluate(collection, 0);
+            }
+
+            return collection;
+        }
 
         public override string ToString()
         {

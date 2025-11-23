@@ -1,4 +1,7 @@
-import parser from './funcscript-parser.cjs';
+import parserDefault from './funcscript-parser.js';
+import * as parserNamespace from './funcscript-parser.js';
+
+const parser = parserDefault ?? (parserNamespace?.default ?? parserNamespace);
 
 export const {
   FuncScriptParser,

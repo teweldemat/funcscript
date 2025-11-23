@@ -1,4 +1,6 @@
 ﻿using FuncScript.Core;
+using FuncScript.Model;
+using System;
 
 namespace FuncScript.Functions.Date
 {
@@ -17,15 +19,16 @@ namespace FuncScript.Functions.Date
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length > this.MaxParsCount)
-                throw new Error.EvaluationTimeException($"{this.Symbol} function: Invalid parameter count. Expected a maximum of {this.MaxParsCount}, but got {pars.Length}");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{this.Symbol} function: Invalid parameter count. Expected a maximum of {this.MaxParsCount}, but got {pars.Length}");
 
             var par0 = pars[0];
 
             if (par0 == null)
                 return null;
 
-            if (!(par0 is long))
-                throw new Error.TypeMismatchError($"Function {this.Symbol}: Type mismatch. Expected a long.");
+            if (par0 is not long)
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"Function {this.Symbol}: Type mismatch. Expected a long.");
 
             var ticks = (long)par0;
 

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections;
 using FuncScript.Core;
 using FuncScript.Model;
@@ -10,19 +11,35 @@ namespace FuncScript.Block
     public class ListExpression:ExpressionBlock
     {
 
-        public class ExpressionFsList(KeyValueCollection provider, ListExpression exp):FsList
+        public class ExpressionFsList : FsList
         {
-            public object this[int index] =>
-                index < 0 || index >= exp.ValueExpressions.Length ? null : exp.ValueExpressions[index].Evaluate(provider);
+            private readonly KeyValueCollection provider;
+            private readonly ListExpression expression;
+
+            public ExpressionFsList(KeyValueCollection provider, ListExpression exp)
+            {
+                this.provider = provider;
+                this.expression = exp;
+            }
+
+            public object this[int index]
+            {
+                get
+                {
+                    if (index < 0 || index >= expression.ValueExpressions.Length)
+                        return null;
+                    return expression.ValueExpressions[index].Evaluate(provider, 0);
+                }
+            }
 
 
-            public int Length => exp.ValueExpressions.Length;
+            public int Length => expression.ValueExpressions.Length;
             IEnumerator<object> FsList.GetEnumerator()
             {
-                if (exp.ValueExpressions == null)
+                if (expression.ValueExpressions == null)
                     yield break;
 
-                for (var i = 0; i < exp.ValueExpressions.Length; i++)
+                for (var i = 0; i < expression.ValueExpressions.Length; i++)
                 {
                     yield return this[i];
                 }
@@ -50,7 +67,10 @@ namespace FuncScript.Block
             this.ValueExpressions = exps;
         }
         
-        public override object Evaluate(KeyValueCollection provider) => new ExpressionFsList(provider,this);
+        protected override object EvaluateCore(KeyValueCollection provider)
+        {
+            return new ExpressionFsList(provider, this);
+        }
         /*{
             var lst = ValueExpressions.Select(x => x.Evaluate(provider)).ToArray();
             return new ArrayFsList(lst);

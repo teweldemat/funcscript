@@ -10,16 +10,14 @@ namespace FuncScript.Core
         static ParseBlockResult GetCaseExpression(ParseContext context, IList<ParseNode> siblings,
             ReferenceMode referenceMode, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
-            var errors = context.ErrorsList;
+            var errors = CreateErrorBuffer();
             var exp = context.Expression;
 
             var childNodes = new List<ParseNode>();
             var keywordResult = GetKeyWord(context, childNodes, index, KW_CASE);
             if (keywordResult==index)
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
 
             var currentIndex = keywordResult;
             var parameters = new List<ExpressionBlock>();
@@ -29,10 +27,11 @@ namespace FuncScript.Core
                 if (parameters.Count == 0)
                 {
                     var conditionResult = GetExpression(context, childNodes, referenceMode, currentIndex);
+                    AppendErrors(errors, conditionResult);
                     if (!conditionResult.HasProgress(currentIndex) || conditionResult.ExpressionBlock == null)
                     {
                         errors.Add(new SyntaxErrorData(currentIndex, 1, "Case condition expected"));
-                        return ParseBlockResult.NoAdvance(index);
+                        return ParseBlockResult.NoAdvance(index, errors);
                     }
 
                     parameters.Add(conditionResult.ExpressionBlock);
@@ -47,6 +46,7 @@ namespace FuncScript.Core
                     currentIndex = afterSeparator;
 
                     var nextCondition = GetExpression(context, childNodes, referenceMode, currentIndex);
+                    AppendErrors(errors, nextCondition);
                     if (!nextCondition.HasProgress(currentIndex) || nextCondition.ExpressionBlock == null)
                         break;
 
@@ -61,30 +61,35 @@ namespace FuncScript.Core
                 var valueIndex = afterColon;
 
                 var valueResult = GetExpression(context, childNodes, referenceMode, valueIndex);
+                AppendErrors(errors, valueResult);
                 if (!valueResult.HasProgress(valueIndex) || valueResult.ExpressionBlock == null)
                 {
                     errors.Add(new SyntaxErrorData(valueIndex, 1, "Case value expected"));
-                    return ParseBlockResult.NoAdvance(index);
+                    return ParseBlockResult.NoAdvance(index, errors);
                 }
 
                 parameters.Add(valueResult.ExpressionBlock);
                 currentIndex = valueResult.NextIndex;
             }
 
+            var caseLiteral = new LiteralBlock(context.Provider.Get(KW_CASE))
+            {
+                CodeLocation = new CodeLocation(index, keywordResult - index)
+            };
+
             var functionCall = new FunctionCallExpression(
-                new LiteralBlock(context.Provider.Get(KW_CASE)),
+                caseLiteral,
              new ListExpression(parameters.ToArray()))
             {
-                Pos = index,
-                Length = currentIndex - index,
-                
+                CodeLocation = new CodeLocation(index, currentIndex - index)
+
             };
 
             var parseNode = new ParseNode(ParseNodeType.Case, index, currentIndex - index, childNodes);
 
             siblings.Add(parseNode);
 
-            return new ParseBlockResult(currentIndex, functionCall);
+            return new ParseBlockResult(currentIndex, functionCall, errors);
         }
     }
 }

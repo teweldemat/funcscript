@@ -6,8 +6,6 @@ namespace FuncScript.Core
     {
         static int GetCommentBlock(ParseContext context,IList<ParseNode> siblings, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
             var exp = context.Expression;
 

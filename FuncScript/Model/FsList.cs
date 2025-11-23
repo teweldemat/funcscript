@@ -60,13 +60,6 @@ namespace FuncScript.Model
             return sb.ToString();
         }
         // override object.GetHashCode
-        public static bool IsListType(Type t) =>
-            t.IsAssignableTo(typeof(System.Collections.IEnumerable)) || t.IsAssignableTo(typeof(System.Collections.IList)) || IsGenericList(t);
-        static bool IsGenericList(Type t)
-        {
-            return t != typeof(byte[]) && t.IsGenericType && (t.GetGenericTypeDefinition().IsAssignableTo(typeof(IList<>))
-                || t.GetGenericTypeDefinition().IsAssignableTo(typeof(List<>)));
-        }
         
     }
 

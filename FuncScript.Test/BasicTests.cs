@@ -31,11 +31,9 @@ namespace FuncScript.Test
         public void CallingNoneFunction()
         {
             
-            Assert.Throws(typeof(EvaluationException), () =>
-            {
-                var g = new DefaultFsDataProvider();
-                FuncScriptRuntime.Evaluate(g,"3(4,5)");
-            });
+            var g = new DefaultFsDataProvider();
+            var result = FuncScriptRuntime.Evaluate(g,"3(4,5)");
+            Assert.That(result, Is.TypeOf<FsError>());
         }
         [Test]
         public void DuplicateKeyInCollection()
@@ -143,6 +141,16 @@ namespace FuncScript.Test
         }
 
         [Test]
+        public void AdditionSkipsNullValues()
+        {
+            var skipNulls = FuncScriptRuntime.Evaluate("null+5+null");
+            Assert.That(skipNulls, Is.EqualTo(5));
+
+            var onlyNull = FuncScriptRuntime.Evaluate("null+null");
+            Assert.IsNull(onlyNull);
+        }
+
+        [Test]
         public void NullCoalescingChainReturnsFirstNonNull()
         {
             var exp = "null??null??null??5";
@@ -211,6 +219,9 @@ namespace FuncScript.Test
 
             var res = AssertSingleResultType("Map([1,2,4],(x)=>x*x)", typeof(FsList));
             Assert.IsTrue(((FsList)res)[2].Equals(16), "Result  not correct");
+
+            var shorthand = AssertSingleResultType("Map([1,2,4],x=>x*x)", typeof(FsList));
+            Assert.IsTrue(((FsList)shorthand)[2].Equals(16), "Result  not correct for shorthand lambda");
         }
 
         [Test]
@@ -319,6 +330,7 @@ namespace FuncScript.Test
         [TestCase("2-1", 1)] //simple subtraction
         [TestCase("If(1=0,10,5-1)", 4)]
         [TestCase("((a)=>a*a)(3)", 9)]
+        [TestCase("(x => x)(3)", 3)]
 
         [TestCase(
 @"{
@@ -349,6 +361,8 @@ return j;
 }", 4)]
         [TestCase(
 @"{return (x)=>3;}(3)", 3)]
+        [TestCase(
+@"{return x=>x+3;}(3)", 6)]
         [TestCase(@"1+{return 2;}",3)]
         [TestCase(@"{return 2;}",2)]
         public void IntResultTest(string expStr, int expectedRes)

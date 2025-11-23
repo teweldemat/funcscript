@@ -1,6 +1,6 @@
 {
   "name": "@tewelde/funcscript",
-  "version": "0.2.12",
+  "version": "0.2.17",
   "description": "FuncScript runtime for Node.js and browser environments",
   "license": "MIT",
   "type": "commonjs",
@@ -17,7 +17,7 @@
     },
     "./parser": {
       "types": "./src/parser/funcscript-parser.d.ts",
-      "require": "./src/parser/funcscript-parser.cjs",
+      "require": "./src/parser/funcscript-parser.js",
       "import": "./src/parser/funcscript-parser.mjs"
     },
     "./browser": {
@@ -28,7 +28,8 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "src"
+    "src",
+    "parser"
   ],
   "author": "Tewelde Ma. Tegegne <teweldemat@gmail.com>",
   "keywords": [

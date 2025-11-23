@@ -1,5 +1,4 @@
 using FuncScript.Core;
-using FuncScript.Error;
 using FuncScript.Model;
 
 namespace FuncScript.Functions.Math
@@ -44,7 +43,7 @@ namespace FuncScript.Functions.Math
             }
             else
             {
-                throw new TypeMismatchError($"{Symbol}: integer parameters expected");
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{Symbol}: integer parameters expected");
             }
 
             for (int i = 1; i < count; i++)
@@ -72,7 +71,7 @@ namespace FuncScript.Functions.Math
                 }
                 else
                 {
-                    throw new TypeMismatchError($"{Symbol}: integer parameters expected");
+                    return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{Symbol}: integer parameters expected");
                 }
             }
 

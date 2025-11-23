@@ -33,11 +33,12 @@ namespace FuncScript.Functions.Logic
                     return fsError;
                 }
 
-                if (cond is not bool conditionValue)
+                bool conditionValue = cond switch
                 {
-                    return new FsError(FsError.ERROR_TYPE_MISMATCH,
-                        $"{Symbol}: Condition {i + 1} must evaluate to a boolean value.");
-                }
+                    bool b => b,
+                    null => false,
+                    _ => true
+                };
 
                 if (conditionValue)
                 {

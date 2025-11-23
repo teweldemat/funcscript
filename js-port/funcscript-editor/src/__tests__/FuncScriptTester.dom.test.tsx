@@ -361,4 +361,48 @@ describe('FuncScriptTester variable controls', () => {
 
     expect(screen.getByText('alpha')).toBeInTheDocument();
   });
+
+  it('adds a variable manually', async () => {
+    const user = userEvent.setup();
+    render(<VariablesHarness initialVariables={[]} />);
+
+    await user.click(screen.getAllByRole('button', { name: 'Test' })[0]);
+
+    const nameInput = await screen.findByLabelText('Variable name');
+    await user.type(nameInput, 'gamma');
+
+    const addButton = screen.getByRole('button', { name: 'Add variable' });
+    await user.click(addButton);
+
+    await screen.findByText('gamma');
+    const gammaEntry = screen.getByText('gamma').closest('[role="button"]');
+    expect(gammaEntry).not.toBeNull();
+    expect(gammaEntry).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('refuses duplicate manual variable names', async () => {
+    const user = userEvent.setup();
+    render(
+      <VariablesHarness
+        initialVariables={[
+          { name: 'alpha', expression: '1' }
+        ]}
+      />
+    );
+
+    await user.click(screen.getAllByRole('button', { name: 'Test' })[0]);
+
+    const nameInput = await screen.findByLabelText('Variable name');
+    await user.type(nameInput, 'ALPHA');
+
+    const addButton = screen.getByRole('button', { name: 'Add variable' });
+    await user.click(addButton);
+
+    await screen.findByText('Variable already exists.');
+
+    const alphaLabel = await screen.findByText('alpha');
+    const alphaEntry = alphaLabel.closest('[role="button"]');
+    expect(alphaEntry).not.toBeNull();
+    expect(alphaEntry).toHaveAttribute('aria-pressed', 'true');
+  });
 });

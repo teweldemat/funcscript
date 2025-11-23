@@ -22,9 +22,9 @@ namespace FuncScript.Block
             return sb.ToString();
         }
 
-        public override object Evaluate(KeyValueCollection provider)
+        protected override object EvaluateCore(KeyValueCollection provider)
         {
-            if(Value is ExpressionFunction expFunc)
+            if (Value is ExpressionFunction expFunc)
                 return new ExpressionFunction.ExpressionFunctionCaller(provider, expFunc);
             return Value;
         }

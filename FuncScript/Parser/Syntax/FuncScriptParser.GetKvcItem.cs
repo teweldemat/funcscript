@@ -9,22 +9,26 @@ namespace FuncScript.Core
         static ValueParseResult<KvcExpression.KeyValueExpression> GetKvcItem(ParseContext context,
             List<ParseNode> siblings, ReferenceMode referenceMode, bool nakedKvc, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
             var exp = context.Expression;
+            var errors = CreateErrorBuffer();
 
             var keyValueBuffer = CreateNodeBuffer(siblings);
             var keyValueResult = GetKeyValuePair(context, keyValueBuffer, referenceMode, index);
             if (keyValueResult.HasProgress(index))
             {
                 CommitNodeBuffer(siblings, keyValueBuffer);
+                AppendErrors(errors, keyValueResult);
                 return new ValueParseResult<KvcExpression.KeyValueExpression>(keyValueResult.NextIndex,
-                    keyValueResult.Value);
+                    keyValueResult.Value, errors);
             }
+            AppendErrors(errors, keyValueResult);
+            if (errors.Count > 0)
+                return new ValueParseResult<KvcExpression.KeyValueExpression>(index, null, errors);
 
             var returnBuffer = CreateNodeBuffer(siblings);
             var returnResult = GetReturnDefinition(context, returnBuffer, referenceMode, index);
+            AppendErrors(errors, returnResult);
             if (returnResult.HasProgress(index) && returnResult.ExpressionBlock != null)
             {
                 CommitNodeBuffer(siblings, returnBuffer);
@@ -33,7 +37,7 @@ namespace FuncScript.Core
                     Key = null,
                     ValueExpression = returnResult.ExpressionBlock
                 };
-                return new ValueParseResult<KvcExpression.KeyValueExpression>(returnResult.NextIndex, item);
+                return new ValueParseResult<KvcExpression.KeyValueExpression>(returnResult.NextIndex, item, errors);
             }
 
             if (!nakedKvc)
@@ -46,8 +50,7 @@ namespace FuncScript.Core
                     CommitNodeBuffer(siblings, identifierBuffer);
                     var reference = new ReferenceBlock(iden.Iden, iden.IdenLower, ReferenceMode.SkipSiblings)
                     {
-                        Pos = iden.StartIndex,
-                        Length = iden.Length
+                        CodeLocation = new CodeLocation(iden.StartIndex, iden.Length)
                     };
                     var item = new KvcExpression.KeyValueExpression
                     {
@@ -55,7 +58,7 @@ namespace FuncScript.Core
                         KeyLower = iden.IdenLower,
                         ValueExpression = reference
                     };
-                    return new ValueParseResult<KvcExpression.KeyValueExpression>(identifierIndex, item);
+                    return new ValueParseResult<KvcExpression.KeyValueExpression>(identifierIndex, item, errors);
                 }
 
                 var stringErrors = new List<SyntaxErrorData>();
@@ -66,8 +69,7 @@ namespace FuncScript.Core
                     CommitNodeBuffer(siblings, stringBuffer);
                     var reference = new ReferenceBlock( stringResult.Value, stringResult.Value.ToLowerInvariant(), referenceMode)
                     {
-                        Pos = stringResult.StartIndex,
-                        Length = stringResult.Length
+                        CodeLocation = new CodeLocation(stringResult.StartIndex, stringResult.Length)
                     };
                     var item = new KvcExpression.KeyValueExpression
                     {
@@ -75,11 +77,11 @@ namespace FuncScript.Core
                         KeyLower = stringResult.Value.ToLowerInvariant(),
                         ValueExpression = reference
                     };
-                    return new ValueParseResult<KvcExpression.KeyValueExpression>(stringResult.NextIndex, item);
+                    return new ValueParseResult<KvcExpression.KeyValueExpression>(stringResult.NextIndex, item, errors);
                 }
             }
 
-            return new ValueParseResult<KvcExpression.KeyValueExpression>(index, null);
+            return new ValueParseResult<KvcExpression.KeyValueExpression>(index, null, errors);
         }
     }
 }

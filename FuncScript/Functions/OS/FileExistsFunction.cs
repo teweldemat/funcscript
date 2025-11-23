@@ -20,12 +20,13 @@ namespace FuncScript.Functions.OS
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length != this.MaxParsCount)
-                throw new Error.EvaluationTimeException($"{this.Symbol} function: invalid parameter count. {this.MaxParsCount} expected, got {pars.Length}");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{this.Symbol} function: invalid parameter count. {this.MaxParsCount} expected, got {pars.Length}");
 
             var par0 = pars[0];
 
-            if (par0 == null || !(par0 is string))
-                throw new Error.TypeMismatchError($"Function {this.Symbol}. Invalid parameter type, expected a string");
+            if (par0 == null || par0 is not string)
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"Function {this.Symbol}. Invalid parameter type, expected a string");
 
             var filePath = (string)par0;
             return File.Exists(filePath);

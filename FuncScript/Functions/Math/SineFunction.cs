@@ -1,4 +1,5 @@
 ﻿using FuncScript.Core;
+using FuncScript.Model;
 using System;
 
 namespace FuncScript.Functions.Math
@@ -18,6 +19,9 @@ namespace FuncScript.Functions.Math
         {
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
+            if (pars.Length != 1)
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, $"{this.Symbol}: number expected");
+
             var val = pars[0];
 
             if (val is int)
@@ -35,7 +39,7 @@ namespace FuncScript.Functions.Math
                 return System.Math.Sin((double)(long)val);
             }
 
-            throw new Error.TypeMismatchError($"{this.Symbol}: A number was expected.");
+            return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: A number was expected.");
         }
 
         public string ParName(int index)
@@ -59,6 +63,9 @@ namespace FuncScript.Functions.Math
         {
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
+            if (pars.Length != 1)
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, $"{this.Symbol}: number expected");
+
             var val = pars[0];
             if (val is int)
             {
@@ -72,7 +79,7 @@ namespace FuncScript.Functions.Math
             {
                 return System.Math.Cos((long)val);
             }
-            throw new Error.TypeMismatchError($"{this.Symbol}: number expected");
+            return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: number expected");
         }
 
         public string ParName(int index)

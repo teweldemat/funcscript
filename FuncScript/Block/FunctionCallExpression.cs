@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Reflection;
 using FuncScript.Core;
 using FuncScript.Error;
 using FuncScript.Model;
@@ -17,11 +17,19 @@ namespace FuncScript.Block
             this._function = Function;
             this._parameter=Parameter;
         }
-        public override object Evaluate(KeyValueCollection provider)
+        protected override object EvaluateCore(KeyValueCollection provider)
         {
             try
             {
-                return Engine.Apply(_function.Evaluate(provider), _parameter.Evaluate(provider));
+                var target = _function.Evaluate(provider, 0);
+                if (target is FsError targetError)
+                    return targetError;
+
+                var input = _parameter.Evaluate(provider, 0);
+                if (input is FsError inputError)
+                    return inputError;
+
+                return Engine.Apply(target, input);
             }
             catch (EvaluationException)
             {
@@ -29,7 +37,13 @@ namespace FuncScript.Block
             }
             catch (Exception ex)
             {
-                throw new EvaluationException(CodeLocation, ex);
+                if (ex is TargetInvocationException { InnerException: { } inner })
+                    ex = inner;
+
+                var message = string.IsNullOrWhiteSpace(ex.Message)
+                    ? "Function call failed."
+                    : ex.Message;
+                return new FsError(FsError.ERROR_DEFAULT, message);
             }
         }
 

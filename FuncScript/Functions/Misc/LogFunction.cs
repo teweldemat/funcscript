@@ -44,10 +44,11 @@ namespace FuncScript.Functions.Misc
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length == 0)
-                throw new Error.EvaluationTimeException($"{this.Symbol} function: {this.ParName(0)} expected");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, $"{this.Symbol} function: {this.ParName(0)} expected");
 
             if (pars.Length > this.MaxParsCount)
-                throw new Error.EvaluationTimeException($"{this.Symbol} function: Invalid parameter count. Expected at most {this.MaxParsCount}, but got {pars.Length}");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{this.Symbol} function: Invalid parameter count. Expected at most {this.MaxParsCount}, but got {pars.Length}");
 
             var value = pars[0];
 
@@ -62,10 +63,32 @@ namespace FuncScript.Functions.Misc
                 {
                     Fslogger.DefaultLogger?.WriteLine(handlerOrMessage?.ToString() ?? "<null>");
                 }
+
+                return value;
             }
 
+            LogFormattedValue(value);
             return value;
         }
+
+        static void LogFormattedValue(object value)
+        {
+            var logger = Fslogger.DefaultLogger;
+            if (logger == null)
+            {
+                return;
+            }
+
+            try
+            {
+                logger.WriteLine(Engine.FormatToJson(value));
+            }
+            catch
+            {
+                logger.WriteLine(value?.ToString() ?? "null");
+            }
+        }
+
         public string ParName(int index)
         {
             switch(index)

@@ -63,8 +63,8 @@ function assertLiteralLocation(expression, literalText, expectedValue) {
   const found = matches[0];
   const expectedPos = expression.indexOf(literalText);
   expect(expectedPos, 'literal text should exist in the expression').to.be.at.least(0);
-  expect(found.Pos, 'literal position mismatch').to.equal(expectedPos);
-  expect(found.Length, 'literal length mismatch').to.equal(literalText.length);
+  expect(found.CodeLocation.Position, 'literal position mismatch').to.equal(expectedPos);
+  expect(found.CodeLocation.Length, 'literal length mismatch').to.equal(literalText.length);
 }
 
 describe('FuzzCodeLocation', () => {
@@ -80,8 +80,8 @@ describe('FuzzCodeLocation', () => {
     );
     expect(matches).to.have.lengthOf(1);
     const found = matches[0];
-    expect(found.Pos).to.equal(left.length);
-    expect(found.Length).to.equal(target.length);
+    expect(found.CodeLocation.Position).to.equal(left.length);
+    expect(found.CodeLocation.Length).to.equal(target.length);
   });
 
   it('FuzzCodeLocationTest2', () => {
@@ -98,8 +98,8 @@ describe('FuzzCodeLocation', () => {
     );
     expect(matches).to.have.lengthOf(1);
     const found = matches[0];
-    expect(found.Pos).to.equal(left.length);
-    expect(found.Length).to.equal(target.length);
+    expect(found.CodeLocation.Position).to.equal(left.length);
+    expect(found.CodeLocation.Length).to.equal(target.length);
   });
 
   it('FunctionCallWithNestedStructuresMaintainsSpan', () => {
@@ -114,8 +114,8 @@ describe('FuzzCodeLocation', () => {
     );
     expect(matches).to.have.lengthOf(1);
     const found = matches[0];
-    expect(found.Pos).to.equal(0);
-    expect(found.Length).to.equal(expression.length);
+    expect(found.CodeLocation.Position).to.equal(0);
+    expect(found.CodeLocation.Length).to.equal(expression.length);
   });
 
   it('SelectorExpressionMaintainsSourceSpan', () => {
@@ -124,8 +124,8 @@ describe('FuzzCodeLocation', () => {
     const matches = collectBlocks(block, (candidate) => candidate instanceof SelectorExpression);
     expect(matches).to.have.lengthOf(1);
     const found = matches[0];
-    expect(found.Pos).to.equal(0);
-    expect(found.Length).to.equal(expression.length);
+    expect(found.CodeLocation.Position).to.equal(0);
+    expect(found.CodeLocation.Length).to.equal(expression.length);
   });
 
   it('StringLiteralWithEscapesHasCorrectLocation', () => {
@@ -141,8 +141,8 @@ describe('FuzzCodeLocation', () => {
     const found = matches[0];
     const target = '"line\\nvalue"';
     const expectedStart = expression.indexOf(target);
-    expect(found.Pos).to.equal(expectedStart);
-    expect(found.Length).to.equal(target.length);
+    expect(found.CodeLocation.Position).to.equal(expectedStart);
+    expect(found.CodeLocation.Length).to.equal(target.length);
   });
 
   it('MemberAccessAfterFunctionCallPreservesSpan', () => {
@@ -154,12 +154,12 @@ describe('FuzzCodeLocation', () => {
         candidate instanceof FunctionCallExpression &&
         candidate.Function instanceof LiteralBlock &&
         valueOf(candidate.Function.value) instanceof KvcMemberFunction &&
-        candidate.Length === expression.length
+        candidate.CodeLocation.Length === expression.length
     );
     expect(matches).to.have.lengthOf(1);
     const found = matches[0];
-    expect(found.Pos).to.equal(0);
-    expect(found.Length).to.equal(expression.length);
+    expect(found.CodeLocation.Position).to.equal(0);
+    expect(found.CodeLocation.Length).to.equal(expression.length);
   });
 
   it('ReferenceBlockTrimsLeadingWhitespace', () => {
@@ -172,8 +172,8 @@ describe('FuzzCodeLocation', () => {
     expect(matches).to.have.lengthOf(1);
     const found = matches[0];
     const expectedStart = expression.indexOf('SomeIdentifier');
-    expect(found.Pos).to.equal(expectedStart);
-    expect(found.Length).to.equal('SomeIdentifier'.length);
+    expect(found.CodeLocation.Position).to.equal(expectedStart);
+    expect(found.CodeLocation.Length).to.equal('SomeIdentifier'.length);
   });
 
   it('ListLiteralMaintainsMiddleValueLocation', () => {

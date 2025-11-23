@@ -29,8 +29,6 @@ namespace FuncScript.Core
         static NumberResult GetNumber(ParseContext context,List<ParseNode> siblings, int index,
             List<SyntaxErrorData> serros)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
             if (index >= context.Expression.Length)
                 return new NumberResult(index, null, index, 0, null);

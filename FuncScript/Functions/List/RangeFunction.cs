@@ -19,15 +19,19 @@ namespace FuncScript.Functions.List
         {
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
+            if (pars.Length != this.MaxParsCount)
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{this.Symbol}: {this.MaxParsCount} parameters expected");
+
             var par0 = pars[0];
-            if (!(par0 is int))
-                throw new Error.TypeMismatchError($"{this.Symbol}: {ParName(0)} must be an integer");
+            if (par0 is not int)
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: {ParName(0)} must be an integer");
 
             int start = (int)par0;
             var par1 = pars[1];
 
-            if (!(par1 is int))
-                throw new Error.TypeMismatchError($"{this.Symbol}: {ParName(1)} must be an integer");
+            if (par1 is not int)
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: {ParName(1)} must be an integer");
 
             int count = (int)par1;
 

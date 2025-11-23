@@ -16,14 +16,14 @@ namespace FuncScript.Core
             var i = afterOpen;
             idenList = new List<string>();
 
-            var iden=GetIdentifier(context,buffer, i);
+            var iden = GetIdentifier(context,buffer, i);
             int i2 = iden.NextIndex;
             if (i2 > i)
             {
                 idenList.Add(iden.Iden);
                 i = i2;
 
-                while (i < context.Expression.Length)
+                while (true)
                 {
                     var afterComma = GetToken(context, i,buffer,ParseNodeType.ListSeparator, ",");
                     if (afterComma == i)
@@ -41,14 +41,7 @@ namespace FuncScript.Core
             var afterClose = GetToken(context, i,buffer,ParseNodeType.CloseBrance, ")");
             if (afterClose == i)
                 return index;
-            var parseChildren = new List<ParseNode>(buffer);
-            parseChildren.Sort((a, b) =>
-            {
-                var cmp = a.Pos.CompareTo(b.Pos);
-                if (cmp != 0)
-                    return cmp;
-                return a.Length.CompareTo(b.Length);
-            });
+            var parseChildren = buffer;
 
             var openNode = parseChildren.FirstOrDefault(n => n.NodeType == ParseNodeType.OpenBrace);
             var parseStart = openNode?.Pos ?? (parseChildren.Count > 0 ? parseChildren[0].Pos : index);

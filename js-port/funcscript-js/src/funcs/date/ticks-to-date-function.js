@@ -8,7 +8,7 @@ const EPOCH_TICKS = 621355968000000000n; // .NET ticks at Unix epoch
 class TicksToDateFunction extends BaseFunction {
   constructor() {
     super();
-    this.symbol = 'tickstoday';
+    this.symbol = 'tickstodate';
     this.callType = CallType.Prefix;
   }
 

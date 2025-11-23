@@ -9,16 +9,13 @@ namespace FuncScript.Core
         static ParseBlockResult GetListExpression(ParseContext context, IList<ParseNode> siblings,
             ReferenceMode referenceMode, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
-            var errors = context.ErrorsList;
-            var exp = context.Expression;
+            var errors = CreateErrorBuffer();
             var nodes = new List<ParseNode>();
             var currentIndex = index;
             var afterOpen = GetToken(context, currentIndex,nodes,ParseNodeType.OpenBrace, "[");
             if (afterOpen == currentIndex)
-                return new ParseBlockResult(index, null);
+                return new ParseBlockResult(index, null, errors);
 
 
             var listStart = nodes.Count > 0 ? nodes[0].Pos : currentIndex;
@@ -27,6 +24,7 @@ namespace FuncScript.Core
             var items = new List<ExpressionBlock>();
 
             var firstResult = GetExpression(context, nodes, referenceMode, currentIndex);
+            AppendErrors(errors, firstResult);
             if (firstResult.HasProgress(currentIndex))
             {
                 if (firstResult.ExpressionBlock != null)
@@ -35,12 +33,14 @@ namespace FuncScript.Core
 
                 while (true)
                 {
-                    var afterComma = GetToken(context, currentIndex,nodes,ParseNodeType.ListSeparator,  ",");
-                    if (afterComma == currentIndex)
-                        break;
-                    
-                    currentIndex = afterComma;
+                    var afterComma = GetToken(context, currentIndex,nodes,ParseNodeType.ListSeparator,  ",", ";");
+                    if (afterComma > currentIndex)
+                    {
+                        currentIndex = afterComma;
+                    }
+
                     var nextResult = GetExpression(context, nodes, referenceMode, currentIndex);
+                    AppendErrors(errors, nextResult);
                     if (!nextResult.HasProgress(currentIndex))
                         break;
 
@@ -50,21 +50,24 @@ namespace FuncScript.Core
                 }
             }
 
+            currentIndex = SkipSpace(context, nodes, currentIndex);
+
             var afterClose = GetToken(context, currentIndex,nodes,ParseNodeType.CloseBrance, "]");
             if (afterClose == currentIndex)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, 0, "']' expected"));
-                return new ParseBlockResult(index, null);
+                return new ParseBlockResult(index, null, errors);
             }
 
             currentIndex = afterClose;
-            var listExpression = new ListExpression(items.ToArray());
-            ((ExpressionBlock)listExpression).Pos = listStart;
-            ((ExpressionBlock)listExpression).Length = currentIndex - listStart;
+            var listExpression = new ListExpression(items.ToArray())
+            {
+                CodeLocation = new CodeLocation(listStart, currentIndex - listStart)
+            };
 
             var parseNode = new ParseNode(ParseNodeType.List, listStart, currentIndex - listStart, nodes);
             siblings.Add(parseNode);
-            return new ParseBlockResult(currentIndex, listExpression);
+            return new ParseBlockResult(currentIndex, listExpression, errors);
         }
     }
 }

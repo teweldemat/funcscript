@@ -20,7 +20,8 @@ namespace FuncScript.Functions.List
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             if (pars.Length != this.MaxParsCount)
-                throw new Error.TypeMismatchError($"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Length}");
+                return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+                    $"{this.Symbol} function: Invalid parameter count. Expected {this.MaxParsCount}, but got {pars.Length}");
 
             var par0 = pars[0];
             var par1 = pars[1];
@@ -33,11 +34,11 @@ namespace FuncScript.Functions.List
             if (par0 == null)
                 return null;
 
-            if (!(par0 is FsList))
-                throw new Error.TypeMismatchError($"{this.Symbol} function: The first parameter should be {this.ParName(0)}");
+            if (par0 is not FsList)
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol} function: The first parameter should be {this.ParName(0)}");
 
-            if (!(par1 is int))
-                throw new Error.TypeMismatchError($"{this.Symbol} function: The second parameter should be {this.ParName(1)}");
+            if (par1 is not int)
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol} function: The second parameter should be {this.ParName(1)}");
 
             var lst = (FsList)par0;
             int n = (int)par1;

@@ -18,7 +18,7 @@ import {
   FSDataType,
   type DefaultFsDataProvider,
   type TypedValue
-} from '@tewelde/funcscript/browser';
+} from '@tewelde/funcscript';
 
 type VariableState = {
   name: string;
@@ -275,7 +275,12 @@ const toNodeRange = (node: FuncScriptExpressionBlock, docLength: number) => {
   if (!node || typeof node !== 'object') {
     return null;
   }
-  const posValue = (node as { Pos?: number; pos?: number }).Pos ?? (node as { Pos?: number; pos?: number }).pos ?? null;
+  const posValue =
+    (node as { Position?: number; position?: number }).Position ??
+    (node as { Position?: number; position?: number }).position ??
+    (node as { Pos?: number; pos?: number }).Pos ??
+    (node as { Pos?: number; pos?: number }).pos ??
+    null;
   const lengthValue =
     (node as { Length?: number; length?: number }).Length ??
     (node as { Length?: number; length?: number }).length ??
@@ -1054,6 +1059,20 @@ const variablesTitleStyle: CSSProperties = {
   color: '#0f172a'
 };
 
+const variableAddRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.5rem'
+};
+
+const variableNameInputStyle: CSSProperties = {
+  flex: 1,
+  border: '1px solid #d0d7de',
+  borderRadius: 4,
+  padding: '6px 8px',
+  fontSize: 12
+};
+
 const iconButtonBaseStyle: CSSProperties = {
   width: 28,
   height: 28,
@@ -1080,6 +1099,13 @@ const iconButtonSvgStyle: CSSProperties = {
 
 const variableToolbarButtonStyle: CSSProperties = {
   ...iconButtonBaseStyle
+};
+
+const addVariableButtonStyle: CSSProperties = {
+  ...modeButtonBaseStyle,
+  padding: '6px 10px',
+  fontWeight: 600,
+  whiteSpace: 'nowrap'
 };
 
 const variableItemHeaderStyle: CSSProperties = {
@@ -1408,6 +1434,8 @@ const FuncScriptTester = ({
   const variablesRef = useRef<Map<string, VariableState>>(variables);
   const [selectedVariableKey, setSelectedVariableKey] = useState<string | null>(null);
   const [variableEditorValue, setVariableEditorValue] = useState('');
+  const [newVariableName, setNewVariableName] = useState('');
+  const [variableNameError, setVariableNameError] = useState<string | null>(null);
   const [resultState, setResultState] = useState<EvaluationState>({ value: null, error: null });
 
   const initialPersistedState = useMemo(() => (saveKey ? loadPersistedState(saveKey) : null), [saveKey]);
@@ -1705,6 +1733,41 @@ const FuncScriptTester = ({
     }
   }, []);
 
+  const handleAddVariable = useCallback(() => {
+    const rawName = newVariableName.trim();
+    if (rawName.length === 0) {
+      setVariableNameError('Enter a variable name.');
+      return;
+    }
+    const key = rawName.toLowerCase();
+    let added = false;
+    setVariables((prev) => {
+      if (prev.has(key)) {
+        return prev;
+      }
+      added = true;
+      const next = new Map(prev);
+      next.set(key, {
+        name: rawName,
+        key,
+        expression: '',
+        typedValue: null,
+        error: null
+      });
+      variablesRef.current = next;
+      return next;
+    });
+    if (added) {
+      setSelectedVariableKey(key);
+      setVariableEditorValue('');
+      setNewVariableName('');
+      setVariableNameError(null);
+      return;
+    }
+    setSelectedVariableKey(key);
+    setVariableNameError('Variable already exists.');
+  }, [newVariableName]);
+
   useEffect(() => {
     const provider = providerRef.current;
     if (!provider) {
@@ -1805,6 +1868,7 @@ const FuncScriptTester = ({
     });
     if (cleared) {
       setSelectedVariableKey(null);
+      setVariableNameError(null);
     }
   }, []);
 
@@ -3085,6 +3149,40 @@ const FuncScriptTester = ({
                   <TrashIcon />
                 </button>
               </div>
+              <div style={variableAddRowStyle}>
+                <input
+                  type="text"
+                  value={newVariableName}
+                  onChange={(event) => {
+                    setNewVariableName(event.target.value);
+                    if (variableNameError) {
+                      setVariableNameError(null);
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      handleAddVariable();
+                    }
+                  }}
+                  placeholder="Variable name"
+                  aria-label="Variable name"
+                  style={variableNameInputStyle}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddVariable}
+                  style={{
+                    ...addVariableButtonStyle,
+                    ...(newVariableName.trim().length === 0 ? iconButtonDisabledStyle : {})
+                  }}
+                  disabled={newVariableName.trim().length === 0}
+                  aria-label="Add variable"
+                >
+                  Add
+                </button>
+              </div>
+              {variableNameError ? <div style={errorTextStyle}>{variableNameError}</div> : null}
               <div style={variableListItemsStyle}>
                 {variableEntries.length === 0 ? (
                   <div style={unsetTokenStyle}>Variables will appear here when referenced.</div>

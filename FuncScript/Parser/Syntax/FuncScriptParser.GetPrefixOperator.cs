@@ -9,19 +9,17 @@ namespace FuncScript.Core
         static ParseBlockResult GetPrefixOperator(ParseContext context, IList<ParseNode> siblings,
             ReferenceMode referenceMode, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
 
-            var errors = context.ErrorsList;
+            var errors = CreateErrorBuffer();
             var exp = context.Expression;
+            var childNodes = new List<ParseNode>();
 
             string matchedSymbol = null;
             string functionName = null;
             var currentIndex = index;
-            var buffer = CreateNodeBuffer(siblings);
             foreach (var op in s_prefixOp)
             {
-                var nextIndex = GetToken(context, index,buffer,ParseNodeType.Operator,op[0]);
+                var nextIndex = GetToken(context, index,childNodes,ParseNodeType.Operator,op[0]);
                 if (nextIndex > index)
                 {
                     matchedSymbol = op[0];
@@ -32,45 +30,47 @@ namespace FuncScript.Core
             }
 
             if (matchedSymbol == null)
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
 
             var function = context.Provider.Get(functionName);
             if (function == null)
             {
                 errors.Add(new SyntaxErrorData(index, currentIndex - index,
                     $"Prefix operator {functionName} not defined"));
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
             }
 
-            var childNodes = new List<ParseNode>();
             var operandResult = GetCallAndMemberAccess(context, childNodes, referenceMode, currentIndex);
+            AppendErrors(errors, operandResult);
             if (!operandResult.HasProgress(currentIndex) || operandResult.ExpressionBlock == null)
             {
                 errors.Add(new SyntaxErrorData(currentIndex, 0,
                     $"Operant for {functionName} expected"));
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
             }
 
             currentIndex = operandResult.NextIndex;
 
+            var functionLiteral = new LiteralBlock(function)
+            {
+                CodeLocation = new CodeLocation(index, currentIndex - index)
+            };
+
             var expression = new FunctionCallExpression
             (
-                new LiteralBlock(function),
+                functionLiteral,
                 new ListExpression(new[] { operandResult.ExpressionBlock })
                 )
             {
-                Pos = index,
-                Length = currentIndex - index
+                CodeLocation = new CodeLocation(index, currentIndex - index)
             };
 
             var parseNode = new ParseNode(ParseNodeType.PrefixOperatorExpression, index, currentIndex - index,
                 childNodes);
 
-            buffer.AddRange(childNodes);
-            buffer.Add(parseNode);
-            CommitNodeBuffer(siblings, buffer);
+            siblings.Add(parseNode);
 
-            return new ParseBlockResult(currentIndex, expression);
+            return new ParseBlockResult(currentIndex, expression, errors);
         }
     }
 }

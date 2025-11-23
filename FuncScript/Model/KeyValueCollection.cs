@@ -98,8 +98,12 @@ namespace FuncScript.Model
             }
 
             if (col1.ParentProvider != col2.ParentProvider)
-                throw new Error.EvaluationTimeException(
-                    "Key value collections from different contexts can't be merged");
+                return new SimpleKeyValueCollection(null, new[]
+                {
+                    new KeyValuePair<string, object>(string.Empty,
+                        new FsError(FsError.ERROR_TYPE_INVALID_PARAMETER,
+                            "Key value collections from different contexts can't be merged"))
+                });
             return new SimpleKeyValueCollection(col1.ParentProvider,kvs);
         }
         public static int GetHashCode(KeyValueCollection kvc)

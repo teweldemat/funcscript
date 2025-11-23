@@ -1,6 +1,6 @@
 # Built-in Symbols
 
-FuncScript registers every built-in helper under the symbols documented below. The names are case-sensitive and match how you call them inside scripts. Wherever an operator has both infix and function-call forms, you can use either (`1 + 2` or `+(1, 2)`).
+FuncScript registers every built-in helper under the symbols documented below. Symbol lookup is case-insensitive, so the canonical names listed here can be written in any casing. Wherever an operator has both infix and function-call forms, you can use either (`1 + 2` or `+(1, 2)`).
 
 ## Arithmetic Operators
 - `+`, `-`, `*`, `/`, `%` – Standard arithmetic on integers, long integers, and floats. Pure integer chains stay integral as long as each division is exact; otherwise values promote to floating point automatically.
@@ -46,19 +46,19 @@ All numeric helpers belong to the `math` provider collection, so you can call th
 - `math.Sinh(number)` / `math.Cosh(number)` / `math.Tanh(number)` (`Sinh` / `Cosh` / `Tanh`) – Hyperbolic trig functions.
 - `math.Asinh(number)` / `math.Acosh(number)` / `math.Atanh(number)` (`Asinh` / `Acosh` / `Atanh`) – Inverse hyperbolic trig functions.
 - `math.DegToRad(degrees)` / `math.RadToDeg(radians)` (`DegToRad` / `RadToDeg`, aliases `deg2rad` / `rad2deg`) – Convert angles.
-- `math.Random()` (`Random`) – Random double in `[0, 1)`.
+- `math.Random(seed)` (`Random`) – Deterministic pseudo-random double in `[0, 1)` derived from `seed`.
 - Constants exposed via provider collections are accessed without parentheses (e.g., `math.Pi`).
 
 ## List & Sequence Helpers
 - `` list map (value, index) => ... `` – Transform each element.
 - `` list filter (value, index) => ... `` – Keep elements that satisfy the predicate.
 - `` list reduce (acc, value) => ... ~ seed `` – Accumulate a list into a single value.
-- `Range(start, count)` – Produce `[start, start+1, ...]` with `count` elements.
+- `Range(start, count)` (`Series`) – Produce `[start, start+1, ...]` with `count` elements.
 - `Distinct(list)` – Remove duplicate values while preserving order.
 - `Any(list, predicate)` – Returns `true` when any element satisfies `predicate`.
 - `Contains(list, value)` – Returns `true` when `value` is present.
 - `First(list)` – First element (errors on empty lists).
-- `Length(list)` – Length of the list.
+- `Length(list)` (`Len`) – Length of the list.
 - `Take(list, count)` / `Skip(list, count)` – Subset operators.
 - `Sort(list)` – Sort values using default comparison.
 - `Reverse(list)` – Reverse the order of elements.
@@ -91,12 +91,9 @@ All numeric helpers belong to the `math` provider collection, so you can call th
 - `dirlist(path)` – Return the entries inside a directory.
 
 ## Diagnostics & Miscellaneous
-- `guid()` – Generate a GUID string.
-- `log(value, messageOrHandler?)` – Returns `value` after optionally printing `messageOrHandler` or, when it is a function, invoking it with `value`.
+- `log(value, messageOrHandler?)` – Returns `value` after writing either the formatted value (when the second argument is omitted) or the provided `messageOrHandler` output. When a handler function is supplied it is invoked with `value`.
 - `error(message)` – Constructs an `Error` value. Most built-in functions propagate an `Error` result, which aborts evaluation when consumed without handling.
 
 ## Values & Constants
 - `math.Pi` – π constant.
 - `math.E` – Euler's constant.
-
-More constants will surface here as provider collections grow.

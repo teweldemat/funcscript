@@ -9,10 +9,6 @@ namespace FuncScript.Core
         static ParseBlockResult GetMemberAccess(ParseContext context, IList<ParseNode> siblings,
             ExpressionBlock source, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-            if (source == null)
-                throw new ArgumentNullException(nameof(source));
 
             var dotBuffer = CreateNodeBuffer(siblings);
             var dotResult = GetMemberAccess(context, dotBuffer, ".", source, index);
@@ -36,19 +32,13 @@ namespace FuncScript.Core
         static ParseBlockResult GetMemberAccess(ParseContext context, IList<ParseNode> siblings, string oper,
             ExpressionBlock source, int index)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-            if (oper == null)
-                throw new ArgumentNullException(nameof(oper));
-            if (source == null)
-                throw new ArgumentNullException(nameof(source));
 
-            var errors = context.ErrorsList;
+            var errors = CreateErrorBuffer();
             var exp = context.Expression;
 
             var afterOperator = GetToken(context, index,siblings,ParseNodeType.Operator, oper);
             if (afterOperator == index)
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
 
             var memberIndex = afterOperator;
             var iden=GetIdentifier(context,siblings, memberIndex);
@@ -56,7 +46,7 @@ namespace FuncScript.Core
             if (afterIdentifier == memberIndex)
             {
                 errors.Add(new SyntaxErrorData(memberIndex, 0, "member identifier expected"));
-                return ParseBlockResult.NoAdvance(index);
+                return ParseBlockResult.NoAdvance(index, errors);
             }
 
             var currentIndex = afterIdentifier;
@@ -64,22 +54,20 @@ namespace FuncScript.Core
             var function = context.Provider.Get(oper);
             var memberLiteral = new LiteralBlock(iden.Iden)
             {
-                Pos = iden.StartIndex,
-                Length = iden.Length
+                CodeLocation = new CodeLocation(iden.StartIndex, iden.Length)
             };
 
             var expression = new FunctionCallExpression
             (
                 new LiteralBlock(function),
                 new ListExpression(new ExpressionBlock[] { source, memberLiteral }))
-            { 
-                Pos = source.Pos,
-                Length = currentIndex - source.Pos
+            {
+                CodeLocation = new CodeLocation(source.CodeLocation.Position, currentIndex - source.CodeLocation.Position)
             };
 
             var parseNode = new ParseNode(ParseNodeType.MemberAccess, index, currentIndex - index);
             siblings.Add(parseNode);
-            return new ParseBlockResult(currentIndex, expression);
+            return new ParseBlockResult(currentIndex, expression, errors);
         }
     }
 }

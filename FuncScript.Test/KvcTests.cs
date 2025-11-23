@@ -1,8 +1,10 @@
 ﻿using global::FuncScript.Model;
 using NUnit.Framework;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 
 namespace FuncScript.Test
 {
@@ -11,6 +13,12 @@ namespace FuncScript.Test
 
     internal class KvcTests
     {
+        private static FsError AssertIsFsError(object value, string reason = null)
+        {
+            Assert.That(value, Is.TypeOf<FsError>(), reason ?? "Expected evaluation to return FsError");
+            return (FsError)value;
+        }
+
         [Test]
         public void TestKvcSimple()
         {
@@ -304,35 +312,28 @@ return Map(z,(x)=>x*x);
         [Test]
         public void TestDelegateRejectOut()
         {
-            var ex = Assert.Throws<Error.EvaluationException>(() =>
+            var vars = new
             {
-                var vars = new
+                f = new DelegateWithOut((int x, out int y) =>
                 {
-                    f = new DelegateWithOut((int x, out int y) =>
-                    {
-                        y = 2;
-                        return x + 1;
-                    }
-                    )
-                };
-                var ret = FuncScriptRuntime.EvaluateWithVars("f(3)", vars);
-            });
-
-            Assert.That(ex!.InnerException, Is.TypeOf<Error.TypeMismatchError>());
+                    y = 2;
+                    return x + 1;
+                })
+            };
+            var result = FuncScriptRuntime.EvaluateWithVars("f(3)", vars);
+            var fsError = AssertIsFsError(result);
+            Assert.That(fsError.ErrorMessage, Does.Contain("output parameters not supported"));
         }
         [Test]
         public void TestDelegateRejectVoid()
         {
-            var ex = Assert.Throws<Error.EvaluationException>(() =>
+            var vars = new
             {
-                var vars = new
-                {
-                    f = new VoidDelegate((x) => { })
-                };
-                var ret = FuncScriptRuntime.EvaluateWithVars("f(3)", vars);
-            });
-
-            Assert.That(ex!.InnerException, Is.TypeOf<Error.TypeMismatchError>());
+                f = new VoidDelegate((x) => { })
+            };
+            var result = FuncScriptRuntime.EvaluateWithVars("f(3)", vars);
+            var fsError = AssertIsFsError(result);
+            Assert.That(fsError.ErrorMessage, Does.Contain("Delegate with no return is not supported"));
         }
         [Test]
         public void ByteArray()
@@ -358,6 +359,28 @@ d";
             FuncScriptRuntime.Format(sb, null, null, false, true);
             var str = sb.ToString();
             var ret = Newtonsoft.Json.JsonConvert.DeserializeObject<XY>(str);
+        }
+
+        [Test]
+        public void JsonEquivalenceFuzz()
+        {
+            var scenarios = new[]
+            {
+                "{ \"id\": 1, \"name\": \"FuncScript\" }",
+                "{ \"numbers\": [1, 2, 3.5, -10], \"flag\": true, \"nothing\": null }",
+                "{ \"nested\": { \"level1\": { \"level2\": { \"value\": \"deep\" } }, \"list\": [ { \"inner\": 1 }, { \"inner\": 2 } ] } }",
+                "[ { \"a\": 1 }, { \"a\": 2, \"b\": [true, false, null] } ]",
+                "{ \"text\": \"Line\\nFeed\\tTabbed\\\"Quote\\\"\", \"escaped\": \"\\\\backslash\" }",
+                "{ \"mixed\": [1, \"two\", { \"three\": 3 }], \"emptyArray\": [], \"emptyObject\": {} }",
+                "  {  \"spaced\"  :  {   \"value\" :   [1,2,3] } , \"bool\" : false }",
+                "{ \"largeNumber\": 9223372036854775807, \"floating\": -12345.6789e2 }",
+                "{ \"unicode\": \"Smiley \\u263A\", \"surrogate\": \"\\ud83d\\ude03\" }"
+            };
+
+            foreach (var json in scenarios)
+            {
+                AssertJsonEquivalent(json);
+            }
         }
         [Test]
         public void TestListParse2()
@@ -460,6 +483,93 @@ d";
             var expected = new ObjectKvc(new { a = 5, b = 6 });
             Assert.AreEqual(FuncScriptRuntime.FormatToJson(expected),  FuncScriptRuntime.FormatToJson(res));
         }
+
+        private static void AssertJsonEquivalent(string json)
+        {
+            using var document = JsonDocument.Parse(json);
+            var expected = document.RootElement.Clone();
+            var actual = Engine.Evaluate(json);
+            AssertJsonElementEquivalent(expected, actual, "root");
+        }
+
+        private static void AssertJsonElementEquivalent(JsonElement expected, object actual, string path)
+        {
+            switch (expected.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    Assert.That(actual, Is.InstanceOf<KeyValueCollection>(), $"{path}: expected object but found {Describe(actual)}");
+                    var kvc = (KeyValueCollection)actual;
+                    var actualProperties = kvc
+                        .GetAll()
+                        .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
+                    Assert.AreEqual(expected.EnumerateObject().Count(), actualProperties.Count, $"{path}: property count mismatch");
+                    foreach (var property in expected.EnumerateObject())
+                    {
+                        Assert.IsTrue(actualProperties.TryGetValue(property.Name, out var value), $"{path}: missing property {property.Name}");
+                        AssertJsonElementEquivalent(property.Value, value, $"{path}.{property.Name}");
+                    }
+                    break;
+                case JsonValueKind.Array:
+                    Assert.That(actual, Is.InstanceOf<FsList>(), $"{path}: expected array but found {Describe(actual)}");
+                    var list = (FsList)actual;
+                    var expectedItems = expected.EnumerateArray().ToArray();
+                    Assert.AreEqual(expectedItems.Length, list.Length, $"{path}: array length mismatch");
+                    for (var i = 0; i < expectedItems.Length; i++)
+                    {
+                        AssertJsonElementEquivalent(expectedItems[i], list[i], $"{path}[{i}]");
+                    }
+                    break;
+                case JsonValueKind.String:
+                    Assert.That(actual, Is.InstanceOf<string>(), $"{path}: expected string but found {Describe(actual)}");
+                    var actualString = (string)actual;
+                    Assert.AreEqual(expected.GetString(), actualString, $"{path}: string mismatch");
+                    break;
+                case JsonValueKind.Number:
+                    AssertNumberEquivalent(expected, actual, path);
+                    break;
+                case JsonValueKind.True:
+                case JsonValueKind.False:
+                    Assert.That(actual, Is.InstanceOf<bool>(), $"{path}: expected boolean but found {Describe(actual)}");
+                    var actualBool = (bool)actual;
+                    Assert.AreEqual(expected.ValueKind == JsonValueKind.True, actualBool, $"{path}: boolean mismatch");
+                    break;
+                case JsonValueKind.Null:
+                case JsonValueKind.Undefined:
+                    Assert.IsNull(actual, $"{path}: expected null but found {Describe(actual)}");
+                    break;
+                default:
+                    Assert.Fail($"{path}: unsupported JSON value kind {expected.ValueKind}");
+                    break;
+            }
+        }
+
+        private static void AssertNumberEquivalent(JsonElement expected, object actual, string path)
+        {
+            if (actual is int actualInt)
+            {
+                Assert.IsTrue(expected.TryGetInt64(out var expectedLong), $"{path}: JSON number not convertible to integer");
+                Assert.AreEqual(expectedLong, actualInt, $"{path}: integer mismatch");
+                return;
+            }
+
+            if (actual is long actualLong)
+            {
+                Assert.IsTrue(expected.TryGetInt64(out var expectedLong), $"{path}: JSON number not convertible to integer");
+                Assert.AreEqual(expectedLong, actualLong, $"{path}: long mismatch");
+                return;
+            }
+
+            if (actual is double actualDouble)
+            {
+                var expectedDouble = expected.GetDouble();
+                Assert.AreEqual(expectedDouble, actualDouble, 1e-9, $"{path}: double mismatch");
+                return;
+            }
+
+            Assert.Fail($"{path}: unsupported numeric type {Describe(actual)}");
+        }
+
+        private static string Describe(object value) => value == null ? "null" : value.GetType().FullName ?? value.GetType().Name;
     }
 
 }
