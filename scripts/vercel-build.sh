@@ -9,6 +9,12 @@ log() {
   echo "[vercel-build] $*"
 }
 
+log "Prebuilding FuncScript editor package"
+pushd "${ROOT_DIR}/js-port/funcscript-editor" >/dev/null
+npm ci
+npm run build
+popd >/dev/null
+
 log "Building interactive docs widget"
 pushd "${ROOT_DIR}/tools/live-examples-widget" >/dev/null
 npm ci
