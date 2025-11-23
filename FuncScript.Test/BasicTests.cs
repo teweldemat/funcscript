@@ -141,6 +141,16 @@ namespace FuncScript.Test
         }
 
         [Test]
+        public void AdditionSkipsNullValues()
+        {
+            var skipNulls = FuncScriptRuntime.Evaluate("null+5+null");
+            Assert.That(skipNulls, Is.EqualTo(5));
+
+            var onlyNull = FuncScriptRuntime.Evaluate("null+null");
+            Assert.IsNull(onlyNull);
+        }
+
+        [Test]
         public void NullCoalescingChainReturnsFirstNonNull()
         {
             var exp = "null??null??null??5";

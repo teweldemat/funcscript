@@ -138,7 +138,9 @@ describe('Syntax2', () => {
       { expression: 'case 1>2:1, 2>3:2, 10', expected: 10 },
       { expression: 'case 1>2:1, 2>1:2, 10', expected: 2 },
       { expression: 'case 1>2:1, 10', expected: 10 },
-      { expression: '(case 1>2:[1], [10])[0]', expected: 10 }
+      { expression: '(case 1>2:[1], [10])[0]', expected: 10 },
+      { expression: 'case null:1, 2', expected: 2 },
+      { expression: 'case 5:1, 2', expected: 1 }
     ];
 
     for (const { expression, expected } of cases) {

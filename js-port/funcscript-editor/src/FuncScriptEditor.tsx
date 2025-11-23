@@ -239,9 +239,14 @@ const createFuncScriptExtensions = (
     let errorMessage: string | null = null;
     let expressionBlock: FuncScriptExpressionBlock = null;
 
+    const activeParser = FuncScriptParser ?? (Engine as unknown as { FuncScriptParser?: typeof FuncScriptParser })?.FuncScriptParser ?? null;
+
     if (expression.trim().length > 0) {
       try {
-        const result = FuncScriptParser.parse(provider, expression);
+        if (!activeParser) {
+          throw new Error('FuncScript parser is unavailable');
+        }
+        const result = activeParser.parse(provider, expression);
         parseNode = (result?.parseNode as RawParseNode) ?? null;
         expressionBlock = (result?.block as FuncScriptExpressionBlock) ?? null;
       } catch (error) {

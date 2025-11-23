@@ -4,31 +4,42 @@
   "description": "FuncScript runtime for Node.js and browser environments",
   "license": "MIT",
   "type": "commonjs",
-  "main": "./src/funcscript.js",
-  "module": "./src/funcscript.browser.mjs",
-  "browser": "./src/funcscript.browser.js",
-  "types": "./src/funcscript.d.ts",
+  "main": "./funcscript.js",
+  "module": "./funcscript.browser.mjs",
+  "browser": "./funcscript.browser.js",
+  "types": "./funcscript.d.ts",
   "exports": {
     ".": {
-      "types": "./src/funcscript.d.ts",
-      "require": "./src/funcscript.js",
-      "import": "./src/funcscript.browser.mjs",
-      "default": "./src/funcscript.js"
+      "types": "./funcscript.d.ts",
+      "require": "./funcscript.js",
+      "import": "./funcscript.browser.mjs",
+      "default": "./funcscript.js"
     },
     "./parser": {
-      "types": "./src/parser/funcscript-parser.d.ts",
-      "require": "./src/parser/funcscript-parser.cjs",
-      "import": "./src/parser/funcscript-parser.mjs"
+      "types": "./parser/funcscript-parser.d.ts",
+      "require": "./parser/funcscript-parser.cjs",
+      "import": "./parser/funcscript-parser.mjs"
     },
     "./browser": {
-      "types": "./src/funcscript.browser.d.ts",
-      "require": "./src/funcscript.browser.js",
-      "import": "./src/funcscript.browser.mjs"
+      "types": "./funcscript.browser.d.ts",
+      "require": "./funcscript.browser.js",
+      "import": "./funcscript.browser.mjs"
     },
     "./package.json": "./package.json"
   },
   "files": [
-    "src"
+    "block",
+    "core",
+    "error",
+    "funcs",
+    "model",
+    "parser",
+    "funcscript.browser.d.ts",
+    "funcscript.browser.js",
+    "funcscript.browser.mjs",
+    "funcscript.d.ts",
+    "funcscript.js",
+    "test-runner.js"
   ],
   "author": "Tewelde Ma. Tegegne <teweldemat@gmail.com>",
   "keywords": [

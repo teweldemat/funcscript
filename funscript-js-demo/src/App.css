@@ -1,0 +1,130 @@
+.App {
+  min-height: 100vh;
+  padding: 2rem;
+  background: #0f172a;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  box-sizing: border-box;
+}
+
+.panel {
+  width: min(960px, 100%);
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 2.5rem;
+  box-shadow: 0 40px 90px rgba(15, 23, 42, 0.45);
+}
+
+.panel h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+.lede {
+  color: #475569;
+  margin-top: 0.75rem;
+  line-height: 1.6;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.field textarea {
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo,
+    Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.95rem;
+  border: 1px solid #cbd5f5;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  resize: vertical;
+  min-height: 160px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.field textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+.actions {
+  margin-top: 1rem;
+}
+
+.actions button {
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+  color: #fff;
+  font-size: 1rem;
+  border: none;
+  border-radius: 999px;
+  padding: 0.85rem 2.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.actions button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.35);
+}
+
+.parser-result {
+  margin-top: 2rem;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
+
+.parser-result h2 {
+  margin: 0 0 0.75rem 0;
+}
+
+.parser-result.success {
+  background: #ecfdf5;
+  border: 1px solid #34d399;
+  color: #064e3b;
+}
+
+.parser-result.error {
+  background: #fef2f2;
+  border: 1px solid #f87171;
+  color: #7f1d1d;
+}
+
+.parser-result ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.parser-result li {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(127, 29, 29, 0.2);
+}
+
+.parser-result li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.parser-result .meta {
+  font-size: 0.9rem;
+  color: inherit;
+  opacity: 0.8;
+}
+
+@media (max-width: 600px) {
+  .panel {
+    padding: 1.5rem;
+  }
+}

@@ -37,6 +37,11 @@ describe('Basic', () => {
     expect(toPlain(evalExpression('null??null??null??5'))).to.equal(5);
   });
 
+  it('skips null operands when adding', () => {
+    expect(toPlain(evalExpression('null+5+null'))).to.equal(5);
+    expect(toPlain(evalExpression('null+null'))).to.equal(null);
+  });
+
   it('evaluates lambda expressions', () => {
     expect(toPlain(evalExpression('((a)=>a*a+a)(3)'))).to.equal(12);
     expect(toPlain(evalExpression('(x => x)(3)'))).to.equal(3);

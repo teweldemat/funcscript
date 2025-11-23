@@ -27,10 +27,12 @@ namespace FuncScript.Functions.Logic
             if (condition is FsError fsError)
                 return fsError;
 
-            if (!(condition is bool))
-                return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: The first parameter must be a boolean value.");
-
-            bool evalCondition = (bool)condition;
+            bool evalCondition = condition switch
+            {
+                bool b => b,
+                null => false,
+                _ => true
+            };
             int resultIndex = evalCondition ? 1 : 2;
             var result = pars[resultIndex];
 

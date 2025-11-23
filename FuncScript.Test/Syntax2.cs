@@ -175,6 +175,8 @@ namespace FuncScript.Test
         [TestCase("case 1>2:1, 2>1:2, 10", 2)]
         [TestCase("case 1>2:1, 10", 10)]
         [TestCase("(case 1>2:[1], [10])[0]", 10)]
+        [TestCase("case null:1, 2", 2)]
+        [TestCase("case 5:1, 2", 1)]
         public void CaseExpression(string exp,object expected)
         {
             Assert.AreEqual(expected, FuncScriptRuntime.Evaluate(exp));

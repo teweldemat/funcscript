@@ -142,6 +142,8 @@ namespace FuncScript.Test
         [TestCase(@"0 in [1,0,2]", true)] //finds it in the middle
         [TestCase(@"if(0 in [1,2],1,2)", 2)]
         [TestCase(@"if(1 in [1,2],1,2)", 1)]
+        [TestCase(@"if(null,1,2)", 2)]
+        [TestCase(@"if(5,1,2)", 1)]
 
         [TestCase(@"""1"" in [""1"",1,2]", true)]
         [TestCase(@"1 in [""1"",2]", false)]
@@ -151,11 +153,17 @@ namespace FuncScript.Test
         [TestCase(@"true and false", false)]
         [TestCase(@"true and true and true", true)]
         [TestCase(@"true and false and true", false)]
+        [TestCase(@"true and null", true)]
+        [TestCase(@"false and null", false)]
+        [TestCase(@"null and null", null)]
 
         [TestCase(@"true or true", true)] //or function
         [TestCase(@"true or false", true)]
         [TestCase(@"true or true or true", true)]
         [TestCase(@"true or false or true", true)]
+        [TestCase(@"true or null", true)]
+        [TestCase(@"false or null", false)]
+        [TestCase(@"null or null", null)]
 
         [TestCase(@"true and true or false and false", false)] //and or preciden function
         [TestCase(@"true or false and true", true)]
