@@ -12,7 +12,7 @@ namespace FuncScript.Core
 {
     public class ExpressionFunction
     {
-        public class ExpressionFunctionCaller(KeyValueCollection provider, ExpressionFunction parent) : IFsFunction
+        public class ExpressionFunctionCaller(KeyValueCollection provider, ExpressionFunction parent,ExpressionBlock.DepthCounter depth) : IFsFunction
         {
 
             public object Evaluate(object par)
@@ -24,8 +24,10 @@ namespace FuncScript.Core
                     expressionFunction =parent,
                     parentSymbolProvider = provider
                 };
-                var nextDepth =  1;
-                return parent.Expression.Evaluate(parProvider, nextDepth);
+                depth.Enter();
+                var ret=parent.Expression.Evaluate(parProvider, depth);
+                depth.Exit();
+                return ret;
             }
 
             public CallType CallType { get; } = CallType.Prefix;
@@ -38,10 +40,15 @@ namespace FuncScript.Core
             public KeyValueCollection parentSymbolProvider;
             public ExpressionFunction expressionFunction;
             public KeyValueCollection ParentProvider => this.parentSymbolProvider;
-            public bool IsDefined(string key)
+            public bool IsDefined(string key, bool hierarchy = true)
             {
-                return expressionFunction.ParamterNameIndex.ContainsKey(key)
-                       || parentSymbolProvider.IsDefined(key);
+                if (string.IsNullOrWhiteSpace(key))
+                    return false;
+                if (expressionFunction.ParamterNameIndex.ContainsKey(key))
+                    return true;
+                if (!hierarchy)
+                    return false;
+                return parentSymbolProvider != null && parentSymbolProvider.IsDefined(key);
             }
 
             public IList<KeyValuePair<string, object>> GetAll()
@@ -65,6 +72,17 @@ namespace FuncScript.Core
                 }
 
                 return list;
+            }
+
+            public IList<string> GetAllKeys()
+            {
+                var parameterNames = expressionFunction._parameters ?? Array.Empty<string>();
+                if (parameterNames.Length == 0)
+                    return Array.Empty<string>();
+                return parameterNames
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Select(name => name.ToLowerInvariant())
+                    .ToArray();
             }
 
             public object Get(string name)

@@ -1,4 +1,5 @@
 const { ExpressionBlock } = require('./expression-block');
+const { typedNull } = require('../core/value');
 
 class ReferenceBlock extends ExpressionBlock {
   constructor(name, position = 0, length = 0, fromParent = false) {
@@ -10,12 +11,14 @@ class ReferenceBlock extends ExpressionBlock {
 
   evaluateInternal(provider) {
     if (!provider) {
-      return null;
+      return typedNull();
     }
-    if (this.fromParent && provider.parent) {
-      return provider.parent.get(this.key);
+    const source = this.fromParent && provider.parent ? provider.parent : provider;
+    const value = source && typeof source.get === 'function' ? source.get(this.key) : null;
+    if (value === null || value === undefined) {
+      return typedNull();
     }
-    return provider.get(this.key);
+    return value;
   }
 
   asExpressionString() {

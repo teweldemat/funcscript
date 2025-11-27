@@ -3,6 +3,7 @@ using FuncScript.Core;
 using FuncScript.Error;
 using FuncScript.Model;
 using System.Text;
+using System.Net.Http.Headers;
 
 namespace FuncScript.Block
 {
@@ -17,33 +18,28 @@ namespace FuncScript.Block
             this._function = Function;
             this._parameter=Parameter;
         }
-        protected override object EvaluateCore(KeyValueCollection provider)
+        public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {
+            depth.Enter();
             try
             {
-                var target = _function.Evaluate(provider, 0);
+                var target = _function.Evaluate(provider, depth);
                 if (target is FsError targetError)
-                    return targetError;
+                    return AttachCodeLocation(_function, targetError);
 
-                var input = _parameter.Evaluate(provider, 0);
+                var input = _parameter.Evaluate(provider, depth);
                 if (input is FsError inputError)
-                    return inputError;
+                    return AttachCodeLocation(_parameter, inputError);
 
-                return Engine.Apply(target, input);
-            }
-            catch (EvaluationException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                if (ex is TargetInvocationException { InnerException: { } inner })
-                    ex = inner;
+                var result = Engine.Apply(target, input);
+                if (result is FsError callError)
+                    return AttachCodeLocation(this, callError);
 
-                var message = string.IsNullOrWhiteSpace(ex.Message)
-                    ? "Function call failed."
-                    : ex.Message;
-                return new FsError(FsError.ERROR_DEFAULT, message);
+                return result;
+            }
+            finally
+            {
+                depth.Exit();
             }
         }
 

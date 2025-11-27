@@ -10,23 +10,23 @@ const { FsError } = require('./model/fs-error');
 const { ParseNode } = require('./parser/parse-node');
 const buildBrowserBuiltinMap = require('./funcs/index.browser');
 const createTestRunner = require('./test-runner');
+const {
+  registerLanguageBinding,
+  tryGetLanguageBinding,
+  clearLanguageBindings
+} = require('./core/language-binding-registry');
+const { ensureJavaScriptLanguageBinding } = require('./bindings/javascript-language-binding');
+const { createPackageLoader } = require('./core/package-loader');
 
 const { MapDataProvider, FsDataProvider, KvcProvider } = dataProviders;
-const {
-  ensureTyped,
-  normalize,
-  makeValue,
-  typeOf,
-  valueOf,
-  typedNull,
-  isTyped,
-  expectType,
-  convertToCommonNumericType
-} = valueModule;
+const { assertTyped, normalize, makeValue, typeOf, valueOf, typedNull, expectType, convertToCommonNumericType } =
+  valueModule;
 
 const builtinSymbols = buildBrowserBuiltinMap();
 const builtinProvider = new MapDataProvider(builtinSymbols);
 const builtinCollections = {};
+
+ensureJavaScriptLanguageBinding();
 
 function attachExpressionSource(provider, expression) {
   if (!provider || typeof provider !== 'object') {
@@ -75,7 +75,7 @@ class DefaultFsDataProvider extends MapDataProvider {
       if (!this._collectionCache.has(lower)) {
         const entries = builtinCollections[lower].map(([memberName, typedValue]) => [memberName, typedValue]);
         const collection = new SimpleKeyValueCollection(this, entries);
-        this._collectionCache.set(lower, ensureTyped(collection));
+        this._collectionCache.set(lower, normalize(collection));
       }
       return this._collectionCache.get(lower);
     }
@@ -97,7 +97,7 @@ class DefaultFsDataProvider extends MapDataProvider {
 const test = createTestRunner({
   FuncScriptParser,
   DefaultFsDataProvider,
-  ensureTyped,
+  assertTyped,
   expectType,
   typeOf,
   valueOf,
@@ -113,8 +113,15 @@ function evaluate(expression, provider = new DefaultFsDataProvider()) {
   if (!block) {
     throw new Error('Failed to parse expression');
   }
-  return ensureTyped(block.evaluate(provider));
+  return assertTyped(block.evaluate(provider), 'Expression must return typed value');
 }
+
+const loadPackage = createPackageLoader({
+  evaluateExpression: evaluate,
+  DefaultFsDataProvider,
+  MapDataProvider,
+  normalize
+});
 
 function colorParseTree(node) {
   if (!node || typeof node.Length !== 'number' || node.Length <= 0) {
@@ -152,6 +159,7 @@ function colorParseTree(node) {
 
 const Engine = {
   evaluate,
+  loadPackage,
   test,
   colorParseTree,
   FuncScriptParser,
@@ -159,13 +167,12 @@ const Engine = {
   FsDataProvider,
   MapDataProvider,
   KvcProvider,
-  ensureTyped,
+  assertTyped,
   normalize,
   makeValue,
   typeOf,
   valueOf,
   typedNull,
-  isTyped,
   expectType,
   convertToCommonNumericType,
   FSDataType,
@@ -179,11 +186,15 @@ const Engine = {
   KeyValueCollection,
   SimpleKeyValueCollection,
   FsError,
-  buildBuiltinMap: buildBrowserBuiltinMap
+  buildBuiltinMap: buildBrowserBuiltinMap,
+  registerLanguageBinding,
+  tryGetLanguageBinding,
+  clearLanguageBindings
 };
 
 exports.Engine = Engine;
 exports.evaluate = evaluate;
+exports.loadPackage = loadPackage;
 exports.test = test;
 exports.colorParseTree = colorParseTree;
 exports.FuncScriptParser = FuncScriptParser;
@@ -191,13 +202,12 @@ exports.DefaultFsDataProvider = DefaultFsDataProvider;
 exports.FsDataProvider = FsDataProvider;
 exports.MapDataProvider = MapDataProvider;
 exports.KvcProvider = KvcProvider;
-exports.ensureTyped = ensureTyped;
+exports.assertTyped = assertTyped;
 exports.normalize = normalize;
 exports.makeValue = makeValue;
 exports.typeOf = typeOf;
 exports.valueOf = valueOf;
 exports.typedNull = typedNull;
-exports.isTyped = isTyped;
 exports.expectType = expectType;
 exports.convertToCommonNumericType = convertToCommonNumericType;
 exports.FSDataType = FSDataType;
@@ -212,4 +222,7 @@ exports.KeyValueCollection = KeyValueCollection;
 exports.SimpleKeyValueCollection = SimpleKeyValueCollection;
 exports.FsError = FsError;
 exports.buildBuiltinMap = buildBrowserBuiltinMap;
+exports.registerLanguageBinding = registerLanguageBinding;
+exports.tryGetLanguageBinding = tryGetLanguageBinding;
+exports.clearLanguageBindings = clearLanguageBindings;
 Object.defineProperty(exports, "__esModule", { value: true });

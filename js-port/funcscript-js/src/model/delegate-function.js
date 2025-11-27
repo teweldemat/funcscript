@@ -1,5 +1,6 @@
 const { BaseFunction, CallType } = require('../core/function-base');
-const { ensureTyped, valueOf } = require('../core/value');
+const { assertTyped, normalize } = require('../core/value');
+const { convertTypedValueToJs } = require('../core/fs-to-js');
 
 class DelegateFunction extends BaseFunction {
   constructor(delegate) {
@@ -18,11 +19,15 @@ class DelegateFunction extends BaseFunction {
     const args = [];
     const count = parameters ? parameters.count : 0;
     for (let i = 0; i < count; i += 1) {
-      args.push(ensureTyped(parameters.getParameter(provider, i)));
+      args.push(assertTyped(parameters.getParameter(provider, i), 'Delegate arguments must be typed'));
     }
-    const jsArgs = args.map((arg) => valueOf(arg));
+    const jsArgs = args.map((arg) => convertTypedValueToJs(arg, provider));
     const result = this.delegate(...jsArgs);
-    return ensureTyped(result);
+    try {
+      return assertTyped(result);
+    } catch (error) {
+      return normalize(result);
+    }
   }
 
   get callType() {

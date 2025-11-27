@@ -1,5 +1,5 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
-const { ensureTyped, typeOf, valueOf, makeValue } = require('../../core/value');
+const { assertTyped, typeOf, valueOf, makeValue } = require('../../core/value');
 const { FSDataType } = require('../../core/fstypes');
 const { FsError } = require('../../model/fs-error');
 
@@ -16,7 +16,7 @@ class PrefixBooleanFunction extends BaseFunction {
   }
 
   evaluate(provider, parameters) {
-    const operand = ensureTyped(parameters.getParameter(provider, 0));
+    const operand = assertTyped(parameters.getParameter(provider, 0));
     if (typeOf(operand) !== FSDataType.Boolean) {
       return makeValue(
         FSDataType.Error,

@@ -1,5 +1,5 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
-const { ensureTyped, typeOf, valueOf, makeValue } = require('../../core/value');
+const { assertTyped, typeOf, valueOf, makeValue } = require('../../core/value');
 const { FSDataType } = require('../../core/fstypes');
 const { makeError, FsError, requireInteger } = require('../helpers');
 
@@ -39,7 +39,7 @@ function numericValueOf(typed) {
 }
 
 function ensureNumeric(symbol, parameter, name = 'number') {
-  const typed = ensureTyped(parameter);
+  const typed = assertTyped(parameter);
   const t = typeOf(typed);
   if (t === FSDataType.Integer || t === FSDataType.Float || t === FSDataType.BigInteger) {
     return {
@@ -131,7 +131,7 @@ class AbsoluteValueFunction extends BaseFunction {
   }
 
   evaluate(provider, parameters) {
-    const typed = ensureTyped(parameters.getParameter(provider, 0));
+    const typed = assertTyped(parameters.getParameter(provider, 0));
     const t = typeOf(typed);
     if (t === FSDataType.Integer) {
       return makeValue(FSDataType.Integer, Math.abs(valueOf(typed)));

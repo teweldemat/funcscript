@@ -32,7 +32,7 @@ class RegexFunction extends BaseFunction {
 
     let flagsText = null;
     if (parameters.count === 3) {
-      const flagValue = helpers.ensureTyped(parameters.getParameter(provider, 2));
+      const flagValue = helpers.assertTyped(parameters.getParameter(provider, 2));
       if (helpers.typeOf(flagValue) !== FSDataType.Null) {
         if (helpers.typeOf(flagValue) !== FSDataType.String) {
           return helpers.makeError(helpers.FsError.ERROR_TYPE_MISMATCH, `${this.symbol}: flags parameter must be a string`);

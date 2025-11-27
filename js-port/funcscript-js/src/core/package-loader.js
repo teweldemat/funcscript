@@ -1,0 +1,227 @@
+'use strict';
+
+function isFunction(fn) {
+  return typeof fn === 'function';
+}
+
+function clonePath(path) {
+  if (!Array.isArray(path) || path.length === 0) {
+    return [];
+  }
+  return path.slice();
+}
+
+function iterableToArray(value) {
+  if (!value) {
+    return [];
+  }
+  if (Array.isArray(value)) {
+    return value.slice();
+  }
+  if (typeof value[Symbol.iterator] === 'function') {
+    return Array.from(value);
+  }
+  return [];
+}
+
+function extractChildName(entry) {
+  if (entry == null) {
+    return null;
+  }
+  if (typeof entry === 'string') {
+    return entry;
+  }
+  if (typeof entry === 'object') {
+    if (typeof entry.name === 'string') {
+      return entry.name;
+    }
+    if (typeof entry.Name === 'string') {
+      return entry.Name;
+    }
+  }
+  return null;
+}
+
+function formatPath(path) {
+  if (!Array.isArray(path) || path.length === 0) {
+    return '<root>';
+  }
+  return path.join('/');
+}
+
+function escapeKey(name) {
+  const simpleIdentifier = /^[A-Za-z_][A-Za-z0-9_]*$/;
+  if (simpleIdentifier.test(name)) {
+    return name;
+  }
+  const escaped = name
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n');
+  return `"${escaped}"`;
+}
+
+function indent(level) {
+  if (level <= 0) {
+    return '';
+  }
+  return '  '.repeat(level);
+}
+
+function normalizeExpressionDescriptor(descriptor) {
+  if (!descriptor && descriptor !== '') {
+    return null;
+  }
+  if (typeof descriptor === 'string') {
+    return {
+      expression: descriptor,
+      language: 'funcscript'
+    };
+  }
+  if (typeof descriptor === 'object') {
+    const expr = descriptor.expression ?? descriptor.code ?? descriptor.Expression ?? null;
+    if (expr == null) {
+      return null;
+    }
+    const language = descriptor.language ?? descriptor.lang ?? descriptor.Language ?? 'funcscript';
+    return {
+      expression: expr,
+      language
+    };
+  }
+  return null;
+}
+
+function wrapExpressionByLanguage(descriptor) {
+  if (!descriptor) {
+    return '';
+  }
+  const expression = descriptor.expression == null ? '' : String(descriptor.expression);
+  const language = descriptor.language == null ? 'funcscript' : String(descriptor.language).toLowerCase();
+  if (!language || language === 'funcscript') {
+    return expression;
+  }
+  if (language === 'javascript') {
+    return `\`\`\`javascript
+${expression}
+\`\`\``;
+  }
+  throw new Error(`Unsupported package expression language '${descriptor.language}'`);
+}
+
+function ensureResolver(resolver) {
+  if (!resolver || typeof resolver !== 'object') {
+    throw new Error('loadPackage requires a package resolver instance');
+  }
+  if (!isFunction(resolver.listChildren)) {
+    throw new Error('Package resolver must implement listChildren(path)');
+  }
+  if (!isFunction(resolver.getExpression)) {
+    throw new Error('Package resolver must implement getExpression(path)');
+  }
+}
+
+function createPackageLoader({ evaluateExpression, DefaultFsDataProvider, MapDataProvider, normalize }) {
+  if (!isFunction(evaluateExpression)) {
+    throw new Error('evaluateExpression function is required to create package loader');
+  }
+  if (typeof DefaultFsDataProvider !== 'function') {
+    throw new Error('DefaultFsDataProvider constructor is required to create package loader');
+  }
+  if (typeof MapDataProvider !== 'function') {
+    throw new Error('MapDataProvider constructor is required to create package loader');
+  }
+  if (!isFunction(normalize)) {
+    throw new Error('normalize function is required to create package loader');
+  }
+
+  function buildNodeExpression(resolver, path, depth) {
+    const normalizedPath = clonePath(path);
+    const expressionDescriptor = normalizeExpressionDescriptor(resolver.getExpression(normalizedPath));
+    const childEntries = iterableToArray(resolver.listChildren(normalizedPath));
+    if (expressionDescriptor && childEntries.length > 0) {
+      throw new Error(`Package resolver node '${formatPath(path)}' cannot have both children and an expression`);
+    }
+    if (expressionDescriptor) {
+      return wrapExpressionByLanguage(expressionDescriptor);
+    }
+    if (childEntries.length === 0) {
+      if (!path || path.length === 0) {
+        throw new Error('Package resolver root has no entries or expression');
+      }
+      throw new Error(`Package resolver node '${formatPath(path)}' has no children or expression`);
+    }
+
+    const statements = [];
+    const seen = new Set();
+
+    for (const entry of childEntries) {
+      const name = extractChildName(entry);
+      if (!name) {
+        throw new Error(`Package resolver returned invalid child entry under '${formatPath(path)}'`);
+      }
+      const strName = String(name);
+      const lower = strName.toLowerCase();
+      if (seen.has(lower)) {
+        throw new Error(`Duplicate entry '${strName}' under '${formatPath(path)}'`);
+      }
+      seen.add(lower);
+
+      const childPath = normalizedPath.concat([strName]);
+      const valueExpression = buildNodeExpression(resolver, childPath, depth + 1);
+      if (strName.toLowerCase() === 'eval') {
+        statements.push(`eval ${valueExpression}`);
+      } else {
+        statements.push(`${escapeKey(strName)}: ${valueExpression}`);
+      }
+    }
+
+    if (statements.length === 0) {
+      return '{}';
+    }
+
+    const indentCurrent = indent(depth);
+    const indentInner = indent(depth + 1);
+    const body = statements.map((statement) => `${indentInner}${statement}`).join(';\n');
+    return `{\n${body}\n${indentCurrent}}`;
+  }
+
+  function createProviderWithPackage(resolver, provider, loadPackageFn) {
+    const resolverAccessor = isFunction(resolver?.package) ? resolver.package.bind(resolver) : null;
+    if (!resolverAccessor) {
+      return provider;
+    }
+
+    const packageValue = normalize((packageName) => {
+      if (packageName == null) {
+        throw new Error('package requires a package name');
+      }
+      const name = String(packageName);
+      if (!name) {
+        throw new Error('package requires a non-empty package name');
+      }
+      const nestedResolver = resolverAccessor(name);
+      if (!nestedResolver) {
+        throw new Error(`Package '${name}' could not be resolved`);
+      }
+      return loadPackageFn(nestedResolver, provider);
+    });
+
+    return new MapDataProvider({ package: packageValue }, provider);
+  }
+
+  function loadPackage(resolver, provider) {
+    ensureResolver(resolver);
+    const baseProvider = provider || new DefaultFsDataProvider();
+    const expression = buildNodeExpression(resolver, [], 0);
+    const evaluationProvider = createProviderWithPackage(resolver, baseProvider, loadPackage);
+    return evaluateExpression(expression, evaluationProvider);
+  }
+
+  return loadPackage;
+}
+
+module.exports = {
+  createPackageLoader
+};

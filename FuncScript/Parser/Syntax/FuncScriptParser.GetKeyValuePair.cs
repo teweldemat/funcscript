@@ -73,6 +73,19 @@ namespace FuncScript.Core
                 ValueExpression = valueResult.ExpressionBlock
             };
 
+            if (!string.IsNullOrEmpty(name)
+                && valueResult.ExpressionBlock is ReferenceBlock reference
+                && string.Equals(reference.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                var referenceName = reference.Name ?? name;
+                var referenceLower = referenceName.ToLowerInvariant();
+                var skipReference = new ReferenceBlock(referenceName, referenceLower, ReferenceMode.SkipSiblings)
+                {
+                    CodeLocation = reference.CodeLocation
+                };
+                keyValue.ValueExpression = skipReference;
+            }
+
             var parseNode = new ParseNode(ParseNodeType.KeyValuePair, index, currentIndex - index, childNodes);
             siblings.Add(parseNode);
             return new ValueParseResult<KvcExpression.KeyValueExpression>(currentIndex, keyValue, errors);

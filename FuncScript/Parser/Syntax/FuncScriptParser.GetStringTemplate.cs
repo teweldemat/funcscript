@@ -1,7 +1,7 @@
-using System;
 using System.Collections.Generic;
 using System.Text;
 using FuncScript.Block;
+using FuncScript.Functions.Text;
 
 namespace FuncScript.Core
 {
@@ -59,6 +59,7 @@ namespace FuncScript.Core
                 return ParseBlockResult.NoAdvance(index, errors);
 
             var parts = new List<ExpressionBlock>();
+            var hasExpressions = false;
 
             var literalStart = currentIndex;
             var buffer = new StringBuilder();
@@ -129,7 +130,8 @@ namespace FuncScript.Core
                     }
 
                     currentIndex = expressionResult.NextIndex;
-                    parts.Add(expressionResult.ExpressionBlock);
+                    parts.Add(WrapTemplateExpression(context, expressionResult.ExpressionBlock));
+                    hasExpressions = true;
 
                     var afterExpressionEnd = GetToken(context, currentIndex,nodeParts,ParseNodeType.CloseBrance, "}");
                     if (afterExpressionEnd == currentIndex)
@@ -179,7 +181,7 @@ namespace FuncScript.Core
                 expression = new LiteralBlock("");
                 parseNode = new ParseNode(ParseNodeType.LiteralString, templateStart, currentIndex - templateStart);
             }
-            else if (parts.Count == 1)
+            else if (parts.Count == 1 && !hasExpressions && parts[0] is LiteralBlock)
             {
                 expression = parts[0];
                 parseNode = nodeParts.Count > 0 ? nodeParts[0] : null;
@@ -188,7 +190,7 @@ namespace FuncScript.Core
             {
                 expression = new FunctionCallExpression
                 (
-                    new LiteralBlock(context.Provider.Get("+")),
+                    new LiteralBlock(context.Provider.Get(TemplateMergeMergeFunction.SYMBOL)),
                     new ListExpression(parts.ToArray())
                 );
                 parseNode = new ParseNode(ParseNodeType.StringTemplate, templateStart, currentIndex - templateStart, nodeParts);
@@ -200,6 +202,20 @@ namespace FuncScript.Core
             }
 
             return new ParseBlockResult(currentIndex, expression, errors);
+        }
+
+        static ExpressionBlock WrapTemplateExpression(ParseContext context, ExpressionBlock expressionBlock)
+        {
+            if (expressionBlock == null)
+                return null;
+            var formatFunction = context.Provider.Get("format");
+            if (formatFunction == null)
+                return expressionBlock;
+            return new FunctionCallExpression
+            (
+                new LiteralBlock(formatFunction),
+                new ListExpression(new[] { expressionBlock })
+            );
         }
     }
 }

@@ -1,5 +1,5 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
-const { ensureTyped, typeOf, valueOf, makeValue } = require('../../core/value');
+const { assertTyped, typeOf, valueOf, makeValue } = require('../../core/value');
 const { FSDataType } = require('../../core/fstypes');
 const { FsError } = require('../../model/fs-error');
 
@@ -15,7 +15,7 @@ class IFFunction extends BaseFunction {
   }
 
   evaluate(provider, parameters) {
-    const condition = ensureTyped(parameters.getParameter(provider, 0));
+    const condition = assertTyped(parameters.getParameter(provider, 0));
     const conditionType = typeOf(condition);
 
     if (conditionType === FSDataType.Error) {
@@ -33,15 +33,15 @@ class IFFunction extends BaseFunction {
 
     if (conditionValue) {
       if (parameters.count > 1) {
-        return ensureTyped(parameters.getParameter(provider, 1));
+        return assertTyped(parameters.getParameter(provider, 1));
       }
-      return ensureTyped(condition);
+      return assertTyped(condition);
     }
 
     if (parameters.count > 2) {
-      return ensureTyped(parameters.getParameter(provider, 2));
+      return assertTyped(parameters.getParameter(provider, 2));
     }
-    return ensureTyped(condition);
+    return assertTyped(condition);
   }
 
 }

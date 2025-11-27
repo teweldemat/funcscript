@@ -15,22 +15,33 @@ namespace FuncScript.Block
         {
             private readonly KeyValueCollection provider;
             private readonly KvcExpression thisKvc;
-            public KvcExpressionCollection(KeyValueCollection provider, KvcExpression thisKvc)
+            protected DepthCounter _depth;
+            public KvcExpressionCollection(KeyValueCollection provider, KvcExpression thisKvc,DepthCounter depth)
             {
                 this.provider = provider;
                 this.thisKvc = thisKvc;
+                _depth = depth;
             }
 
             public KeyValueCollection ParentProvider => provider;
 
-            
-
             public object Get(string key)
             {
-                if (thisKvc.index.TryGetValue(key, out var exp) && exp.ValueExpression != null)
+                if (string.IsNullOrWhiteSpace(key))
+                    return null;
+
+                var lookupKey = key.ToLower();
+                if (thisKvc.index.TryGetValue(lookupKey, out var exp) && exp.ValueExpression != null)
                 {
-                    var v = exp.ValueExpression.Evaluate(this, 0);
-                    return v;
+                    _depth.Enter();
+                    try
+                    {
+                        return exp.ValueExpression.Evaluate(this, _depth);
+                    }
+                    finally
+                    {
+                        _depth.Exit();
+                    }
                 }
 
                 if (ParentProvider != null)
@@ -39,10 +50,13 @@ namespace FuncScript.Block
             }
             
 
-            public bool IsDefined(string key)
+            public bool IsDefined(string key, bool hierarchy = true)
             {
-                if (thisKvc.index.ContainsKey(key.ToLower()))
+                var lookupKey = key?.ToLower();
+                if (lookupKey != null && thisKvc.index.ContainsKey(lookupKey))
                     return true;
+                if (!hierarchy)
+                    return false;
                 if(ParentProvider!=null)
                     return ParentProvider.IsDefined(key);
                 return false;
@@ -50,9 +64,21 @@ namespace FuncScript.Block
 
             public IList<KeyValuePair<string, object>> GetAll()
             {
-                return thisKvc._keyValues
-                    .Select(kv => KeyValuePair.Create(kv.Key, kv.ValueExpression.Evaluate(this, 0)))
+                _depth.Enter();
+                var ret= thisKvc._keyValues
+                    .Select(kv => KeyValuePair.Create(kv.Key, kv.ValueExpression.Evaluate(this, _depth)))
                     .ToList();
+                _depth.Exit();
+                return ret;
+            }
+
+            public IList<string> GetAllKeys()
+            {
+                if (thisKvc._keyValues == null || thisKvc._keyValues.Count == 0)
+                    return Array.Empty<string>();
+                return thisKvc._keyValues
+                    .Select(kv => kv.Key)
+                    .ToArray();
             }
 
             public override bool Equals(object obj)
@@ -94,12 +120,13 @@ namespace FuncScript.Block
             return (null,theKvc);
         }
 
-        protected override object EvaluateCore(KeyValueCollection provider)
+        public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {
-            var collection = new KvcExpressionCollection(provider, this);
+
+            var collection = new KvcExpressionCollection(provider, this,depth);
             if (evalExpresion != null)
             {
-                return evalExpresion.Evaluate(collection, 0);
+                return evalExpresion.Evaluate(collection, depth);
             }
 
             return collection;

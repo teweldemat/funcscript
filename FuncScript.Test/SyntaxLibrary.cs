@@ -11,9 +11,9 @@ namespace FuncScript.Test
 {
     public class SyntaxLibrary
     {
-        void TestResult(string exp, object expected,  Func<object, object> tran = null,string errorType=null)
+        void TestResult(string exp, object expected, Func<object, object> tran = null, string errorType = null)
         {
-           
+
             if (expected is Type)
             {
                 Assert.Throws((Type)expected, () =>
@@ -27,8 +27,8 @@ namespace FuncScript.Test
                 var res = BasicTests.AssertSingleResult(exp);
                 if (errorType != null)
                 {
-                    Assert.That(res,Is.TypeOf<FsError>());
-                    Assert.That(((FsError)res).ErrorType,Is.EqualTo(errorType));
+                    Assert.That(res, Is.TypeOf<FsError>());
+                    Assert.That(((FsError)res).ErrorType, Is.EqualTo(errorType));
                 }
                 else
                     Assert.AreEqual(expected, res);
@@ -36,8 +36,8 @@ namespace FuncScript.Test
 
         }
 
-        
-       
+
+
 
         [Test]
 
@@ -48,14 +48,14 @@ namespace FuncScript.Test
         [TestCase("5<=3", false)]
         [TestCase("5<3", false)]
 
-        [TestCase("1>3", false)]  //> and >=
+        [TestCase("1>3", false)] //> and >=
         [TestCase("1>=3", false)]
         [TestCase("3>3", false)]
         [TestCase("3>=3", true)]
         [TestCase("5>=3", true)]
         [TestCase("5>3", true)]
 
-        [TestCase("1>3.0", false)]  //< and <= different int and double
+        [TestCase("1>3.0", false)] //< and <= different int and double
         [TestCase("1>=3.0", false)]
         [TestCase("3>3.0", false)]
         [TestCase("3>=3.0", true)]
@@ -63,12 +63,12 @@ namespace FuncScript.Test
         [TestCase("5>3.0", true)]
         [TestCase("3=3.0", true)]
 
-        [TestCase("3=3.0", true)]  //= different int and double
+        [TestCase("3=3.0", true)] //= different int and double
         [TestCase("1==1", true)]
         [TestCase("1==2", false)]
 
 
-        [TestCase("3=\"3.0\"", false)]  //string to the mix
+        [TestCase("3=\"3.0\"", false)] //string to the mix
         [TestCase(@"""99""=""99""", true)]
         [TestCase(@"""99"">""98""", true)]
         [TestCase(@"""90""<""99""", true)]
@@ -77,24 +77,24 @@ namespace FuncScript.Test
         [TestCase(@"""99""<""98""", false)]
         [TestCase(@"""90"">""99""", false)]
 
-        [TestCase(@"null!=""99""", true)]  //null to the mix
+        [TestCase(@"null!=""99""", true)] //null to the mix
         [TestCase(@"null<""98""", null)]
         [TestCase(@"""90"">null", null)]
         [TestCase(@"null=null", true)]
 
         [TestCase(@"12=[1,2,3,4]", false)] //list data to the mix
-        [TestCase(@"12>[1,2,3,4]", null,FsError.ERROR_TYPE_MISMATCH)]
-        [TestCase(@"12>=[1,2,3,4]", null,FsError.ERROR_TYPE_MISMATCH)]
-        [TestCase(@"12<[1,2,3,4]", null,FsError.ERROR_TYPE_MISMATCH)]
-        [TestCase(@"12<=[1,2,3,4]", null,FsError.ERROR_TYPE_MISMATCH)]
+        [TestCase(@"12>[1,2,3,4]", null, FsError.ERROR_TYPE_MISMATCH)]
+        [TestCase(@"12>=[1,2,3,4]", null, FsError.ERROR_TYPE_MISMATCH)]
+        [TestCase(@"12<[1,2,3,4]", null, FsError.ERROR_TYPE_MISMATCH)]
+        [TestCase(@"12<=[1,2,3,4]", null, FsError.ERROR_TYPE_MISMATCH)]
 
 
-        [TestCase(@"1>2>3", null,FsError.ERROR_PARAMETER_COUNT_MISMATCH)] //chained comparision
-        [TestCase(@"1<2<3", null,FsError.ERROR_PARAMETER_COUNT_MISMATCH)]
-        [TestCase(@"1=2=3", null,FsError.ERROR_PARAMETER_COUNT_MISMATCH)]
-        [TestCase(@"1!=2!=3", null,FsError.ERROR_PARAMETER_COUNT_MISMATCH)]
+        [TestCase(@"1>2>3", null, FsError.ERROR_PARAMETER_COUNT_MISMATCH)] //chained comparision
+        [TestCase(@"1<2<3", null, FsError.ERROR_PARAMETER_COUNT_MISMATCH)]
+        [TestCase(@"1=2=3", null, FsError.ERROR_PARAMETER_COUNT_MISMATCH)]
+        [TestCase(@"1!=2!=3", null, FsError.ERROR_PARAMETER_COUNT_MISMATCH)]
 
-        [TestCase(@"if(2=null,0,1)", 1)]  //how would if deal with null condition
+        [TestCase(@"if(2=null,0,1)", 1)] //how would if deal with null condition
         [TestCase(@"if 1=1 then ""yes"" else ""no""", "yes")]
         [TestCase(@"if 1=2 then ""yes"" else ""no""", "no")]
         [TestCase(@"if (1=2) then 10 else 20", 20)]
@@ -107,8 +107,8 @@ namespace FuncScript.Test
 
         [TestCase(@"not(1=1)", false)] //not function
         [TestCase(@"not(3=1)", true)]
-        [TestCase(@"not(null)", null,FsError.ERROR_TYPE_MISMATCH)]
-        [TestCase(@"not(""0"")",null, FsError.ERROR_TYPE_MISMATCH)]
+        [TestCase(@"not(null)", null, FsError.ERROR_TYPE_MISMATCH)]
+        [TestCase(@"not(""0"")", null, FsError.ERROR_TYPE_MISMATCH)]
 
 
 
@@ -169,9 +169,9 @@ namespace FuncScript.Test
         [TestCase(@"true or false and true", true)]
 
         [TestCase(@"false and ([34]>5)", false)] //don't evaluate uncessary
-        [TestCase(@"true and ([34]>5)", null,FsError.ERROR_TYPE_MISMATCH)]
+        [TestCase(@"true and ([34]>5)", null, FsError.ERROR_TYPE_MISMATCH)]
 
-        [TestCase(@"false or  ([34]>5)", null,FsError.ERROR_TYPE_MISMATCH)]
+        [TestCase(@"false or  ([34]>5)", null, FsError.ERROR_TYPE_MISMATCH)]
         [TestCase(@"true or ([34]>5)", true)]
 
         [TestCase(@"error(""boom"")", null, FsError.ERROR_DEFAULT)]
@@ -195,16 +195,16 @@ namespace FuncScript.Test
 
 
 
-        [TestCase(@"[4,5,6][1]",5)]     //list indexing
-        [TestCase(@"{x:[4,5,6];return x[1]}",5)]
+        [TestCase(@"[4,5,6][1]", 5)] //list indexing
+        [TestCase(@"{x:[4,5,6];return x[1]}", 5)]
         [TestCase("[2,3,4](0)", 2)]
         [TestCase("([[2,3,4],[3,4,5]])(0)(1)", 3)]
-        [TestCase("1!=2",true)]
-        [TestCase("1!=1",false)]
-        [TestCase("1*2*3*4",24)]
-        public void SoManyTests_1(string expr, object res,string errorType=null)
+        [TestCase("1!=2", true)]
+        [TestCase("1!=1", false)]
+        [TestCase("1*2*3*4", 24)]
+        public void SoManyTests_1(string expr, object res, string errorType = null)
         {
-            TestResult(expr,res,errorType:errorType);
+            TestResult(expr, res, errorType: errorType);
         }
 
         [Test]
@@ -353,14 +353,14 @@ namespace FuncScript.Test
             Assert.That(result, Is.EqualTo("yes"));
         }
 
-        
-        [TestCase("false or false or true",true)]
-        public void PrecedenceTests(string expr, object res,string errorType=null)
+
+        [TestCase("false or false or true", true)]
+        public void PrecedenceTests(string expr, object res, string errorType = null)
         {
-            TestResult(expr,res,errorType:errorType);
+            TestResult(expr, res, errorType: errorType);
         }
 
-        [TestCase("10 - 6.0",4.0d)]
+        [TestCase("10 - 6.0", 4.0d)]
         [TestCase("10 - 6.0", 4.0d)]
         [TestCase("15 + 5l", 20L)]
         [TestCase("20 - 4l", 16L)]
@@ -376,11 +376,11 @@ namespace FuncScript.Test
         [TestCase("25L / 5", 5L)]
         [TestCase("9.0 - 3L", 6.0d)]
         [TestCase("6L * 2", 12L)]
-        public void TestNumberTypeMixingLevel1(string expr, object res,string errorType=null)
+        public void TestNumberTypeMixingLevel1(string expr, object res, string errorType = null)
         {
-            TestResult(expr,res,errorType:errorType);
+            TestResult(expr, res, errorType: errorType);
         }
-        
+
         [TestCase("10 - 6.0 + 2 * 3", 10.0d)]
         [TestCase("(15 + 5l) / 2", 10L)]
         [TestCase("20 - (4l + 6)", 10L)]
@@ -405,10 +405,11 @@ namespace FuncScript.Test
         [TestCase("7.5 * 2 - (4 / 2L)", 13.0d)]
         [TestCase("(50L - 25) % 4", 1L)]
         [TestCase("2L + (6 * 3.0) / 2", 11.0d)]
-        public void TestNumberTypeMixingLevel2(string expr, object res,string errorType=null)
+        public void TestNumberTypeMixingLevel2(string expr, object res, string errorType = null)
         {
-            TestResult(expr,res,errorType:errorType);
+            TestResult(expr, res, errorType: errorType);
         }
+
         [TestCase("10 + 5L + 2.5", 17.5d)]
         [TestCase("20 - 4.0 - 3L", 13.0d)]
         [TestCase("3 * 2L * 4.0", 24.0d)]
@@ -429,16 +430,17 @@ namespace FuncScript.Test
         [TestCase("2 * 3L * 2 * 4.0 * 1", 48.0d)]
         [TestCase("180 / 3L / 2 / 5.0 / 2", 3.0d)]
         [TestCase("70 % 10L % 6 % 4.0 % 2", 0.0d)]
-        public void TestNumberTypeMixingLevel3(string expr, object res,string errorType=null)
+        public void TestNumberTypeMixingLevel3(string expr, object res, string errorType = null)
         {
-            TestResult(expr,res,errorType:errorType);
+            TestResult(expr, res, errorType: errorType);
         }
+
         [Test]
         public void TestListFormat()
         {
             var exp = "format([1,2,3])";
             var expected = "[1,2,3]";
-            var res=(string)BasicTests.AssertSingleResultType(exp,typeof(string));
+            var res = (string)BasicTests.AssertSingleResultType(exp, typeof(string));
             res = res.Replace(" ", "").Replace("\n", "").Replace("\r", "").Replace("\t", "");
             Assert.AreEqual(expected, res);
 
@@ -453,6 +455,7 @@ namespace FuncScript.Test
             var normalized = res.Replace(" ", "").Replace("\n", "").Replace("\r", "").Replace("\t", "");
             Assert.AreEqual("{\"x\":(a)=>1}", normalized);
         }
+
         [Test]
         public void TestRangeFunction()
         {
@@ -465,29 +468,32 @@ namespace FuncScript.Test
         public void Complicated1()
         {
             var exp =
-@"
+                @"
 {
       r:5;
       f:(a,b)=>r*a*b;
       return f(1,2);
 }
 ";
-            object expected=5*1*2;
-            var res=BasicTests.AssertSingleResult(exp);
+            object expected = 5 * 1 * 2;
+            var res = BasicTests.AssertSingleResult(exp);
             Assert.AreEqual(expected, res);
         }
+
         [Test]
         public void TestFindFirst()
         {
             var res = FuncScriptRuntime.Evaluate("first([1,2,4,-5,3],(x)=>x<0)");
             Assert.AreEqual(-5, res);
         }
+
         [Test]
         public void TestFindFirst2()
         {
             var res = FuncScriptRuntime.Evaluate("first([1,2,4,5,3],(x)=>x<0)");
             Assert.IsNull(res);
         }
+
         [Test]
         public void MemberofNull()
         {
@@ -499,6 +505,60 @@ namespace FuncScript.Test
             Assert.That(fsError.CodeLocation, Is.Not.Null);
             Assert.That(fsError.CodeLocation.Position, Is.EqualTo(expression.IndexOf("x.a", StringComparison.Ordinal)));
             Assert.That(fsError.CodeLocation.Length, Is.EqualTo("x.a".Length));
+        }
+
+        [Test]
+        public void FsTemplateSingleLevel()
+        {
+            var exp = """
+                      Test ${
+                      data map (x)=>f"{x.a},{x.b} "
+                        }
+                      """;
+            var p = new KvcProvider(
+                new ObjectKvc(new { data = new[] { new { a = 3, b = 4 },new { a = 5, b = 7 }  } }), new DefaultFsDataProvider()
+            );
+            var block = FuncScriptParser.ParseFsTemplate(new DefaultFsDataProvider(), exp);
+            Assert.That(block.ExpressionBlock, Is.Not.Null);
+            var res = block.ExpressionBlock.Evaluate(p, new ExpressionBlock.DepthCounter());
+            Assert.That(res, Is.EqualTo("Test 3,4 5,7 "));
+        }
+        [Test]
+        public void FsTemplateTwoLevel()
+        {
+            var guid1 = Guid.NewGuid();
+            var guid2 = Guid.NewGuid();
+            var guid21 = Guid.NewGuid();
+            var guid22 = Guid.NewGuid();
+            var exp = """
+                      Test ${
+                        (list map (l)=>(l.data map (x)=>f"{x.a},{x.b}") join " ") join "\n"
+                        }
+                      """;
+            var data1 = new
+            {
+                data = new[]
+                {
+                    new { a = 3, b = guid1 },
+                    new { a = 5, b = guid2 }
+                }
+            };
+            var data2 = new
+            {
+                data = new[]
+                {
+                    new { a = 9, b = guid21 },
+                    new { a = 11, b = guid22 }
+                }
+            };
+            var combined = new { list=new[] { data1, data2 }};
+            var p = new KvcProvider(
+                new ObjectKvc(combined), new DefaultFsDataProvider()
+            );
+            var block = FuncScriptParser.ParseFsTemplate(new DefaultFsDataProvider(), exp);
+            Assert.That(block.ExpressionBlock, Is.Not.Null);
+            var res = block.ExpressionBlock.Evaluate(p, new ExpressionBlock.DepthCounter());
+            Assert.That(res, Is.EqualTo($"Test 3,{guid1} 5,{guid2}\n9,{guid21} 11,{guid22}"));
         }
     }
 }

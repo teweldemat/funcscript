@@ -34,6 +34,7 @@ export const ParseNodeType: {
   readonly IfExpression: 'IfExpression';
   readonly GeneralInfixExpression: 'GeneralInfixExpression';
   readonly PrefixOperatorExpression: 'PrefixOperatorExpression';
+  readonly LanguageBinding: 'LanguageBinding';
 };
 export type ParseNodeTypeKey = keyof typeof ParseNodeType;
 export type ParseNodeTypeValue = typeof ParseNodeType[ParseNodeTypeKey];
@@ -146,6 +147,7 @@ export const getListExpression: (...args: any[]) => ParseBlockResult;
 export const getSpaceSeparatedListExpression: (...args: any[]) => ValueParseResult<any>;
 export const getSpaceSeparatedStringListExpression: (...args: any[]) => ValueParseResult<readonly string[]>;
 export const getFSTemplate: (...args: any[]) => ParseBlockResult;
+export const getLanguageBindingExpression: (...args: any[]) => ParseBlockResult;
 export const getStringTemplate: (...args: any[]) => ParseBlockResult;
 export const getUnit: (...args: any[]) => ParseBlockResult;
 export const getIfThenElseExpression: (...args: any[]) => ParseBlockResult;

@@ -42,7 +42,12 @@ namespace FuncScript.Functions.KeyValue
                     $"{Symbol} function: Can't get member {par1} from null data");
 
             if (par0 is KeyValueCollection kvc)
-                return kvc.Get(((string)par1).ToLower());
+            {
+                var memberName = ((string)par1).ToLowerInvariant();
+                if (!kvc.IsDefined(memberName, hierarchy: false))
+                    return null;
+                return kvc.Get(memberName);
+            }
             
             if (par0 is IFsFunction func)
                 return func.Evaluate(FunctionArgumentHelper.Create(par1));

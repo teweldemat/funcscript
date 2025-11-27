@@ -1,5 +1,5 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
-const { ensureTyped, typeOf, valueOf, makeValue, convertToCommonNumericType } = require('../../core/value');
+const { assertTyped, typeOf, valueOf, makeValue, convertToCommonNumericType } = require('../../core/value');
 const { FSDataType } = require('../../core/fstypes');
 
 function assertNumeric(typed) {
@@ -20,11 +20,11 @@ class SubtractFunction extends BaseFunction {
     if (parameters.count === 0) {
       return makeValue(FSDataType.Integer, 0);
     }
-    let result = ensureTyped(parameters.getParameter(provider, 0));
+    let result = assertTyped(parameters.getParameter(provider, 0));
     assertNumeric(result);
 
     for (let i = 1; i < parameters.count; i += 1) {
-      const next = ensureTyped(parameters.getParameter(provider, i));
+      const next = assertTyped(parameters.getParameter(provider, i));
       assertNumeric(next);
       let [left, right] = convertToCommonNumericType(result, next);
       if (typeOf(left) === FSDataType.BigInteger) {

@@ -31,7 +31,7 @@ class KvcMemberFunction extends BaseFunction {
       return helpers.makeError(helpers.FsError.ERROR_TYPE_MISMATCH, `${this.symbol} function: Can't get member from null`);
     }
 
-    const typedTarget = helpers.ensureTyped(target);
+    const typedTarget = helpers.assertTyped(target);
     if (helpers.typeOf(typedTarget) !== helpers.FSDataType.KeyValueCollection) {
       return helpers.makeError(
         helpers.FsError.ERROR_TYPE_MISMATCH,
@@ -40,7 +40,11 @@ class KvcMemberFunction extends BaseFunction {
     }
 
     const collection = helpers.valueOf(typedTarget);
-    return collection.get(keyResult.value.toLowerCase());
+    const entry = collection.get(keyResult.value.toLowerCase());
+    if (entry === null || entry === undefined) {
+      return helpers.typedNull();
+    }
+    return helpers.assertTyped(entry);
   }
 
   parName(index) {

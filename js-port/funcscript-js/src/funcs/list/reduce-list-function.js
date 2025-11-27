@@ -38,29 +38,19 @@ class ReduceListFunction extends BaseFunction {
       );
     }
 
-    let total;
-    let indexStart = 0;
-
-    if (parameters.count === 3) {
-      total = parameters.getParameter(provider, 2);
-    } else {
-      if (list.length === 0) {
-        return helpers.typedNull();
-      }
-      total = list.get(0);
-      indexStart = 1;
-    }
+    let total = parameters.count === 3 ? parameters.getParameter(provider, 2) : helpers.typedNull();
+    const indexStart = 0;
 
     for (let i = indexStart; i < list.length; i += 1) {
       const args = new helpers.ArrayParameterList([
-        list.get(i),
         total,
+        list.get(i),
         helpers.makeValue(FSDataType.Integer, i)
       ]);
       total = fn.evaluate(provider, args);
     }
 
-    return helpers.ensureTyped(total);
+    return helpers.assertTyped(total);
   }
 
   parName(index) {

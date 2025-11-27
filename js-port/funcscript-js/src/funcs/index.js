@@ -1,4 +1,4 @@
-const { ensureTyped } = require('../core/value');
+const { normalize } = require('../core/value');
 
 const { IFFunction } = require('./logic/if-function');
 const { EqualsFunction } = require('./logic/equals-function');
@@ -237,7 +237,7 @@ module.exports = function buildBuiltinMap() {
 
   for (const entry of entries) {
     const source = Object.prototype.hasOwnProperty.call(entry, 'value') ? entry.value : entry.fn;
-    const typedValue = ensureTyped(source);
+    const typedValue = normalize(source);
     const symbolNames = new Set();
     if (Array.isArray(entry.names)) {
       for (const name of entry.names) {

@@ -7,7 +7,8 @@ const {
   DefaultFsDataProvider,
   valueOf,
   SimpleKeyValueCollection,
-  ArrayFsList
+  ArrayFsList,
+  normalize
 } = require('@tewelde/funcscript');
 const { toPlain, evaluateWithVars } = require('../helpers/runtime');
 
@@ -65,10 +66,10 @@ testData.Samples map (sample) => sample
 }
 `;
 
-    const sample = new SimpleKeyValueCollection(null, [['r', 32]]);
-    const samplesList = new ArrayFsList([sample]);
-    const testData = new SimpleKeyValueCollection(null, [['Samples', samplesList]]);
-    const utils = new SimpleKeyValueCollection(null, [['TheLambda', (x) => 12]]);
+    const sample = new SimpleKeyValueCollection(null, [['r', normalize(32)]]);
+    const samplesList = new ArrayFsList([normalize(sample)]);
+    const testData = new SimpleKeyValueCollection(null, [['Samples', normalize(samplesList)]]);
+    const utils = new SimpleKeyValueCollection(null, [['TheLambda', normalize((x) => 12)]]);
     const vars = { testData, utils };
 
     const result = evaluateWithVars(query, vars);

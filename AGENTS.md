@@ -1,0 +1,1 @@
+Ignore 'public' and 'site' folders they have generated content.

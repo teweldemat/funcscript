@@ -1,4 +1,11 @@
-const { ensureTyped, typeOf, valueOf, makeValue, convertToCommonNumericType, typedNull } = require('../core/value');
+const {
+  assertTyped: coreAssertTyped,
+  typeOf,
+  valueOf,
+  makeValue,
+  convertToCommonNumericType,
+  typedNull
+} = require('../core/value');
 const { FSDataType } = require('../core/fstypes');
 const { FsError } = require('../model/fs-error');
 const { ParameterList } = require('../core/function-base');
@@ -45,8 +52,8 @@ function compare(typedLeft, typedRight, symbol) {
     return typedNull();
   }
 
-  let left = ensureTyped(typedLeft);
-  let right = ensureTyped(typedRight);
+  let left = coreAssertTyped(typedLeft);
+  let right = coreAssertTyped(typedRight);
 
   if (isNumeric(left) && isNumeric(right)) {
     [left, right] = convertToCommonNumericType(left, right);
@@ -78,7 +85,7 @@ function compare(typedLeft, typedRight, symbol) {
 }
 
 function ensureList(value) {
-  const typed = ensureTyped(value);
+  const typed = coreAssertTyped(value);
   if (typeOf(typed) === FSDataType.List) {
     return valueOf(typed);
   }
@@ -86,12 +93,12 @@ function ensureList(value) {
 }
 
 function ensureFunction(value) {
-  const typed = ensureTyped(value);
+  const typed = coreAssertTyped(value);
   return typeOf(typed) === FSDataType.Function ? valueOf(typed) : null;
 }
 
 function requireInteger(symbol, parameter, name) {
-  const typed = ensureTyped(parameter);
+  const typed = coreAssertTyped(parameter);
   if (typeOf(typed) === FSDataType.Integer) {
     return { ok: true, value: valueOf(typed) };
   }
@@ -105,7 +112,7 @@ function requireInteger(symbol, parameter, name) {
 }
 
 function requireString(symbol, parameter, name) {
-  const typed = ensureTyped(parameter);
+  const typed = coreAssertTyped(parameter);
   if (typeOf(typed) === FSDataType.String) {
     return { ok: true, value: valueOf(typed) };
   }
@@ -118,7 +125,7 @@ function requireString(symbol, parameter, name) {
 class ArrayParameterList extends ParameterList {
   constructor(values) {
     super();
-    this.values = values.map((v) => ensureTyped(v));
+    this.values = values.map((v) => coreAssertTyped(v, 'ArrayParameterList values must be typed'));
   }
 
   get count() {
@@ -142,7 +149,7 @@ module.exports = {
   requireString,
   typedNull,
   makeValue,
-  ensureTyped,
+  assertTyped: coreAssertTyped,
   typeOf,
   valueOf,
   convertToCommonNumericType,

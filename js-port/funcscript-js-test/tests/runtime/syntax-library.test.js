@@ -246,6 +246,13 @@ describe('SyntaxLibrary', () => {
     expect(normalized).to.equal('[1,2,3]');
   });
 
+  it('formats lists and quotes nested strings', () => {
+    const result = evaluate("format([4,'5'])", provider);
+    expect(typeOf(result)).to.equal(FSDataType.String);
+    const normalized = valueOf(result).replace(/[\s]/g, '');
+    expect(normalized).to.equal('[4,\"5\"]');
+  });
+
   it('formats functions inside json output', () => {
     const result = evaluate("format({x:(a)=>1},'json')", provider);
     expect(typeOf(result)).to.equal(FSDataType.String);

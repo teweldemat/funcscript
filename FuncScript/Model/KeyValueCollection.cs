@@ -10,7 +10,7 @@ namespace FuncScript.Model
     {
         public object Get(string key);
         public KeyValueCollection ParentProvider { get; }
-        public bool IsDefined(string key);
+        public bool IsDefined(string key, bool hierarchy = true);
         
         
         public T ConvertTo<T>()
@@ -23,6 +23,7 @@ namespace FuncScript.Model
             return Newtonsoft.Json.JsonConvert.DeserializeObject(json,t);
         }
         public abstract IList<KeyValuePair<String, object>> GetAll();
+        public abstract IList<string> GetAllKeys();
         public static bool Equals( KeyValueCollection thisKvc, object otherkv)
         {
             var other = otherkv as KeyValueCollection;
@@ -30,7 +31,7 @@ namespace FuncScript.Model
                 return false;
             foreach(var k in other.GetAll())
             {
-                if (!thisKvc.IsDefined(k.Key.ToLowerInvariant()))
+                if (!thisKvc.IsDefined(k.Key.ToLowerInvariant(), true))
                     return false;
                 var thisVal= thisKvc.Get(k.Key);
                 var otherVal= other.Get(k.Key);

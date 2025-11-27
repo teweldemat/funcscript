@@ -221,7 +221,26 @@ function getSimpleStringWithDelimiter(context, siblings, delimiter, index, error
   }
 
   let text = '';
+  const getCloseIndex = (startIndex) => {
+    if (delimiter !== '"""') {
+      return getLiteralMatch(expression, startIndex, delimiter);
+    }
+    let newlineIndex = getLiteralMatch(expression, startIndex, '\r');
+    newlineIndex = getLiteralMatch(expression, newlineIndex, '\n');
+    const afterDelimiter = getLiteralMatch(expression, newlineIndex, delimiter);
+    if (afterDelimiter > newlineIndex) {
+      return afterDelimiter;
+    }
+    return getLiteralMatch(expression, startIndex, delimiter);
+  };
+
+  let closeIndex = -1;
   while (true) {
+    if (i >= expression.length) {
+      closeIndex = i;
+      break;
+    }
+
     let next = getLiteralMatch(expression, i, '\\n');
     if (next > i) {
       text += '\n';
@@ -265,7 +284,9 @@ function getSimpleStringWithDelimiter(context, siblings, delimiter, index, error
       continue;
     }
 
-    if (i >= expression.length || getLiteralMatch(expression, i, delimiter) > i) {
+    const maybeClose = getCloseIndex(i);
+    if (maybeClose > i) {
+      closeIndex = maybeClose;
       break;
     }
 
@@ -273,13 +294,12 @@ function getSimpleStringWithDelimiter(context, siblings, delimiter, index, error
     i += 1;
   }
 
-  const afterClose = getLiteralMatch(expression, i, delimiter);
-  if (afterClose === i) {
+  if (closeIndex <= i) {
     errors.push(new SyntaxErrorData(i, 0, `'${delimiter}' expected`));
     return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
   }
 
-  i = afterClose;
+  i = closeIndex;
   const parseNode = new ParseNode(ParseNodeType.LiteralString, index, i - index);
   siblings.push(parseNode);
   return {
@@ -588,6 +608,7 @@ function getNumber(context, siblings, index, errors) {
 
   let nodeType;
   let value;
+  let typedValue = null;
   if (hasLong) {
     if (bigValue > MAX_LONG || bigValue < MIN_LONG) {
       errors.push(new SyntaxErrorData(currentIndex, intDigits.length, `${intDigits} couldn't be parsed to 64bit integer`));
@@ -595,12 +616,15 @@ function getNumber(context, siblings, index, errors) {
     }
     value = bigValue;
     nodeType = ParseNodeType.LiteralLong;
+    typedValue = makeValue(FSDataType.BigInteger, value);
   } else if (bigValue <= MAX_INT && bigValue >= MIN_INT && bigValue <= MAX_SAFE && bigValue >= -MAX_SAFE) {
     value = Number(bigValue);
     nodeType = ParseNodeType.LiteralInteger;
+    typedValue = makeValue(FSDataType.Integer, value);
   } else if (bigValue <= MAX_LONG && bigValue >= MIN_LONG) {
     value = bigValue;
     nodeType = ParseNodeType.LiteralLong;
+    typedValue = makeValue(FSDataType.BigInteger, value);
   } else {
     return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };
   }
@@ -610,7 +634,7 @@ function getNumber(context, siblings, index, errors) {
   commitNodeBuffer(siblings, buffer);
   return {
     NextIndex: i,
-    Value: value,
+    Value: typedValue,
     StartIndex: parseNode.Pos,
     Length: parseNode.Length,
     ParseNode: parseNode

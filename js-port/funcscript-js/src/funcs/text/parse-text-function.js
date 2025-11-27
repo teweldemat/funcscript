@@ -24,7 +24,7 @@ class ParseTextFunction extends BaseFunction {
     }
     const text = textResult.value;
 
-    const formatParam = parameters.count === 2 ? helpers.ensureTyped(parameters.getParameter(provider, 1)) : null;
+    const formatParam = parameters.count === 2 ? helpers.assertTyped(parameters.getParameter(provider, 1)) : null;
     let formatString = null;
     if (formatParam) {
       if (helpers.typeOf(formatParam) !== FSDataType.String) {

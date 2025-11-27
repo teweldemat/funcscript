@@ -1,5 +1,6 @@
 using FuncScript.Block;
 using FuncScript.Core;
+using FuncScript.Model;
 using NUnit.Framework;
 using System.Collections.Generic;
 using System.Linq;
@@ -108,6 +109,28 @@ namespace FuncScript.Test
             Assert.That(block.ItemCount, Is.EqualTo(1));
             Assert.That(block.GetKeyValueExpression(0).ValueExpression, Is.TypeOf<ReferenceBlock>(),
                 "Implicit key should map to a reference block");
+        }
+
+        [Test]
+        public void KeyValueCollection_KeyValueSelfReference_UsesParentContext()
+        {
+            const string expression = "{foo: foo;}";
+            var (result, errors) = ParseExpression(expression);
+
+            Assert.That(errors, Is.Empty, "Self-referencing key/value should parse without errors");
+            Assert.That(result.ExpressionBlock, Is.TypeOf<KvcExpression>());
+
+            var block = (KvcExpression)result.ExpressionBlock;
+            var parent = new SimpleKeyValueCollection(null, new[]
+            {
+                new KeyValuePair<string, object>("foo", 42)
+            });
+
+            var evaluated = block.Evaluate(parent, new ExpressionBlock.DepthCounter());
+            Assert.That(evaluated, Is.InstanceOf<KeyValueCollection>(), "Evaluation should produce a collection");
+
+            var kvc = (KeyValueCollection)evaluated;
+            Assert.That(kvc.Get("foo"), Is.EqualTo(42), "Self reference should resolve from the parent context");
         }
 
         [Test]

@@ -19,7 +19,7 @@ class KvSelectFunction extends BaseFunction {
       return error;
     }
 
-    const sourceTyped = helpers.ensureTyped(parameters.getParameter(provider, 0));
+    const sourceTyped = helpers.assertTyped(parameters.getParameter(provider, 0));
     if (helpers.typeOf(sourceTyped) !== helpers.FSDataType.KeyValueCollection) {
       return helpers.makeError(
         helpers.FsError.ERROR_TYPE_MISMATCH,
@@ -27,7 +27,7 @@ class KvSelectFunction extends BaseFunction {
       );
     }
 
-    const selectionTyped = helpers.ensureTyped(parameters.getParameter(provider, 1));
+    const selectionTyped = helpers.assertTyped(parameters.getParameter(provider, 1));
     if (helpers.typeOf(selectionTyped) !== helpers.FSDataType.KeyValueCollection) {
       return helpers.makeError(
         helpers.FsError.ERROR_TYPE_MISMATCH,

@@ -1,7 +1,7 @@
 const createTestRunner = ({
   FuncScriptParser,
   DefaultFsDataProvider,
-  ensureTyped,
+  assertTyped,
   expectType,
   typeOf,
   valueOf,
@@ -14,7 +14,7 @@ const createTestRunner = ({
     constructor(values) {
       super();
       const safeValues = Array.isArray(values) ? values : [];
-      this.values = safeValues.map((val) => ensureTyped(val ?? typedNull()));
+      this.values = safeValues.map((val) => assertTyped(val ?? typedNull()));
     }
 
     get count() {
@@ -38,12 +38,12 @@ const createTestRunner = ({
   }
 
   function ensureList(value, message) {
-    const typed = expectType(ensureTyped(value), FSDataType.List, message);
+    const typed = expectType(assertTyped(value), FSDataType.List, message);
     return valueOf(typed);
   }
 
   function ensureKeyValue(value, message) {
-    const typed = expectType(ensureTyped(value), FSDataType.KeyValueCollection, message);
+    const typed = expectType(assertTyped(value), FSDataType.KeyValueCollection, message);
     return { typed, collection: valueOf(typed) };
   }
 
@@ -62,7 +62,7 @@ const createTestRunner = ({
   }
 
   function convertValue(value, seenKvcs = new WeakSet(), seenLists = new WeakSet()) {
-    const typed = ensureTyped(value);
+    const typed = assertTyped(value);
     const dataType = typeOf(typed);
     switch (dataType) {
       case FSDataType.Null:
@@ -131,7 +131,7 @@ const createTestRunner = ({
   }
 
   function interpretAssertionOutcome(typedResult) {
-    const typed = ensureTyped(typedResult);
+    const typed = assertTyped(typedResult);
     const resultType = typeOf(typed);
     if (resultType === FSDataType.Error) {
       const err = valueOf(typed) || {};
@@ -165,11 +165,11 @@ const createTestRunner = ({
   }
 
   function invokeFunction(fnTyped, provider, args) {
-    const typedFunction = expectType(ensureTyped(fnTyped), FSDataType.Function, 'Test definition must be a function.');
+    const typedFunction = expectType(assertTyped(fnTyped), FSDataType.Function, 'Test definition must be a function.');
     const fn = valueOf(typedFunction);
     const parameters = new FixedParameterList(args);
     const result = fn.evaluate(provider, parameters);
-    return ensureTyped(result);
+    return assertTyped(result);
   }
 
   function extractTestList(rawTests, suiteName) {
@@ -178,7 +178,7 @@ const createTestRunner = ({
     let index = 0;
     for (const entry of list) {
       index += 1;
-      const fn = expectType(ensureTyped(entry), FSDataType.Function, `Test #${index} in suite "${suiteName}" must be a function.`);
+      const fn = expectType(assertTyped(entry), FSDataType.Function, `Test #${index} in suite "${suiteName}" must be a function.`);
       tests.push({ fn, index });
     }
     if (tests.length === 0) {
@@ -198,7 +198,7 @@ const createTestRunner = ({
       const nameValue = collection.get('name');
       let displayName = `Suite ${index}`;
       if (nameValue !== null && nameValue !== undefined) {
-        const typedName = ensureTyped(nameValue);
+        const typedName = assertTyped(nameValue);
         displayName = String(valueOf(typedName));
         if (!displayName.trim()) {
           displayName = `Suite ${index}`;
@@ -226,7 +226,7 @@ const createTestRunner = ({
       let singleTest = null;
       let multipleTests = null;
       if (testRaw !== null && testRaw !== undefined) {
-        singleTest = expectType(ensureTyped(testRaw), FSDataType.Function, `Suite "${displayName}" test must be a function.`);
+        singleTest = expectType(assertTyped(testRaw), FSDataType.Function, `Suite "${displayName}" test must be a function.`);
       } else if (testsRaw !== null && testsRaw !== undefined) {
         multipleTests = extractTestList(testsRaw, displayName);
       } else {
@@ -255,7 +255,7 @@ const createTestRunner = ({
         let index = 0;
         for (const entry of list) {
           index += 1;
-          const typedEntry = ensureTyped(entry);
+          const typedEntry = assertTyped(entry);
           const { passed: childPassed, failure } = interpretAssertionOutcome(typedEntry);
           const detail = {
             index,
@@ -325,7 +325,7 @@ const createTestRunner = ({
 
     let expressionValue;
     try {
-      expressionValue = ensureTyped(expressionBlock.evaluate(caseProvider));
+      expressionValue = assertTyped(expressionBlock.evaluate(caseProvider));
       caseResult.expressionResult = convertValue(expressionValue);
     } catch (error) {
       caseResult.error = formatCaseError('evaluation', error);
@@ -379,7 +379,7 @@ const createTestRunner = ({
     const baseProvider = provider ?? new DefaultFsDataProvider();
     const expressionBlock = parseBlock(baseProvider, expression, 'expression under test');
     const testBlock = parseBlock(baseProvider, testExpression, 'test expression');
-    const suitesValue = ensureTyped(testBlock.evaluate(baseProvider));
+    const suitesValue = assertTyped(testBlock.evaluate(baseProvider));
     const suites = extractSuites(suitesValue);
 
     const suiteResults = [];

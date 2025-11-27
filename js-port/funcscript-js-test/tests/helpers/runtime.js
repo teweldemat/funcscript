@@ -4,11 +4,14 @@ const {
   DefaultFsDataProvider,
   typeOf,
   valueOf,
-  FSDataType
+  FSDataType,
+  normalize
 } = require('@tewelde/funcscript');
 
 function makeProvider(vars = {}) {
-  return new MapDataProvider(vars, new DefaultFsDataProvider());
+  const typedEntries = Object.entries(vars).map(([key, value]) => [key, normalize(value)]);
+  const typedMap = Object.fromEntries(typedEntries);
+  return new MapDataProvider(typedMap, new DefaultFsDataProvider());
 }
 
 function evaluateWithVars(expression, vars) {

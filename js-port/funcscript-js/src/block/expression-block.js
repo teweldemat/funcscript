@@ -1,4 +1,4 @@
-const { makeValue } = require('../core/value');
+const { makeValue, assertTyped } = require('../core/value');
 const { FSDataType } = require('../core/fstypes');
 const { FsError } = require('../model/fs-error');
 
@@ -76,7 +76,8 @@ class ExpressionBlock {
       if (currentEvaluationDepth > MAX_EVALUATION_DEPTH) {
         return createDepthOverflowValue();
       }
-      return this.evaluateInternal(provider);
+      const result = this.evaluateInternal(provider);
+      return assertTyped(result, 'Expression blocks must return typed values');
     } finally {
       currentEvaluationDepth = previousDepth;
     }

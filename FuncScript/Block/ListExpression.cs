@@ -15,11 +15,12 @@ namespace FuncScript.Block
         {
             private readonly KeyValueCollection provider;
             private readonly ListExpression expression;
-
-            public ExpressionFsList(KeyValueCollection provider, ListExpression exp)
+            private DepthCounter _depth;
+            public ExpressionFsList(KeyValueCollection provider, ListExpression exp,DepthCounter depth)
             {
                 this.provider = provider;
                 this.expression = exp;
+                this._depth = depth;
             }
 
             public object this[int index]
@@ -28,7 +29,10 @@ namespace FuncScript.Block
                 {
                     if (index < 0 || index >= expression.ValueExpressions.Length)
                         return null;
-                    return expression.ValueExpressions[index].Evaluate(provider, 0);
+                    _depth.Enter();
+                    var ret= expression.ValueExpressions[index].Evaluate(provider, _depth);
+                    _depth.Exit();
+                    return ret;
                 }
             }
 
@@ -67,9 +71,10 @@ namespace FuncScript.Block
             this.ValueExpressions = exps;
         }
         
-        protected override object EvaluateCore(KeyValueCollection provider)
+        public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {
-            return new ExpressionFsList(provider, this);
+            var ret=new ExpressionFsList(provider, this,depth);
+            return ret;
         }
         /*{
             var lst = ValueExpressions.Select(x => x.Evaluate(provider)).ToArray();

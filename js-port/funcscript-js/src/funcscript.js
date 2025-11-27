@@ -8,14 +8,23 @@ const { FsList, ArrayFsList } = require('./model/fs-list');
 const { KeyValueCollection, SimpleKeyValueCollection } = require('./model/key-value-collection');
 const { FsError } = require('./model/fs-error');
 const buildBuiltinMap = require('./funcs');
+const {
+  registerLanguageBinding,
+  tryGetLanguageBinding,
+  clearLanguageBindings
+} = require('./core/language-binding-registry');
+const { ensureJavaScriptLanguageBinding } = require('./bindings/javascript-language-binding');
 const { ParseNode, ParseNodeType } = require('./parser/parse-node');
 const createTestRunner = require('./test-runner');
+const { createPackageLoader } = require('./core/package-loader');
 
 const { MapDataProvider, KvcProvider } = dataProviders;
-const { ensureTyped, typeOf, valueOf, expectType, typedNull } = valueModule;
+const { assertTyped, typeOf, valueOf, expectType, typedNull, normalize } = valueModule;
 const builtinSymbols = buildBuiltinMap();
 const builtinProvider = new MapDataProvider(builtinSymbols);
 const builtinCollections = {};
+
+ensureJavaScriptLanguageBinding();
 
 function attachExpressionSource(provider, expression) {
   if (!provider || typeof provider !== 'object') {
@@ -64,7 +73,7 @@ class DefaultFsDataProvider extends MapDataProvider {
       if (!this._collectionCache.has(lower)) {
         const entries = builtinCollections[lower].map(([memberName, typedValue]) => [memberName, typedValue]);
         const collection = new SimpleKeyValueCollection(this, entries);
-        this._collectionCache.set(lower, ensureTyped(collection));
+        this._collectionCache.set(lower, normalize(collection));
       }
       return this._collectionCache.get(lower);
     }
@@ -86,7 +95,7 @@ class DefaultFsDataProvider extends MapDataProvider {
 const test = createTestRunner({
   FuncScriptParser,
   DefaultFsDataProvider,
-  ensureTyped,
+  assertTyped,
   expectType,
   typeOf,
   valueOf,
@@ -112,7 +121,7 @@ function evaluate(expression, provider = new DefaultFsDataProvider()) {
   }
 
   try {
-    return ensureTyped(block.evaluate(provider));
+    return assertTyped(block.evaluate(provider), 'Engine.evaluate expects typed output');
   } catch (error) {
     if (error instanceof Error && error.message) {
       const position = parseOutcome?.parseNode?.Pos;
@@ -125,7 +134,7 @@ function evaluate(expression, provider = new DefaultFsDataProvider()) {
 }
 
 function appendTemplateValue(parts, value) {
-  const typed = ensureTyped(value);
+  const typed = assertTyped(value, 'Template literal interpolation expects typed values');
   switch (typeOf(typed)) {
     case FSDataType.Null:
       return;
@@ -260,6 +269,13 @@ function evaluateTemplate(template, provider = new DefaultFsDataProvider()) {
   return parts.join('');
 }
 
+const loadPackage = createPackageLoader({
+  evaluateExpression: evaluate,
+  DefaultFsDataProvider,
+  MapDataProvider,
+  normalize
+});
+
 function isListContainer(nodeType) {
   return nodeType === ParseNodeType.FunctionParameterList || nodeType === ParseNodeType.IdentiferList;
 }
@@ -322,6 +338,7 @@ function colorParseTree(node) {
 const Engine = {
   evaluate,
   evaluateTemplate,
+  loadPackage,
   test,
   colorParseTree,
   FuncScriptParser,
@@ -329,46 +346,12 @@ const Engine = {
   FsDataProvider: dataProviders.FsDataProvider,
   MapDataProvider: dataProviders.MapDataProvider,
   KvcProvider: dataProviders.KvcProvider,
-  ensureTyped: valueModule.ensureTyped,
+  assertTyped: valueModule.assertTyped,
   normalize: valueModule.normalize,
   makeValue: valueModule.makeValue,
   typeOf: valueModule.typeOf,
   valueOf: valueModule.valueOf,
   typedNull: valueModule.typedNull,
-  isTyped: valueModule.isTyped,
-  expectType: valueModule.expectType,
-  convertToCommonNumericType: valueModule.convertToCommonNumericType,
-  FSDataType,
-  getTypeName,
-  CallType,
-  BaseFunction,
-  ParameterList,
-  ExpressionFunction,
-  FsList,
-  ArrayFsList,
-  KeyValueCollection,
-  SimpleKeyValueCollection,
-  FsError,
-  buildBuiltinMap
-};
-
-module.exports = {
-  Engine,
-  evaluate,
-  evaluateTemplate,
-  test,
-  colorParseTree,
-  DefaultFsDataProvider,
-  FsDataProvider: dataProviders.FsDataProvider,
-  MapDataProvider: dataProviders.MapDataProvider,
-  KvcProvider: dataProviders.KvcProvider,
-  ensureTyped: valueModule.ensureTyped,
-  normalize: valueModule.normalize,
-  makeValue: valueModule.makeValue,
-  typeOf: valueModule.typeOf,
-  valueOf: valueModule.valueOf,
-  typedNull: valueModule.typedNull,
-  isTyped: valueModule.isTyped,
   expectType: valueModule.expectType,
   convertToCommonNumericType: valueModule.convertToCommonNumericType,
   FSDataType,
@@ -383,6 +366,45 @@ module.exports = {
   SimpleKeyValueCollection,
   FsError,
   buildBuiltinMap,
+  registerLanguageBinding,
+  tryGetLanguageBinding,
+  clearLanguageBindings
+};
+
+module.exports = {
+  Engine,
+  evaluate,
+  evaluateTemplate,
+  loadPackage,
+  test,
+  colorParseTree,
+  DefaultFsDataProvider,
+  FsDataProvider: dataProviders.FsDataProvider,
+  MapDataProvider: dataProviders.MapDataProvider,
+  KvcProvider: dataProviders.KvcProvider,
+  assertTyped: valueModule.assertTyped,
+  normalize: valueModule.normalize,
+  makeValue: valueModule.makeValue,
+  typeOf: valueModule.typeOf,
+  valueOf: valueModule.valueOf,
+  typedNull: valueModule.typedNull,
+  expectType: valueModule.expectType,
+  convertToCommonNumericType: valueModule.convertToCommonNumericType,
+  FSDataType,
+  getTypeName,
+  CallType,
+  BaseFunction,
+  ParameterList,
+  ExpressionFunction,
+  FsList,
+  ArrayFsList,
+  KeyValueCollection,
+  SimpleKeyValueCollection,
+  FsError,
+  buildBuiltinMap,
+  registerLanguageBinding,
+  tryGetLanguageBinding,
+  clearLanguageBindings,
   FuncScriptParser,
   ParseNode
 };

@@ -1,5 +1,5 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
-const { ensureTyped, typeOf, valueOf, makeValue } = require('../../core/value');
+const { assertTyped, typeOf, valueOf, makeValue, typedNull } = require('../../core/value');
 const { FSDataType } = require('../../core/fstypes');
 
 class SwitchFunction extends BaseFunction {
@@ -11,25 +11,25 @@ class SwitchFunction extends BaseFunction {
 
   evaluate(provider, parameters) {
     if (parameters.count === 0) {
-      return ensureTyped(null);
+      return typedNull();
     }
-    const selector = ensureTyped(parameters.getParameter(provider, 0));
+    const selector = assertTyped(parameters.getParameter(provider, 0));
     const selectorType = typeOf(selector);
     const selectorValue = valueOf(selector);
 
     for (let i = 1; i < parameters.count - 1; i += 2) {
-      const key = ensureTyped(parameters.getParameter(provider, i));
+      const key = assertTyped(parameters.getParameter(provider, i));
       const value = parameters.getParameter(provider, i + 1);
       if (typeOf(key) === selectorType && valueOf(key) === selectorValue) {
-        return ensureTyped(value);
+        return assertTyped(value);
       }
     }
 
     if (parameters.count % 2 === 0) {
-      return ensureTyped(parameters.getParameter(provider, parameters.count - 1));
+      return assertTyped(parameters.getParameter(provider, parameters.count - 1));
     }
 
-    return ensureTyped(null);
+    return typedNull();
   }
 }
 

@@ -19,7 +19,7 @@ class IsBlankFunction extends BaseFunction {
       return error;
     }
 
-    const value = helpers.ensureTyped(parameters.getParameter(provider, 0));
+    const value = helpers.assertTyped(parameters.getParameter(provider, 0));
     if (helpers.typeOf(value) === helpers.FSDataType.Null) {
       return helpers.makeValue(FSDataType.Boolean, true);
     }

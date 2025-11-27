@@ -1,11 +1,11 @@
 const { ExpressionBlock } = require('./expression-block');
-const { ensureTyped } = require('../core/value');
+const { assertTyped, normalize } = require('../core/value');
 const { ExpressionFunction } = require('../core/expression-function');
 
 class LiteralBlock extends ExpressionBlock {
   constructor(value, position = 0, length = 0) {
     super(position, length);
-    this.value = ensureTyped(value);
+    this.value = assertTyped(value, 'LiteralBlock expects typed value');
   }
 
   evaluateInternal(provider) {
@@ -13,7 +13,7 @@ class LiteralBlock extends ExpressionBlock {
     if (raw instanceof ExpressionFunction) {
       const instance = raw.clone();
       instance.setContext(provider);
-      return ensureTyped(instance);
+      return normalize(instance);
     }
     return this.value;
   }

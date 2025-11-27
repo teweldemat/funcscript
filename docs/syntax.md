@@ -95,6 +95,44 @@ Evaluating the block above produces:
 
 because execution stops at the returned expression and only the bindings required to compute `net` are evaluated.
 
+## JavaScript Binding
+FuncScript can delegate a value to embedded JavaScript by wrapping a snippet in a fenced block such as <code>```javascript ... ```</code>. The engine wraps that snippet in an immediately invoked function so that it runs inside an isolated scope and expects the function to `return` the value that should flow back into the FuncScript runtime. If you omit a `return` the JavaScript function resolves to `undefined`, which FuncScript normalizes to `null`, so always end the block by returning the final result.
+
+All bindings defined in the surrounding FuncScript scope are exposed as case-insensitive variables inside the JavaScript block, so you can reference them directly by name when calculating derived results to feed back into FuncScript:
+
+````funcscript
+{
+  prices: [12, 20, 31];
+  metrics: ```javascript
+const entries = prices ?? [];
+const doubled = entries.map(value => value * 2);
+const total = doubled.reduce((sum, value) => sum + value, 0);
+return {
+  count: doubled.length,
+  total,
+  values: doubled
+};
+```;
+  eval metrics.total;
+}
+````
+
+`metrics` holds a FuncScript key/value collection with `count`, `total`, and the doubled list thanks to the explicit `return {...}`. You can also return JavaScript functions and call them from FuncScript just like built-in lambdas:
+
+````funcscript
+{
+  factor: 3;
+  scaler: ```javascript
+return function (value) {
+  return value * factor;
+};
+```;
+  eval scaler(5);
+}
+````
+
+The example above returns a JavaScript function that captures `factor` from the FuncScript block and can be invoked anywhere the binding is in scope.
+
 ### Record Selection
 
 Selectors can also project a subset of keys from a record. List the fields you want inside braces immediately after the record value:

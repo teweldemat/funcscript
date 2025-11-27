@@ -1,6 +1,6 @@
 const { ExpressionBlock, createDepthOverflowValue } = require('./expression-block');
 const { SimpleKeyValueCollection } = require('../model/key-value-collection');
-const { ensureTyped, makeValue } = require('../core/value');
+const { assertTyped, makeValue } = require('../core/value');
 const { FSDataType } = require('../core/fstypes');
 const { FsDataProvider } = require('../core/data-provider');
 
@@ -47,7 +47,7 @@ class KvcExpressionProvider extends FsDataProvider {
 
     this.evaluating.add(lower);
     try {
-      const value = ensureTyped(entry.ValueExpression.evaluate(this));
+      const value = assertTyped(entry.ValueExpression.evaluate(this));
       this.cache.set(lower, value);
       return value;
     } finally {
@@ -94,7 +94,7 @@ class KvcExpression extends ExpressionBlock {
   evaluateInternal(provider) {
     const scope = new KvcExpressionProvider(provider, this);
     if (this.singleReturn) {
-      return ensureTyped(this.singleReturn.evaluate(scope));
+      return assertTyped(this.singleReturn.evaluate(scope));
     }
     const pairs = this._keyValues.map((kv) => [kv.Key, scope.get(kv.KeyLower)]);
     const collection = new SimpleKeyValueCollection(null, pairs);

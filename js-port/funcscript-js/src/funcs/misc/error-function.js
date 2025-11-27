@@ -1,6 +1,6 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
 const {
-  ensureTyped,
+  assertTyped,
   typeOf,
   valueOf
 } = require('../../core/value');
@@ -26,7 +26,7 @@ class ErrorFunction extends BaseFunction {
       );
     }
 
-    const messageTyped = ensureTyped(parameters.getParameter(provider, 0));
+    const messageTyped = assertTyped(parameters.getParameter(provider, 0));
     if (typeOf(messageTyped) !== FSDataType.String) {
       return helpers.makeError(
         helpers.FsError.ERROR_TYPE_MISMATCH,
@@ -36,7 +36,7 @@ class ErrorFunction extends BaseFunction {
 
     let typeValue = helpers.FsError.ERROR_DEFAULT;
     if (parameters.count > 1) {
-      const typeTyped = ensureTyped(parameters.getParameter(provider, 1));
+      const typeTyped = assertTyped(parameters.getParameter(provider, 1));
       const typeKind = typeOf(typeTyped);
       if (typeKind === FSDataType.Null) {
         typeValue = helpers.FsError.ERROR_DEFAULT;

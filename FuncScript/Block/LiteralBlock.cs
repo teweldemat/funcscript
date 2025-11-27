@@ -22,10 +22,10 @@ namespace FuncScript.Block
             return sb.ToString();
         }
 
-        protected override object EvaluateCore(KeyValueCollection provider)
+        public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {
             if (Value is ExpressionFunction expFunc)
-                return new ExpressionFunction.ExpressionFunctionCaller(provider, expFunc);
+                return new ExpressionFunction.ExpressionFunctionCaller(provider, expFunc,depth);
             return Value;
         }
 

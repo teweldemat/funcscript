@@ -1,5 +1,5 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
-const { ensureTyped, typeOf, valueOf, makeValue, typedNull } = require('../../core/value');
+const { assertTyped, typeOf, valueOf, makeValue, typedNull } = require('../../core/value');
 const { FSDataType } = require('../../core/fstypes');
 const { makeError, FsError } = require('../helpers');
 
@@ -16,7 +16,7 @@ class DivFunction extends BaseFunction {
       return typedNull();
     }
 
-    const first = ensureTyped(parameters.getParameter(provider, 0));
+    const first = assertTyped(parameters.getParameter(provider, 0));
     let mode = typeOf(first);
 
     if (mode !== FSDataType.Integer && mode !== FSDataType.BigInteger) {
@@ -27,7 +27,7 @@ class DivFunction extends BaseFunction {
     let longTotal = mode === FSDataType.BigInteger ? valueOf(first) : 0n;
 
     for (let i = 1; i < parameters.count; i += 1) {
-      const operand = ensureTyped(parameters.getParameter(provider, i));
+      const operand = assertTyped(parameters.getParameter(provider, i));
       const operandType = typeOf(operand);
 
       if (operandType !== FSDataType.Integer && operandType !== FSDataType.BigInteger) {

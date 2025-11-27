@@ -1,4 +1,4 @@
-const { ensureTyped } = require('./value');
+const { assertTyped } = require('./value');
 
 class FsDataProvider {
   constructor(parent = null) {
@@ -25,12 +25,12 @@ class MapDataProvider extends FsDataProvider {
     super(parent);
     this.map = {};
     for (const [key, value] of Object.entries(map)) {
-      this.map[key.toLowerCase()] = ensureTyped(value);
+      this.map[key.toLowerCase()] = assertTyped(value, 'MapDataProvider entries must be typed');
     }
   }
 
   set(name, value) {
-    this.map[name.toLowerCase()] = ensureTyped(value);
+    this.map[name.toLowerCase()] = assertTyped(value, 'MapDataProvider entries must be typed');
   }
 
   get(name) {

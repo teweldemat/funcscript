@@ -20,7 +20,7 @@ class MapListFunction extends BaseFunction {
       return error;
     }
 
-    const first = helpers.ensureTyped(parameters.getParameter(provider, 0));
+    const first = helpers.assertTyped(parameters.getParameter(provider, 0));
     if (helpers.typeOf(first) === helpers.FSDataType.Null) {
       return helpers.typedNull();
     }
@@ -48,7 +48,7 @@ class MapListFunction extends BaseFunction {
         helpers.makeValue(FSDataType.Integer, i)
       ]);
       const mapped = fn.evaluate(provider, args);
-      results.push(helpers.ensureTyped(mapped));
+      results.push(helpers.assertTyped(mapped));
     }
 
     return helpers.makeValue(FSDataType.List, new ArrayFsList(results));

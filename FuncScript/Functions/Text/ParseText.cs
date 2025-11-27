@@ -75,7 +75,7 @@ namespace FuncScript.Functions.Text
         }
 
         public IFsDataProvider ParentProvider { get; }
-        public bool IsDefined(string key)
+        public bool IsDefined(string key, bool hierarchy = true)
         {
             return false;
         }

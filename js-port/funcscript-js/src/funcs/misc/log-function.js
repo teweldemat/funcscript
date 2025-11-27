@@ -80,7 +80,7 @@ function toPlainValue(typed, seenKvcs = new WeakSet(), seenLists = new WeakSet()
 
 function formatStructuredValue(input) {
   try {
-    const typed = helpers.ensureTyped(input);
+    const typed = helpers.assertTyped(input);
     const json = JSON.stringify(toPlainValue(typed));
     if (typeof json === 'undefined') {
       return String(helpers.valueOf(typed));
@@ -97,7 +97,7 @@ function writeLog(input, { formatted = false } = {}) {
     return;
   }
 
-  const typed = helpers.ensureTyped(input);
+  const typed = helpers.assertTyped(input);
   const dataType = helpers.typeOf(typed);
   let message;
   switch (dataType) {
@@ -137,7 +137,7 @@ class LogFunction extends BaseFunction {
       );
     }
 
-    const value = helpers.ensureTyped(parameters.getParameter(provider, 0));
+    const value = helpers.assertTyped(parameters.getParameter(provider, 0));
 
     if (parameters.count > 1) {
       const handlerParam = parameters.getParameter(provider, 1);

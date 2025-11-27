@@ -39,7 +39,7 @@ class FindFirstFunction extends BaseFunction {
         list.get(i),
         helpers.makeValue(helpers.FSDataType.Integer, i)
       ]);
-      const result = helpers.ensureTyped(fn.evaluate(provider, args));
+      const result = helpers.assertTyped(fn.evaluate(provider, args));
       if (helpers.typeOf(result) === helpers.FSDataType.Boolean && helpers.valueOf(result)) {
         return list.get(i);
       }

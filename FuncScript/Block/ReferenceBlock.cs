@@ -25,22 +25,33 @@ namespace FuncScript.Block
         }
 
 
-        protected override object EvaluateCore(KeyValueCollection provider)
+        public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {
+            depth.Enter();
+            object ret;
             switch (_referenceMode)
             {
                 case ReferenceMode.Standard:
-                    return provider.Get(_nameLower);
+                    ret= provider.Get(_nameLower);
+                    break;
                 case ReferenceMode.SkipSiblings:
-                    return provider.ParentProvider?.Get(_nameLower);
+                    ret= provider.ParentProvider?.Get(_nameLower);
+                    break;
                 case ReferenceMode.ParentsThenSiblings:
                     if (provider.ParentProvider!=null && provider.ParentProvider.IsDefined(_nameLower))
-                        return provider.ParentProvider.Get(_nameLower);
-                    return provider.Get(_nameLower);
+                        ret= provider.ParentProvider.Get(_nameLower);
+                    else
+                        ret=provider.Get(_nameLower);
+                    break;
+                default:
+                    ret= new FsError(FsError.ERROR_TYPE_INVALID_PARAMETER,
+                        $"Unsupported reference mode {_referenceMode}");
+                    break;
             }
-
-            return new FsError(FsError.ERROR_TYPE_INVALID_PARAMETER,
-                $"Unsupported reference mode {_referenceMode}");
+            depth.Exit();
+            if (ret is FsError error)
+                return AttachCodeLocation(this, error);
+            return ret;
         }
 
         public override IEnumerable<ExpressionBlock> GetChilds() => Array.Empty<ExpressionBlock>();

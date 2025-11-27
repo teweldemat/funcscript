@@ -1,5 +1,5 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
-const { ensureTyped, typeOf, valueOf, makeValue, convertToCommonNumericType } = require('../../core/value');
+const { assertTyped, typeOf, valueOf, makeValue, convertToCommonNumericType } = require('../../core/value');
 const { FSDataType } = require('../../core/fstypes');
 const { FsList, ArrayFsList } = require('../../model/fs-list');
 const { KeyValueCollection } = require('../../model/key-value-collection');
@@ -60,7 +60,7 @@ class AddFunction extends BaseFunction {
     let listParts = null;
 
     for (let i = 0; i < parameters.count; i += 1) {
-      const typed = ensureTyped(parameters.getParameter(provider, i));
+      const typed = assertTyped(parameters.getParameter(provider, i));
       const currentType = typeOf(typed);
       const currentValue = valueOf(typed);
 

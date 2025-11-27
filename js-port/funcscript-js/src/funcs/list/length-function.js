@@ -20,7 +20,7 @@ class LengthFunction extends BaseFunction {
       return error;
     }
 
-    const typedArg = helpers.ensureTyped(parameters.getParameter(provider, 0));
+    const typedArg = helpers.assertTyped(parameters.getParameter(provider, 0));
     const argType = helpers.typeOf(typedArg);
 
     if (argType === FSDataType.List) {

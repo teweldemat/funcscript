@@ -41,7 +41,7 @@ class AnyMatchFunction extends BaseFunction {
         helpers.makeValue(FSDataType.Integer, i)
       ]);
       const match = fn.evaluate(provider, args);
-      const typedMatch = helpers.ensureTyped(match);
+      const typedMatch = helpers.assertTyped(match);
       if (helpers.typeOf(typedMatch) === FSDataType.Boolean && helpers.valueOf(typedMatch)) {
         return helpers.makeValue(FSDataType.Boolean, true);
       }

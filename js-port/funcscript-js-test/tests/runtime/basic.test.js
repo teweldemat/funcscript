@@ -66,6 +66,11 @@ describe('Basic', () => {
     expect(toPlain(result)).to.equal('one\ntwo');
   });
 
+  it('evaluates triple-quoted strings inside objects without trailing newlines', () => {
+    const expression = '{x:"""One line\n"""\n}';
+    expect(toPlain(evalExpression(expression))).to.deep.equal({ x: 'One line' });
+  });
+
   it('supports recursive lambdas', () => {
     expect(toPlain(evalExpression('{fib:(x)=>if(x<2,1,fib(x-2)+fib(x-1)); return fib(4);}'))).to.equal(5);
   });

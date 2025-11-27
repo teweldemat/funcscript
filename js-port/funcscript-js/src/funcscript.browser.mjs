@@ -10,6 +10,9 @@ import * as fsErrorModuleRaw from './model/fs-error.js';
 import * as parseNodeModuleRaw from './parser/parse-node.js';
 import * as buildBrowserBuiltinMapModule from './funcs/index.browser.js';
 import * as testRunnerModuleRaw from './test-runner.js';
+import * as languageBindingRegistryModuleRaw from './core/language-binding-registry.js';
+import * as javascriptBindingModuleRaw from './bindings/javascript-language-binding.js';
+import * as packageLoaderModuleRaw from './core/package-loader.js';
 
 const interopDefault = (mod) => (mod && 'default' in mod ? mod.default : mod);
 
@@ -25,20 +28,17 @@ const fsErrorModule = interopDefault(fsErrorModuleRaw);
 const parseNodeModule = interopDefault(parseNodeModuleRaw);
 const buildBrowserBuiltinMap = interopDefault(buildBrowserBuiltinMapModule);
 const createTestRunner = interopDefault(testRunnerModuleRaw);
+const languageBindingRegistry = interopDefault(languageBindingRegistryModuleRaw);
+const javascriptBindingModule = interopDefault(javascriptBindingModuleRaw);
+const packageLoaderModule = interopDefault(packageLoaderModuleRaw);
 
 const { FuncScriptParser } = parserModule;
 const { MapDataProvider, FsDataProvider, KvcProvider } = dataProviders;
-const {
-  ensureTyped,
-  normalize,
-  makeValue,
-  typeOf,
-  valueOf,
-  typedNull,
-  isTyped,
-  expectType,
-  convertToCommonNumericType
-} = valueModule;
+const { assertTyped, normalize, makeValue, typeOf, valueOf, typedNull, expectType, convertToCommonNumericType } =
+  valueModule;
+const { registerLanguageBinding, tryGetLanguageBinding, clearLanguageBindings } = languageBindingRegistry;
+const { ensureJavaScriptLanguageBinding } = javascriptBindingModule;
+const { createPackageLoader } = packageLoaderModule;
 const { FSDataType, getTypeName } = fstypesModule;
 const { CallType, BaseFunction, ParameterList } = functionBaseModule;
 const { ExpressionFunction } = expressionFunctionModule;
@@ -50,6 +50,8 @@ const { ParseNode } = parseNodeModule;
 const builtinSymbols = buildBrowserBuiltinMap();
 const builtinProvider = new MapDataProvider(builtinSymbols);
 const builtinCollections = {};
+
+ensureJavaScriptLanguageBinding();
 
 function attachExpressionSource(provider, expression) {
   if (!provider || typeof provider !== 'object') {
@@ -98,7 +100,7 @@ class DefaultFsDataProvider extends MapDataProvider {
       if (!this._collectionCache.has(lower)) {
         const entries = builtinCollections[lower].map(([memberName, typedValue]) => [memberName, typedValue]);
         const collection = new SimpleKeyValueCollection(this, entries);
-        this._collectionCache.set(lower, ensureTyped(collection));
+        this._collectionCache.set(lower, normalize(collection));
       }
       return this._collectionCache.get(lower);
     }
@@ -120,7 +122,7 @@ class DefaultFsDataProvider extends MapDataProvider {
 const test = createTestRunner({
   FuncScriptParser,
   DefaultFsDataProvider,
-  ensureTyped,
+  assertTyped,
   expectType,
   typeOf,
   valueOf,
@@ -136,8 +138,15 @@ function evaluate(expression, provider = new DefaultFsDataProvider()) {
   if (!block) {
     throw new Error('Failed to parse expression');
   }
-  return ensureTyped(block.evaluate(provider));
+  return assertTyped(block.evaluate(provider), 'Expression must return typed value');
 }
+
+const loadPackage = createPackageLoader({
+  evaluateExpression: evaluate,
+  DefaultFsDataProvider,
+  MapDataProvider,
+  normalize
+});
 
 function colorParseTree(node) {
   if (!node || typeof node.Length !== 'number' || node.Length <= 0) {
@@ -175,6 +184,7 @@ function colorParseTree(node) {
 
 const Engine = {
   evaluate,
+  loadPackage,
   test,
   colorParseTree,
   FuncScriptParser,
@@ -182,13 +192,12 @@ const Engine = {
   FsDataProvider,
   MapDataProvider,
   KvcProvider,
-  ensureTyped,
+  assertTyped,
   normalize,
   makeValue,
   typeOf,
   valueOf,
   typedNull,
-  isTyped,
   expectType,
   convertToCommonNumericType,
   FSDataType,
@@ -202,12 +211,16 @@ const Engine = {
   KeyValueCollection,
   SimpleKeyValueCollection,
   FsError,
-  buildBuiltinMap: buildBrowserBuiltinMap
+  buildBuiltinMap: buildBrowserBuiltinMap,
+  registerLanguageBinding,
+  tryGetLanguageBinding,
+  clearLanguageBindings
 };
 
 const funcscript = {
   Engine,
   evaluate,
+  loadPackage,
   test,
   colorParseTree,
   FuncScriptParser,
@@ -215,13 +228,12 @@ const funcscript = {
   FsDataProvider,
   MapDataProvider,
   KvcProvider,
-  ensureTyped,
+  assertTyped,
   normalize,
   makeValue,
   typeOf,
   valueOf,
   typedNull,
-  isTyped,
   expectType,
   convertToCommonNumericType,
   FSDataType,
@@ -235,12 +247,16 @@ const funcscript = {
   KeyValueCollection,
   SimpleKeyValueCollection,
   FsError,
-  buildBuiltinMap: buildBrowserBuiltinMap
+  buildBuiltinMap: buildBrowserBuiltinMap,
+  registerLanguageBinding,
+  tryGetLanguageBinding,
+  clearLanguageBindings
 };
 
 export {
   Engine,
   evaluate,
+  loadPackage,
   test,
   colorParseTree,
   FuncScriptParser,
@@ -248,13 +264,12 @@ export {
   FsDataProvider,
   MapDataProvider,
   KvcProvider,
-  ensureTyped,
+  assertTyped,
   normalize,
   makeValue,
   typeOf,
   valueOf,
   typedNull,
-  isTyped,
   expectType,
   convertToCommonNumericType,
   FSDataType,
@@ -268,7 +283,10 @@ export {
   KeyValueCollection,
   SimpleKeyValueCollection,
   FsError,
-  buildBrowserBuiltinMap as buildBuiltinMap
+  buildBrowserBuiltinMap as buildBuiltinMap,
+  registerLanguageBinding,
+  tryGetLanguageBinding,
+  clearLanguageBindings
 };
 
 export default funcscript;

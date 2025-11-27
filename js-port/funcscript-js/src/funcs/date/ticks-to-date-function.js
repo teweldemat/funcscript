@@ -22,7 +22,7 @@ class TicksToDateFunction extends BaseFunction {
       return error;
     }
 
-    const ticksValue = helpers.ensureTyped(parameters.getParameter(provider, 0));
+    const ticksValue = helpers.assertTyped(parameters.getParameter(provider, 0));
     if (helpers.typeOf(ticksValue) !== FSDataType.BigInteger && helpers.typeOf(ticksValue) !== FSDataType.Integer) {
       return helpers.makeError(helpers.FsError.ERROR_TYPE_MISMATCH, `${this.symbol}: ticks must be an integer`);
     }

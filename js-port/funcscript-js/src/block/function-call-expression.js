@@ -1,6 +1,6 @@
 const { ExpressionBlock } = require('./expression-block');
 const { ParameterList } = require('../core/function-base');
-const { typeOf, valueOf, ensureTyped, typedNull } = require('../core/value');
+const { typeOf, valueOf, typedNull, assertTyped } = require('../core/value');
 const { FSDataType } = require('../core/fstypes');
 
 function resolveExpressionSource(provider) {
@@ -93,7 +93,7 @@ class FuncParameterList extends ParameterList {
       return typedNull();
     }
     const result = exp.evaluate(this.provider);
-    const typed = ensureTyped(result);
+    const typed = assertTyped(result, 'Function parameter must be typed');
     if (typeOf(typed) === FSDataType.Error) {
       const fsError = valueOf(typed);
       annotateFsError(fsError, this.expressionSource, exp);
@@ -113,7 +113,7 @@ class FunctionCallExpression extends ExpressionBlock {
 
   evaluateInternal(provider) {
     const expressionSource = resolveExpressionSource(provider);
-    const fnValue = ensureTyped(this.functionExpression.evaluate(provider));
+    const fnValue = assertTyped(this.functionExpression.evaluate(provider), 'Function value must be typed');
     const fnType = typeOf(fnValue);
 
     if (fnType === FSDataType.Error) {
@@ -126,7 +126,7 @@ class FunctionCallExpression extends ExpressionBlock {
       const fn = valueOf(fnValue);
       const paramList = new FuncParameterList(this, provider);
       const result = fn.evaluate(provider, paramList);
-      return ensureTyped(result);
+      return assertTyped(result, 'Functions must return typed values');
     }
 
     if (fnType === FSDataType.List) {
@@ -135,12 +135,15 @@ class FunctionCallExpression extends ExpressionBlock {
         return typedNull();
       }
       const index = this.parameters[0].evaluate(provider);
-      const typedIndex = ensureTyped(index);
+      const typedIndex = assertTyped(index, 'List index must be typed');
       if (typeOf(typedIndex) !== FSDataType.Integer) {
         return typedNull();
       }
       const raw = list.get(valueOf(typedIndex));
-      return ensureTyped(raw);
+      if (raw === null || raw === undefined) {
+        return typedNull();
+      }
+      return assertTyped(raw, 'List items must be typed');
     }
 
     if (fnType === FSDataType.KeyValueCollection) {
@@ -148,12 +151,15 @@ class FunctionCallExpression extends ExpressionBlock {
       if (this.parameters.length === 0) {
         return typedNull();
       }
-      const keyVal = ensureTyped(this.parameters[0].evaluate(provider));
+      const keyVal = assertTyped(this.parameters[0].evaluate(provider), 'Key reference must be typed');
       if (typeOf(keyVal) !== FSDataType.String) {
         return typedNull();
       }
       const result = collection.get(valueOf(keyVal));
-      return ensureTyped(result);
+      if (result === null || result === undefined) {
+        return typedNull();
+      }
+      return assertTyped(result, 'Key-value entries must be typed');
     }
 
     throw new Error(

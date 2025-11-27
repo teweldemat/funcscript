@@ -56,6 +56,21 @@ namespace FuncScript.Test
         }
 
         [Test]
+        public void NestedEvalDoesNotLeakOuterMembers()
+        {
+            var exp =
+@"{
+    x:45;
+    return {
+        a:{b:3};
+        eval a.x;
+    };
+}";
+            var res = FuncScriptRuntime.Evaluate(exp);
+            Assert.AreEqual(null, res);
+        }
+
+        [Test]
         public void TestKvcIdenOnly()
         {
             var g = new DefaultFsDataProvider();
@@ -199,6 +214,46 @@ namespace FuncScript.Test
             var expected = 8;
             Assert.AreEqual(expected, res);
 
+        }
+
+        [Test]
+        public void TestKvcLambdaWithoutColonSyntax()
+        {
+            var exp =
+@"{
+    add(x,y)=>x+y;
+    double(n)=>add(n,n);
+    eval double(5);
+}";
+            var res = FuncScriptRuntime.Evaluate(exp);
+            Assert.AreEqual(10, res);
+        }
+        [Test]
+        public void TestNakedKvcLambdaWithoutColonSyntax()
+        {
+            var exp =
+                @"
+    add(x,y)=>x+y;
+    double(n)=>add(n,n);
+    eval double(5);
+";
+            var res = FuncScriptRuntime.Evaluate(exp);
+            Assert.AreEqual(10, res);
+        }
+
+        [Test]
+        public void TestNestedKvcLambdaWithoutColon()
+        {
+            var exp =
+@"{
+    outer:{
+        seed:4;
+        grow(x)=>x+seed;
+    };
+    return outer.grow(3);
+}";
+            var res = FuncScriptRuntime.Evaluate(exp);
+            Assert.AreEqual(7, res);
         }
         
         [Test]

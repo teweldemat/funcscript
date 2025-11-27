@@ -5,7 +5,8 @@ const {
   DefaultFsDataProvider,
   typeOf,
   valueOf,
-  FSDataType
+  FSDataType,
+  normalize
 } = require('@tewelde/funcscript');
 
 // Mirrors core scenarios from FuncScript.Test/TestErrorReporting.cs
@@ -14,7 +15,8 @@ describe('ErrorReporting', () => {
   const builtinProvider = () => new DefaultFsDataProvider();
 
   function evaluateWithVars(expression, vars = {}) {
-    const provider = new MapDataProvider(vars, builtinProvider());
+    const typedVars = Object.fromEntries(Object.entries(vars).map(([key, value]) => [key, normalize(value)]));
+    const provider = new MapDataProvider(typedVars, builtinProvider());
     return evaluate(expression, provider);
   }
 

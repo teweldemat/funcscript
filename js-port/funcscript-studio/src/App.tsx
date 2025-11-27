@@ -210,10 +210,10 @@ const App = (): JSX.Element => {
 
   const testCaseCount = savedTestCases.length;
 
-    const getUniqueFormulaName = useCallback(
+  const getUniqueFormulaName = useCallback(
     (desired: string, excludeId?: string) => {
       const base = desired.trim();
-      if (!base) {
+      if (!base || base.toLowerCase() === 'new formula') {
         return '';
       }
       const existing = new Set(
@@ -231,6 +231,17 @@ const App = (): JSX.Element => {
     },
     [savedFormulas]
   );
+
+  const getNextUntitledFormulaName = useCallback(() => {
+    const existing = new Set(savedFormulas.map((formula) => formula.name.toLowerCase()));
+    let suffix = 1;
+    let candidate = `Untitled ${suffix}`;
+    while (existing.has(candidate.toLowerCase())) {
+      suffix += 1;
+      candidate = `Untitled ${suffix}`;
+    }
+    return candidate;
+  }, [savedFormulas]);
 
 const persistedTestCasesSignature = useMemo(
     () => createTestCasesSignature(selectedFormula?.testCases ?? []),
@@ -292,6 +303,20 @@ const persistedTestCasesSignature = useMemo(
     [savedFormulas]
   );
 
+  const activateFormulaState = useCallback(
+    (testCases: StoredTestCase[]) => {
+      const normalizedCases = sortTestCases(testCases);
+      setSavedTestCases(normalizedCases);
+      const firstCase = normalizedCases[0];
+      setSelectedTestCaseId(firstCase?.id ?? '');
+      const baseVariables = cloneVariables(firstCase?.variables ?? []);
+      latestTesterVariablesRef.current = baseVariables;
+      setTesterVariablesPayload(baseVariables.length > 0 ? baseVariables : []);
+      initialTestCasesSignatureRef.current = createTestCasesSignature(normalizedCases);
+    },
+    []
+  );
+
   const handleSaveFormula = useCallback(() => {
     const sortedCases = sortTestCases(savedTestCases);
 
@@ -299,7 +324,7 @@ const persistedTestCasesSignature = useMemo(
       if (typeof window === 'undefined') {
         return;
       }
-      const defaultName = getUniqueFormulaName('New Formula');
+      const defaultName = getNextUntitledFormulaName();
       const proposed = window.prompt('Name for the new formula', defaultName);
       if (proposed === null) {
         return;
@@ -318,13 +343,9 @@ const persistedTestCasesSignature = useMemo(
         testCases: sortedCases
       };
       setSavedFormulas((previous) => sortFormulas([...previous, newEntry]));
-      setSelectedFormulaId('');
-      setExpression('');
-      setSavedTestCases([]);
-      setSelectedTestCaseId('');
-      latestTesterVariablesRef.current = [];
-      setTesterVariablesPayload([]);
-      initialTestCasesSignatureRef.current = '[]';
+      setSelectedFormulaId(newEntry.id);
+      setExpression(expression);
+      activateFormulaState(sortedCases);
       return;
     }
 
@@ -343,9 +364,43 @@ const persistedTestCasesSignature = useMemo(
       };
       return sortFormulas(updated);
     });
-    setSavedTestCases(sortedCases);
-    initialTestCasesSignatureRef.current = createTestCasesSignature(sortedCases);
-  }, [expression, savedTestCases, selectedFormulaId, getUniqueFormulaName]);
+    activateFormulaState(sortedCases);
+  }, [
+    expression,
+    savedTestCases,
+    selectedFormulaId,
+    getUniqueFormulaName,
+    getNextUntitledFormulaName,
+    activateFormulaState
+  ]);
+
+  const handleSaveFormulaAs = useCallback(() => {
+    const sortedCases = sortTestCases(savedTestCases);
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const defaultName = getNextUntitledFormulaName();
+    const proposed = window.prompt('Name for the new formula', defaultName);
+    if (proposed === null) {
+      return;
+    }
+    const trimmed = proposed.trim();
+    if (!trimmed) {
+      return;
+    }
+    const name = getUniqueFormulaName(trimmed);
+    const timestamp = new Date().toISOString();
+    const newEntry: StoredFormula = {
+      id: createFormulaId(),
+      name,
+      expression,
+      updatedAt: timestamp,
+      testCases: sortedCases
+    };
+    setSavedFormulas((previous) => sortFormulas([...previous, newEntry]));
+    setSelectedFormulaId(newEntry.id);
+    activateFormulaState(sortedCases);
+  }, [expression, savedTestCases, getUniqueFormulaName, getNextUntitledFormulaName, activateFormulaState]);
 
   const handleDuplicateFormula = useCallback(() => {
     if (!selectedFormula || typeof window === 'undefined') {
@@ -380,14 +435,8 @@ const persistedTestCasesSignature = useMemo(
     setSavedFormulas((previous) => sortFormulas([...previous, duplicated]));
     setSelectedFormulaId(duplicated.id);
     setExpression(duplicated.expression);
-    setSavedTestCases(clonedTestCases);
-    const firstCase = clonedTestCases[0];
-    setSelectedTestCaseId(firstCase?.id ?? '');
-    const baseVariables = cloneVariables(firstCase?.variables ?? []);
-    latestTesterVariablesRef.current = baseVariables;
-    setTesterVariablesPayload(baseVariables.length > 0 ? baseVariables : []);
-    initialTestCasesSignatureRef.current = createTestCasesSignature(clonedTestCases);
-  }, [selectedFormula, getUniqueFormulaName]);
+    activateFormulaState(clonedTestCases);
+  }, [selectedFormula, getUniqueFormulaName, activateFormulaState]);
   const handleRenameFormula = useCallback(() => {
     if (!selectedFormula || typeof window === 'undefined') {
       return;
@@ -696,6 +745,24 @@ const handleDeleteTestCase = useCallback(() => {
               </svg>
             </span>
             <span>Save</span>
+          </button>
+          <button
+            type="button"
+            className="save-button secondary"
+            onClick={handleSaveFormulaAs}
+            disabled={expression.trim().length === 0 && savedTestCases.length === 0}
+            title="Save formula as new entry"
+            aria-label="Save formula as new entry"
+          >
+            <span className="save-icon" aria-hidden="true">
+              <svg viewBox="0 0 20 20" focusable="false" role="img">
+                <path
+                  d="M4.75 2.5h8.69c.2 0 .39.08.53.22l3.31 3.31c.14.14.22.33.22.53v10.72c0 .83-.67 1.5-1.5 1.5H4.75c-.83 0-1.5-.67-1.5-1.5V4c0-.83.67-1.5 1.5-1.5Zm5.5 2.25H5.88c-.2 0-.38.16-.38.38v3.25c0 .21.17.37.38.37h4.37c.2 0 .37-.16.37-.37V5.13c0-.22-.17-.38-.37-.38Zm3.5 0H13c-.21 0-.38.17-.38.38v3.25c0 .21.17.37.38.37h.75c.41 0 .75-.34.75-.75V4.75c0-.41-.34-.75-.75-.75Zm-6.5 7.5c-.62 0-1.13.5-1.13 1.12v3.01c0 .62.51 1.12 1.13 1.12h4.5c.62 0 1.12-.5 1.12-1.12v-3c0-.63-.5-1.13-1.12-1.13h-4.5Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+            <span>Save As</span>
           </button>
           <button
             type="button"

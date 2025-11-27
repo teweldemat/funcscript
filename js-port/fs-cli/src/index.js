@@ -8,7 +8,7 @@ const {
   evaluate,
   test,
   DefaultFsDataProvider,
-  ensureTyped,
+  assertTyped,
   typeOf,
   valueOf,
   FSDataType,
@@ -61,7 +61,7 @@ function stringifyForLog(value) {
 }
 
 function toPlainValue(value, seenKvcs = new WeakSet(), seenLists = new WeakSet()) {
-  const typed = ensureTyped(value);
+  const typed = assertTyped(value);
   const dataType = typeOf(typed);
   switch (dataType) {
     case FSDataType.Null:
@@ -293,7 +293,7 @@ function evaluateExpression(expression) {
   const provider = new DefaultFsDataProvider();
   const typedResult = evaluate(expression, provider);
   const plain = toPlainValue(typedResult);
-  const typeName = getTypeName(typeOf(ensureTyped(typedResult)));
+  const typeName = getTypeName(typeOf(assertTyped(typedResult)));
   return { type: typeName, value: plain };
 }
 

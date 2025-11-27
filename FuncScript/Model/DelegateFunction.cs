@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -45,7 +46,18 @@ namespace FuncScript.Model
             if (par is not FsList pars)
                 throw new Error.EvaluationTimeException("Delegate function: List expected");
 
-            return this.f.DynamicInvoke(Enumerable.Range(0, pars.Length).Select(x => pars[x]).ToArray());
+            try
+            {
+                return this.f.DynamicInvoke(Enumerable.Range(0, pars.Length).Select(x => pars[x]).ToArray());
+            }
+            catch (TargetInvocationException tex) when (tex.InnerException != null)
+            {
+                return new FsError(FsError.ERROR_DEFAULT, tex.InnerException.Message);
+            }
+            catch (Exception ex)
+            {
+                return new FsError(FsError.ERROR_DEFAULT, ex.Message);
+            }
         }
 
         public string ParName(int index)

@@ -36,7 +36,7 @@ class JoinTextFunction extends BaseFunction {
     const parts = [];
     for (const item of list) {
       if (item == null) continue;
-      const str = helpers.ensureTyped(item);
+      const str = helpers.assertTyped(item);
       if (helpers.typeOf(str) === FSDataType.Null) continue;
       parts.push(String(helpers.valueOf(str)));
     }

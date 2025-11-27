@@ -30,32 +30,32 @@ function makeValue(type, value) {
   return [type, value];
 }
 
-function isTyped(value) {
-  return Array.isArray(value) && value.length === 2 && typeof value[0] === 'number';
-}
-
 function typeOf(value) {
-  if (!isTyped(value)) {
-    throw new Error('Expected typed value');
-  }
-  return value[0];
+  return assertTyped(value)[0];
 }
 
 function valueOf(value) {
-  if (!isTyped(value)) {
-    throw new Error('Expected typed value');
-  }
-  return value[1];
+  return assertTyped(value)[1];
 }
 
 function typedNull() {
   return makeValue(FSDataType.Null, null);
 }
 
-function normalize(value) {
-  if (isTyped(value)) {
-    return value;
+function assertTyped(value, message) {
+  if (!Array.isArray(value) || value.length !== 2) {
+    const detail =
+      value === null || value === undefined ? String(value) : typeof value === 'object' ? value.constructor?.name ?? 'object' : typeof value;
+    throw new Error(message || `Expected typed value but received ${detail}`);
   }
+  const [type] = value;
+  if (!Number.isInteger(type) || type < FSDataType.Null || type > FSDataType.Error) {
+    throw new Error(message || 'Expected typed value but received invalid type identifier');
+  }
+  return value;
+}
+
+function normalize(value) {
   if (value === null || value === undefined) {
     return typedNull();
   }
@@ -108,12 +108,8 @@ function normalize(value) {
   throw new Error(`Unsupported JS value for FuncScript: ${value}`);
 }
 
-function ensureTyped(value) {
-  return normalize(value);
-}
-
 function expectType(value, expectedType, message) {
-  const typed = ensureTyped(value);
+  const typed = assertTyped(value);
   if (typeOf(typed) !== expectedType) {
     const expected = getTypeName(expectedType);
     const actual = getTypeName(typeOf(typed));
@@ -123,8 +119,8 @@ function expectType(value, expectedType, message) {
 }
 
 function convertToCommonNumericType(v1, v2) {
-  const tv1 = ensureTyped(v1);
-  const tv2 = ensureTyped(v2);
+  const tv1 = assertTyped(v1);
+  const tv2 = assertTyped(v2);
   const t1 = typeOf(tv1);
   const t2 = typeOf(tv2);
   const n1 = valueOf(tv1);
@@ -156,11 +152,10 @@ function convertToCommonNumericType(v1, v2) {
 
 module.exports = {
   makeValue,
-  isTyped,
+  assertTyped,
   typeOf,
   valueOf,
   normalize,
-  ensureTyped,
   expectType,
   convertToCommonNumericType,
   typedNull

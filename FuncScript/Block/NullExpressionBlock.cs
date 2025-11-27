@@ -5,7 +5,7 @@ namespace FuncScript.Block
 {
     public class NullExpressionBlock : ExpressionBlock
     {
-        protected override object EvaluateCore(KeyValueCollection provider) => null;
+        public override object Evaluate(KeyValueCollection provider,DepthCounter depth) => null;
 
         public override string AsExpString()
         {

@@ -166,6 +166,18 @@ namespace FuncScript.Test
             Assert.AreEqual("one\nTwo", result);
         }
 
+        [Test]
+        public void TripleQuotedStringsTrimIndentedClosingLineInsideCollections()
+        {
+            var expression = "{x:\"\"\"X\nY\"\"\"\n}";
+            var result = FuncScriptRuntime.Evaluate(expression);
+
+            Assert.That(result, Is.InstanceOf<KeyValueCollection>());
+
+            var expected = FuncScriptRuntime.Evaluate("{x:'X\nY'}");
+            Assert.That(FuncScriptRuntime.FormatToJson(result), Is.EqualTo(FuncScriptRuntime.FormatToJson(expected)));
+        }
+
         [TestCase("length([1,2,3])", 3)]
         [TestCase("length(\"hello\")", 5)]
         public void LengthFunctionAcceptsListsAndStrings(string expression, int expected)

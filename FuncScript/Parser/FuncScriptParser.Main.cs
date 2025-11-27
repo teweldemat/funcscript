@@ -36,6 +36,7 @@ namespace FuncScript.Core
             LambdaExpression,
             ExpressionInBrace,
             LiteralString,
+            LanguageBinding,
             StringTemplate,
             KeyValuePair,
             KeyValueCollection,

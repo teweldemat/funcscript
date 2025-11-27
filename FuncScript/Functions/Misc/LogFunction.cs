@@ -11,12 +11,25 @@ namespace FuncScript.Functions.Misc
         
         
         private static Fslogger _fslogger;
+        private static readonly object s_loggerLock = new object();
 
         public static void SetDefaultLogger(Fslogger logger)
         {
-            _fslogger = logger;
+            lock (s_loggerLock)
+            {
+                _fslogger = logger;
+            }
         }
-        public static Fslogger DefaultLogger =>_fslogger;
+        public static Fslogger DefaultLogger
+        {
+            get
+            {
+                lock (s_loggerLock)
+                {
+                    return _fslogger;
+                }
+            }
+        }
 
         static Fslogger()
         {
@@ -55,13 +68,14 @@ namespace FuncScript.Functions.Misc
             if (pars.Length > 1)
             {
                 var handlerOrMessage = pars[1];
+                var logger = Fslogger.DefaultLogger;
                 if (handlerOrMessage is IFsFunction handler)
                 {
-                    Fslogger.DefaultLogger?.WriteLine(handler.Evaluate(FunctionArgumentHelper.Create(value))?.ToString()??"<null>");
+                    logger?.WriteLine(handler.Evaluate(FunctionArgumentHelper.Create(value))?.ToString()??"<null>");
                 }
                 else
                 {
-                    Fslogger.DefaultLogger?.WriteLine(handlerOrMessage?.ToString() ?? "<null>");
+                    logger?.WriteLine(handlerOrMessage?.ToString() ?? "<null>");
                 }
 
                 return value;

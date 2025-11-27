@@ -17,9 +17,10 @@ namespace FuncScript.Block
         }
 
 
-        protected override object EvaluateCore(KeyValueCollection provider)
+        public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {
-            var sourceVal = Source.Evaluate(provider, 0);
+            depth.Enter();
+            var sourceVal = Source.Evaluate(provider, depth);
             if (sourceVal is FsList)
             {
                 var lst = (FsList)sourceVal;
@@ -31,7 +32,7 @@ namespace FuncScript.Block
                     if (l is KeyValueCollection kvc)
                     {
                         var selectorProvider = CreateSelectorProvider(kvc, provider);
-                        ret[i] = Selector.Evaluate(selectorProvider, 0);
+                        ret[i] = Selector.Evaluate(selectorProvider,depth );
                     }
                     else
                     {
@@ -39,6 +40,7 @@ namespace FuncScript.Block
                     }
                     i++;
                 }
+                depth.Exit();
                 return new ArrayFsList(ret);
 
             }
@@ -47,8 +49,9 @@ namespace FuncScript.Block
                 if (sourceVal is KeyValueCollection kvc)
                 {
                     var selectorProvider = CreateSelectorProvider(kvc, provider);
-                    return Selector.Evaluate(selectorProvider, 0);
+                    return Selector.Evaluate(selectorProvider, depth);
                 }
+                depth.Exit();
                 return null;
             }
         }

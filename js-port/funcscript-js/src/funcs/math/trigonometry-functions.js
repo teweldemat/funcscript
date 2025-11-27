@@ -1,10 +1,10 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
-const { ensureTyped, typeOf, valueOf, makeValue } = require('../../core/value');
+const { assertTyped, typeOf, valueOf, makeValue } = require('../../core/value');
 const { FSDataType } = require('../../core/fstypes');
 const { makeError, FsError } = require('../helpers');
 
 function ensureNumeric(symbol, parameter, parameterName = 'number') {
-  const typed = ensureTyped(parameter);
+  const typed = assertTyped(parameter);
   if (typeOf(typed) === FSDataType.Integer || typeOf(typed) === FSDataType.Float || typeOf(typed) === FSDataType.BigInteger) {
     return { ok: true, value: Number(valueOf(typed)) };
   }

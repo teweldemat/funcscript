@@ -12,6 +12,9 @@ namespace FuncScript.Error
         {
         }
     }
+    public class EvaluationTooDeepTimeException : Exception
+    {
+    }
     public class SyntaxError : Exception
     {
         private readonly List<FuncScriptParser.SyntaxErrorData> data;

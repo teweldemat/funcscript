@@ -10,6 +10,7 @@ using Newtonsoft.Json.Serialization;
 using static FuncScript.Core.FuncScriptParser;
 using System.Diagnostics.Tracing;
 using FuncScript.Functions;
+using System.Reflection;
 
 namespace FuncScript
 {
@@ -17,6 +18,7 @@ namespace FuncScript
     {
         static HashSet<Type> _useJson;
         static Newtonsoft.Json.JsonSerializerSettings _nsSetting;
+        private static readonly object s_jsonLock = new object();
         private static object target;
 
         static Engine()
@@ -30,8 +32,21 @@ namespace FuncScript
         public static void NormalizeUsingJson<T>()
         {
             var t = typeof(T);
-            if (!_useJson.Contains(t))
-                _useJson.Add(t);
+            lock (s_jsonLock)
+            {
+                if (!_useJson.Contains(t))
+                    _useJson.Add(t);
+            }
+        }
+
+        public static void RegisterLanguageBinding(string languageIdentifier, ILanguageBinding binding)
+        {
+            LanguageBindingRegistry.Register(languageIdentifier, binding);
+        }
+
+        public static void LoadLanguageBindingsFromAssembly(Assembly assembly)
+        {
+            LanguageBindingLoader.LoadFromAssembly(assembly);
         }
         static object FromJToken(JToken p)
         {
@@ -164,7 +179,12 @@ namespace FuncScript
             {
                 return Collect((JsonElement)value);
             }
-            if (_useJson.Contains(value.GetType()))
+            bool shouldSerialize;
+            lock (s_jsonLock)
+            {
+                shouldSerialize = _useJson.Contains(t);
+            }
+            if (shouldSerialize)
             {
                 var json = Newtonsoft.Json.JsonConvert.SerializeObject(value, _nsSetting);
                 var obj = Engine.Evaluate(json);
@@ -290,6 +310,7 @@ namespace FuncScript
             bool asFuncScriptLiteral,
             bool asJsonLiteral, bool adaptiveLineBreak)
         {
+            var isNestedContext = !string.IsNullOrEmpty(indent);
 
             if (val is FsError fsError)
             {
@@ -458,7 +479,8 @@ namespace FuncScript
             }
             if (val is string valStr)
             {
-                if (asJsonLiteral || asFuncScriptLiteral)
+                var quoteString = asJsonLiteral || asFuncScriptLiteral || isNestedContext;
+                if (quoteString)
 
                 {
                     sb.Append("\"");
@@ -678,7 +700,9 @@ namespace FuncScript
                 case ParseMode.SpaceSeparatedList:
                     return FuncScriptParser.ParseSpaceSeparatedList(provider, expression, serrors);
                 case ParseMode.FsTemplate:
-                    exp = FuncScriptParser.ParseFsTemplate(provider, expression, serrors);
+                    var res = FuncScriptParser.ParseFsTemplate(provider, expression);
+                    exp = res.ExpressionBlock;
+                    serrors.AddRange(res.Errors);
                     break;
                 default:    
                     exp = null;
@@ -693,7 +717,7 @@ namespace FuncScript
         {
             try
             {
-                var ret = exp.Evaluate(provider, 0);
+                var ret = exp.Evaluate(provider, new ExpressionBlock.DepthCounter());
 
                 if (ret is Block.KvcExpression.KvcExpressionCollection kvc)
                 {
@@ -701,6 +725,14 @@ namespace FuncScript
                 }
 
                 return ret;
+            }
+            catch (EvaluationTooDeepTimeException)
+            {
+                return new FsError(FsError.ERROR_EVALUATION_DEPTH_OVERFLOW, "Maximum evaluation depth reached");
+            }
+            catch (Error.TypeMismatchError typeMismatchError)
+            {
+                return new FsError(FsError.ERROR_TYPE_MISMATCH, typeMismatchError.Message);
             }
             catch (EvaluationException ex)
             {

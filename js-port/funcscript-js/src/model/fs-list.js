@@ -1,4 +1,4 @@
-const { ensureTyped, valueOf } = require('../core/value');
+const { assertTyped, valueOf } = require('../core/value');
 
 class FsList {
   constructor() {
@@ -69,7 +69,7 @@ class ArrayFsList extends FsList {
     if (!values) {
       throw new Error('ArrayFsList requires values');
     }
-    this._data = values.map((v) => ensureTyped(v));
+    this._data = values.map((v) => assertTyped(v));
   }
 
   get length() {

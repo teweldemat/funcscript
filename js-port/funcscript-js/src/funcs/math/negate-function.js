@@ -1,5 +1,5 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
-const { ensureTyped, typeOf, valueOf, makeValue } = require('../../core/value');
+const { assertTyped, typeOf, valueOf, makeValue } = require('../../core/value');
 const { FSDataType } = require('../../core/fstypes');
 
 class NegateFunction extends BaseFunction {
@@ -14,7 +14,7 @@ class NegateFunction extends BaseFunction {
   }
 
   evaluate(provider, parameters) {
-    const operand = ensureTyped(parameters.getParameter(provider, 0));
+    const operand = assertTyped(parameters.getParameter(provider, 0));
     switch (typeOf(operand)) {
       case FSDataType.Integer:
         return makeValue(FSDataType.Integer, -valueOf(operand));

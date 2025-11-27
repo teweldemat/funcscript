@@ -2,8 +2,21 @@ const { BaseFunction, CallType } = require('../../core/function-base');
 const helpers = require('../helpers');
 const { FSDataType } = require('../../core/fstypes');
 
-function convertToString(value) {
-  const typed = helpers.ensureTyped(value);
+function escapeStringLiteral(value) {
+  if (value == null) {
+    return '';
+  }
+  return String(value)
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t');
+}
+
+function convertToString(value, options = {}) {
+  const { quoteStrings = false, jsonMode = false } = options;
+  const typed = helpers.assertTyped(value);
   switch (helpers.typeOf(typed)) {
     case FSDataType.Null:
       return 'null';
@@ -12,13 +25,18 @@ function convertToString(value) {
     case FSDataType.Float:
     case FSDataType.BigInteger:
       return String(helpers.valueOf(typed));
-    case FSDataType.String:
-      return helpers.valueOf(typed);
+    case FSDataType.String: {
+      const raw = helpers.valueOf(typed);
+      if (!quoteStrings) {
+        return raw;
+      }
+      return `"${escapeStringLiteral(raw)}"`;
+    }
     case FSDataType.List: {
       const list = helpers.valueOf(typed);
       const parts = [];
       for (const item of list) {
-        parts.push(convertToString(item));
+        parts.push(convertToString(item, { quoteStrings: true, jsonMode }));
       }
       return `[${parts.join(', ')}]`;
     }
@@ -26,7 +44,7 @@ function convertToString(value) {
       const kv = helpers.valueOf(typed);
       const entries = kv
         .getAll()
-        .map(([key, val]) => `"${key}":${convertToString(val)}`);
+        .map(([key, val]) => `"${key}":${convertToString(val, { quoteStrings: true, jsonMode })}`);
       return `{ ${entries.join(', ')} }`;
     }
     case FSDataType.Function: {
@@ -71,7 +89,7 @@ function formatNumberWithPattern(number, pattern) {
 }
 
 function tryFormatWithPattern(value, pattern) {
-  const typed = helpers.ensureTyped(value);
+  const typed = helpers.assertTyped(value);
   const formatPattern = pattern.trim();
   if (!formatPattern) {
     return convertToString(typed);
@@ -118,13 +136,16 @@ class FormatValueFunction extends BaseFunction {
       return helpers.makeError(helpers.FsError.ERROR_PARAMETER_COUNT_MISMATCH, `${this.symbol} requires at least one parameter`);
     }
     const value = parameters.getParameter(provider, 0);
-    const formatParameter = parameters.count > 1 ? helpers.ensureTyped(parameters.getParameter(provider, 1)) : null;
+    const formatParameter = parameters.count > 1 ? helpers.assertTyped(parameters.getParameter(provider, 1)) : null;
 
     if (formatParameter && helpers.typeOf(formatParameter) === FSDataType.String) {
       const rawFormat = helpers.valueOf(formatParameter);
       const format = rawFormat.toLowerCase();
       if (format === 'json') {
-        return helpers.makeValue(FSDataType.String, convertToString(value));
+        return helpers.makeValue(
+          FSDataType.String,
+          convertToString(value, { quoteStrings: true, jsonMode: true })
+        );
       }
 
       const formatted = tryFormatWithPattern(value, rawFormat);

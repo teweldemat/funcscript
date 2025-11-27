@@ -6,7 +6,7 @@ function appendValue(parts, value) {
   if (value == null) {
     return;
   }
-  const typed = helpers.ensureTyped(value);
+  const typed = helpers.assertTyped(value);
   if (helpers.typeOf(typed) === FSDataType.List) {
     const list = helpers.valueOf(typed);
     for (const item of list) {

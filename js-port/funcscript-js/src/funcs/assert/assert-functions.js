@@ -2,8 +2,8 @@ const { BaseFunction, CallType } = require('../../core/function-base');
 const helpers = require('../helpers');
 const { FSDataType } = require('../../core/fstypes');
 
-function ensureTyped(value) {
-  return helpers.ensureTyped(value);
+function assertTyped(value) {
+  return helpers.assertTyped(value);
 }
 
 function formatValue(typed) {
@@ -47,7 +47,7 @@ function expectBoolean(symbol, typed) {
 }
 
 function toNumber(symbol, value, label) {
-  const typed = ensureTyped(value);
+  const typed = assertTyped(value);
   const type = helpers.typeOf(typed);
   const raw = helpers.valueOf(typed);
   switch (type) {
@@ -94,8 +94,8 @@ class AssertEqualFunction extends BaseFunction {
     if (parameters.count !== 2) {
       return makeAssertionError(this.symbol, 'Expected two parameters');
     }
-    const left = ensureTyped(parameters.getParameter(provider, 0));
-    const right = ensureTyped(parameters.getParameter(provider, 1));
+    const left = assertTyped(parameters.getParameter(provider, 0));
+    const right = assertTyped(parameters.getParameter(provider, 1));
     const result = compareValues(left, right, this.symbol);
     if (!result.ok) {
       return result.error;
@@ -126,8 +126,8 @@ class AssertNotEqualFunction extends BaseFunction {
     if (parameters.count !== 2) {
       return makeAssertionError(this.symbol, 'Expected two parameters');
     }
-    const left = ensureTyped(parameters.getParameter(provider, 0));
-    const right = ensureTyped(parameters.getParameter(provider, 1));
+    const left = assertTyped(parameters.getParameter(provider, 0));
+    const right = assertTyped(parameters.getParameter(provider, 1));
     const result = compareValues(left, right, this.symbol);
     if (!result.ok) {
       return result.error;
@@ -158,8 +158,8 @@ class AssertGreaterFunction extends BaseFunction {
     if (parameters.count !== 2) {
       return makeAssertionError(this.symbol, 'Expected two parameters');
     }
-    const left = ensureTyped(parameters.getParameter(provider, 0));
-    const right = ensureTyped(parameters.getParameter(provider, 1));
+    const left = assertTyped(parameters.getParameter(provider, 0));
+    const right = assertTyped(parameters.getParameter(provider, 1));
     const result = compareValues(left, right, this.symbol);
     if (!result.ok) {
       return result.error;
@@ -190,8 +190,8 @@ class AssertLessFunction extends BaseFunction {
     if (parameters.count !== 2) {
       return makeAssertionError(this.symbol, 'Expected two parameters');
     }
-    const left = ensureTyped(parameters.getParameter(provider, 0));
-    const right = ensureTyped(parameters.getParameter(provider, 1));
+    const left = assertTyped(parameters.getParameter(provider, 0));
+    const right = assertTyped(parameters.getParameter(provider, 1));
     const result = compareValues(left, right, this.symbol);
     if (!result.ok) {
       return result.error;
@@ -224,7 +224,7 @@ class AssertTrueFunction extends BaseFunction {
       return error;
     }
 
-    const typed = ensureTyped(parameters.getParameter(provider, 0));
+    const typed = assertTyped(parameters.getParameter(provider, 0));
     const boolResult = expectBoolean(this.symbol, typed);
     if (!boolResult.ok) {
       return boolResult.error;
@@ -253,7 +253,7 @@ class AssertFalseFunction extends BaseFunction {
       return error;
     }
 
-    const typed = ensureTyped(parameters.getParameter(provider, 0));
+    const typed = assertTyped(parameters.getParameter(provider, 0));
     const boolResult = expectBoolean(this.symbol, typed);
     if (!boolResult.ok) {
       return boolResult.error;
@@ -280,9 +280,9 @@ class AssertApproxFunction extends BaseFunction {
     if (parameters.count !== 3) {
       return makeAssertionError(this.symbol, 'Expected three parameters');
     }
-    const left = ensureTyped(parameters.getParameter(provider, 0));
-    const right = ensureTyped(parameters.getParameter(provider, 1));
-    const epsilonTyped = ensureTyped(parameters.getParameter(provider, 2));
+    const left = assertTyped(parameters.getParameter(provider, 0));
+    const right = assertTyped(parameters.getParameter(provider, 1));
+    const epsilonTyped = assertTyped(parameters.getParameter(provider, 2));
 
     const leftNumber = toNumber(this.symbol, left, 'left');
     if (!leftNumber.ok) {
@@ -325,7 +325,7 @@ class AssertNoErrorFunction extends BaseFunction {
     if (error) {
       return error;
     }
-    const typed = ensureTyped(parameters.getParameter(provider, 0));
+    const typed = assertTyped(parameters.getParameter(provider, 0));
     if (helpers.typeOf(typed) !== FSDataType.Error) {
       return helpers.makeValue(FSDataType.Boolean, true);
     }
@@ -353,7 +353,7 @@ class AssertIsErrorFunction extends BaseFunction {
     if (error) {
       return error;
     }
-    const typed = ensureTyped(parameters.getParameter(provider, 0));
+    const typed = assertTyped(parameters.getParameter(provider, 0));
     if (helpers.typeOf(typed) === FSDataType.Error) {
       return helpers.makeValue(FSDataType.Boolean, true);
     }
@@ -376,7 +376,7 @@ class AssertIsErrorTypeFunction extends BaseFunction {
     if (parameters.count !== 2) {
       return makeAssertionError(this.symbol, 'Expected value and type name');
     }
-    const errorValue = ensureTyped(parameters.getParameter(provider, 0));
+    const errorValue = assertTyped(parameters.getParameter(provider, 0));
     const typeValue = helpers.requireString(this.symbol, parameters.getParameter(provider, 1), 'type');
     if (!typeValue.ok) {
       return typeValue.error;
@@ -413,7 +413,7 @@ class AssertHasErrorMessageFunction extends BaseFunction {
     if (parameters.count !== 2) {
       return makeAssertionError(this.symbol, 'Expected value and message');
     }
-    const errorValue = ensureTyped(parameters.getParameter(provider, 0));
+    const errorValue = assertTyped(parameters.getParameter(provider, 0));
     const messageValue = helpers.requireString(this.symbol, parameters.getParameter(provider, 1), 'message');
     if (!messageValue.ok) {
       return messageValue.error;
@@ -453,7 +453,7 @@ class AssertIsNullFunction extends BaseFunction {
     if (error) {
       return error;
     }
-    const typed = ensureTyped(parameters.getParameter(provider, 0));
+    const typed = assertTyped(parameters.getParameter(provider, 0));
     if (helpers.typeOf(typed) === FSDataType.Null) {
       return helpers.makeValue(FSDataType.Boolean, true);
     }
@@ -477,7 +477,7 @@ class AssertIsNotNullFunction extends BaseFunction {
     if (error) {
       return error;
     }
-    const typed = ensureTyped(parameters.getParameter(provider, 0));
+    const typed = assertTyped(parameters.getParameter(provider, 0));
     if (helpers.typeOf(typed) !== FSDataType.Null) {
       return helpers.makeValue(FSDataType.Boolean, true);
     }

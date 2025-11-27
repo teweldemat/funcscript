@@ -55,7 +55,7 @@ namespace FuncScript.Model
             this._val = val;
         }
         public object GetUnderlyingValue() => _val;
-        public bool IsDefined(string key)
+        public bool IsDefined(string key, bool hierarchy = true)
         {
             if (_val == null)
                 return false;
@@ -93,6 +93,17 @@ namespace FuncScript.Model
                 list.Add(KeyValuePair.Create(prop.Value.Name, val));
             }
             return list;
+        }
+
+        public IList<string> GetAllKeys()
+        {
+            if (_val == null)
+                return Array.Empty<string>();
+            var t = _val.GetType();
+            var tInfo = GetTypeInfo(t);
+            return tInfo.Properties.Values
+                .Select(prop => prop.Name)
+                .ToArray();
         }
 
         public override bool Equals(object obj)

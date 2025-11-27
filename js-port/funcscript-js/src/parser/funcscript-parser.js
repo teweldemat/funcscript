@@ -38,8 +38,12 @@ const { KvcExpression, KeyValueExpression } = require('../block/kvc-expression')
 const { SelectorExpression } = require('../block/selector-expression');
 const { ReferenceBlock } = require('../block/reference-block');
 const { NullExpressionBlock } = require('../block/null-expression-block');
+const { LanguageBindingBlock } = require('../block/language-binding-block');
 const { ExpressionFunction } = require('../core/expression-function');
+const { tryGetLanguageBinding } = require('../core/language-binding-registry');
 const { CallType } = require('../core/function-base');
+const { makeValue, assertTyped, normalize } = require('../core/value');
+const { FSDataType } = require('../core/fstypes');
 
 // Mirrors FuncScript/Parser/FuncScriptParser.Main.cs :: s_operatorSymols
 const OPERATOR_SYMBOLS = [
@@ -102,6 +106,100 @@ function unwrapRootNode(node) {
 // ---------------------------------------------------------------------------
 // Syntax helpers ported from FuncScript/Parser/Syntax/*.cs
 // ---------------------------------------------------------------------------
+
+function getLanguageBindingExpression(context, siblings, index) {
+  if (!context) {
+    throw new Error('context is required');
+  }
+
+  const expression = context.Expression || '';
+  const nodeBuffer = createNodeBuffer(siblings);
+  const blockStart = skipSpace(context, nodeBuffer, index);
+  if (blockStart >= expression.length) {
+    return ParseResult.noAdvance(index);
+  }
+
+  const afterTicks = getLiteralMatch(expression, blockStart, '```');
+  if (afterTicks === blockStart) {
+    return ParseResult.noAdvance(index);
+  }
+
+  let identifierLineEnd = afterTicks;
+  while (
+    identifierLineEnd < expression.length &&
+    expression[identifierLineEnd] !== '\n' &&
+    expression[identifierLineEnd] !== '\r'
+  ) {
+    identifierLineEnd += 1;
+  }
+
+  const identifier = expression.slice(afterTicks, identifierLineEnd).trim();
+  if (!identifier) {
+    context.ErrorsList.push(new SyntaxErrorData(afterTicks, 0, 'language identifier expected'));
+    return ParseResult.noAdvance(index);
+  }
+
+  const binding = tryGetLanguageBinding(identifier);
+  if (!binding) {
+    context.ErrorsList.push(
+      new SyntaxErrorData(afterTicks, identifier.length, `Language binding '${identifier}' is not registered.`)
+    );
+    return ParseResult.noAdvance(index);
+  }
+
+  let codeIndex = identifierLineEnd;
+  if (codeIndex < expression.length && expression[codeIndex] === '\r') {
+    codeIndex += 1;
+  }
+  if (codeIndex < expression.length && expression[codeIndex] === '\n') {
+    codeIndex += 1;
+  }
+
+  const codeParts = [];
+  let scanIndex = codeIndex;
+  let closingIndex = -1;
+
+  while (scanIndex < expression.length) {
+    if (
+      expression[scanIndex] === '\\' &&
+      scanIndex + 3 < expression.length &&
+      expression[scanIndex + 1] === '`' &&
+      expression[scanIndex + 2] === '`' &&
+      expression[scanIndex + 3] === '`'
+    ) {
+      codeParts.push('```');
+      scanIndex += 4;
+      continue;
+    }
+
+    if (
+      scanIndex + 2 < expression.length &&
+      expression[scanIndex] === '`' &&
+      expression[scanIndex + 1] === '`' &&
+      expression[scanIndex + 2] === '`'
+    ) {
+      closingIndex = scanIndex;
+      break;
+    }
+
+    codeParts.push(expression[scanIndex]);
+    scanIndex += 1;
+  }
+
+  if (closingIndex < 0) {
+    context.ErrorsList.push(new SyntaxErrorData(blockStart, expression.length - blockStart, 'closing ``` expected'));
+    return ParseResult.noAdvance(index);
+  }
+
+  const blockLength = closingIndex + 3 - blockStart;
+  const node = new ParseNode(ParseNodeType.LanguageBinding, blockStart, blockLength);
+  nodeBuffer.push(node);
+  commitNodeBuffer(siblings, nodeBuffer);
+
+  const code = codeParts.join('');
+  const block = new LanguageBindingBlock(identifier, code, binding, blockStart, blockLength);
+  return new ParseBlockResult(closingIndex + 3, block);
+}
 
 // Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetExpression.cs :: GetExpression
 function getExpression(context, siblings, index) {
@@ -631,7 +729,7 @@ function parseMemberAccessOperator(context, siblings, oper, source, index) {
     functionTyped = context.Provider.get(oper);
   }
   const fnLiteral = new LiteralBlock(functionTyped);
-  const nameLiteral = new LiteralBlock(iden.Iden);
+  const nameLiteral = new LiteralBlock(makeValue(FSDataType.String, iden.Iden));
   const { position: sourceStart } = getCodeLocation(source);
   const expression = new FunctionCallExpression(
     fnLiteral,
@@ -757,6 +855,13 @@ function getKvcItem(context, siblings, nakedKvc, index) {
     return new ValueParseResult(keyPair.NextIndex, keyPair.Value);
   }
 
+  const lambdaBuffer = createNodeBuffer(siblings);
+  const lambdaPair = getIdentifierLambdaPair(context, lambdaBuffer, index);
+  if (lambdaPair.hasProgress(index)) {
+    commitNodeBuffer(siblings, lambdaBuffer);
+    return new ValueParseResult(lambdaPair.NextIndex, lambdaPair.Value);
+  }
+
   const returnBuffer = createNodeBuffer(siblings);
   const returnResult = getReturnDefinition(context, returnBuffer, index);
   if (returnResult.hasProgress(index) && returnResult.ExpressionBlock) {
@@ -797,6 +902,45 @@ function getKvcItem(context, siblings, nakedKvc, index) {
   }
 
   return new ValueParseResult(index, null);
+}
+
+// Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetIdentifierLambdaPair :: GetIdentifierLambdaPair
+function getIdentifierLambdaPair(context, siblings, index) {
+  if (!context) {
+    throw new Error('context is required');
+  }
+
+  const childNodes = [];
+  const keyCaptureIndex = childNodes.length;
+  const iden = getIdentifier(context, childNodes, index, KEYWORDS);
+  const identifierIndex = iden.NextIndex;
+  if (identifierIndex === index || !iden.Iden) {
+    return new ValueParseResult(index, null);
+  }
+
+  markKeyNodes(childNodes, keyCaptureIndex, iden.StartIndex, iden.Length);
+
+  let currentIndex = identifierIndex;
+  currentIndex = skipSpace(context, childNodes, currentIndex);
+
+  const lambdaBuffer = createNodeBuffer(childNodes);
+  const lambdaResult = getLambdaExpression(context, lambdaBuffer, currentIndex);
+  if (!lambdaResult.hasProgress(currentIndex) || !lambdaResult.Value) {
+    return new ValueParseResult(index, null);
+  }
+  commitNodeBuffer(childNodes, lambdaBuffer);
+
+  const lambdaEnd = lambdaResult.NextIndex;
+  const literal = new LiteralBlock(normalize(lambdaResult.Value));
+  setCodeLocation(literal, currentIndex, lambdaEnd - currentIndex);
+
+  const item = new KeyValueExpression();
+  item.Key = iden.Iden;
+  item.ValueExpression = literal;
+
+  const parseNode = new ParseNode(ParseNodeType.KeyValuePair, index, lambdaEnd - index, childNodes);
+  siblings.push(parseNode);
+  return new ValueParseResult(lambdaEnd, item);
 }
 
 // Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetKeyValuePair.cs :: GetKeyValuePair
@@ -874,6 +1018,19 @@ function getKeyValuePair(context, siblings, index) {
   const item = new KeyValueExpression();
   item.Key = name;
   item.ValueExpression = valueResult.ExpressionBlock;
+  if (
+    typeof name === 'string' &&
+    name.length > 0 &&
+    item.ValueExpression instanceof ReferenceBlock
+  ) {
+    const referenceName = item.ValueExpression.name;
+    if (
+      typeof referenceName === 'string' &&
+      referenceName.toLowerCase() === name.toLowerCase()
+    ) {
+      item.ValueExpression.fromParent = true;
+    }
+  }
 
   const parseNode = new ParseNode(
     ParseNodeType.KeyValuePair,
@@ -1492,7 +1649,7 @@ function getPrefixOperator(context, siblings, index) {
 
   currentIndex = operandResult.NextIndex;
   const call = new FunctionCallExpression(
-    new LiteralBlock(functionValue),
+    new LiteralBlock(assertTyped(functionValue)),
     [operandResult.ExpressionBlock],
     index,
     currentIndex - index
@@ -1552,6 +1709,7 @@ function getStringTemplateWithDelimiter(context, siblings, delimiter, index) {
   }
 
   const parts = [];
+  let hasExpressions = false;
   let literalStart = currentIndex;
   let buffer = '';
 
@@ -1623,7 +1781,7 @@ function getStringTemplateWithDelimiter(context, siblings, delimiter, index) {
     const afterExpressionStart = getLiteralMatch(context.Expression, currentIndex, '{');
     if (afterExpressionStart > currentIndex) {
       if (buffer.length > 0) {
-        const literal = new LiteralBlock(buffer);
+        const literal = new LiteralBlock(makeValue(FSDataType.String, buffer));
         parts.push(literal);
         nodeParts.push(new ParseNode(ParseNodeType.LiteralString, literalStart, currentIndex - literalStart));
         buffer = '';
@@ -1639,7 +1797,8 @@ function getStringTemplateWithDelimiter(context, siblings, delimiter, index) {
       }
 
       currentIndex = expressionResult.NextIndex;
-      parts.push(expressionResult.ExpressionBlock);
+      parts.push(wrapTemplateExpression(context, expressionResult.ExpressionBlock));
+      hasExpressions = true;
 
       const afterExpressionEnd = getToken(context, currentIndex, nodeParts, ParseNodeType.CloseBrance, '}');
       if (afterExpressionEnd === currentIndex) {
@@ -1662,7 +1821,7 @@ function getStringTemplateWithDelimiter(context, siblings, delimiter, index) {
 
   if (currentIndex > literalStart) {
     if (buffer.length > 0) {
-      const literal = new LiteralBlock(buffer);
+      const literal = new LiteralBlock(makeValue(FSDataType.String, buffer));
       parts.push(literal);
       nodeParts.push(new ParseNode(ParseNodeType.LiteralString, literalStart, currentIndex - literalStart));
       buffer = '';
@@ -1680,14 +1839,14 @@ function getStringTemplateWithDelimiter(context, siblings, delimiter, index) {
   let expression;
   let parseNode;
   if (parts.length === 0) {
-    expression = new LiteralBlock('');
+    expression = new LiteralBlock(makeValue(FSDataType.String, ''));
     parseNode = new ParseNode(ParseNodeType.LiteralString, templateStart, currentIndex - templateStart);
-  } else if (parts.length === 1) {
+  } else if (parts.length === 1 && !hasExpressions && parts[0] instanceof LiteralBlock) {
     expression = parts[0];
     parseNode = nodeParts.length > 0 ? nodeParts[0] : null;
   } else {
     expression = new FunctionCallExpression(
-      new LiteralBlock(context.Provider.get('+')),
+      new LiteralBlock(context.Provider.get('_templatemerge')),
       parts,
       templateStart,
       currentIndex - templateStart
@@ -1718,6 +1877,7 @@ function getFSTemplate(context, siblings, index) {
   let currentIndex = index;
   let buffer = '';
   let literalStart = currentIndex;
+  let hasExpressions = false;
 
   while (currentIndex < context.Expression.length) {
     const escapedInterpolation = getLiteralMatch(context.Expression, currentIndex, '$${');
@@ -1730,7 +1890,7 @@ function getFSTemplate(context, siblings, index) {
     const interpolationStart = getLiteralMatch(context.Expression, currentIndex, '${');
     if (interpolationStart > currentIndex) {
       if (buffer.length > 0) {
-        const literal = new LiteralBlock(buffer);
+      const literal = new LiteralBlock(makeValue(FSDataType.String, buffer));
         parts.push(literal);
         nodeParts.push(new ParseNode(ParseNodeType.LiteralString, literalStart, currentIndex - literalStart));
         buffer = '';
@@ -1744,7 +1904,8 @@ function getFSTemplate(context, siblings, index) {
       }
 
       currentIndex = expressionResult.NextIndex;
-      parts.push(expressionResult.ExpressionBlock);
+      parts.push(wrapTemplateExpression(context, expressionResult.ExpressionBlock));
+      hasExpressions = true;
 
       const interpolationEnd = getToken(context, currentIndex, nodeParts, ParseNodeType.CloseBrance, '}');
       if (interpolationEnd === currentIndex) {
@@ -1762,7 +1923,7 @@ function getFSTemplate(context, siblings, index) {
   }
 
   if (buffer.length > 0) {
-    const literal = new LiteralBlock(buffer);
+    const literal = new LiteralBlock(makeValue(FSDataType.String, buffer));
     parts.push(literal);
     nodeParts.push(new ParseNode(ParseNodeType.LiteralString, literalStart, currentIndex - literalStart));
   }
@@ -1770,9 +1931,9 @@ function getFSTemplate(context, siblings, index) {
   let expression;
   let parseNode;
   if (parts.length === 0) {
-    expression = new LiteralBlock('');
+    expression = new LiteralBlock(makeValue(FSDataType.String, ''));
     parseNode = new ParseNode(ParseNodeType.LiteralString, index, currentIndex - index);
-  } else if (parts.length === 1) {
+  } else if (parts.length === 1 && !hasExpressions && parts[0] instanceof LiteralBlock) {
     expression = parts[0];
     parseNode = nodeParts.length > 0 ? nodeParts[0] : null;
   } else {
@@ -1790,6 +1951,28 @@ function getFSTemplate(context, siblings, index) {
   }
 
   return new ParseBlockResult(currentIndex, expression);
+}
+
+function wrapTemplateExpression(context, expressionBlock) {
+  if (!expressionBlock) {
+    return expressionBlock;
+  }
+  if (!context || !context.Provider || typeof context.Provider.get !== 'function') {
+    return expressionBlock;
+  }
+  const formatFunction = context.Provider.get('format');
+  if (!formatFunction) {
+    return expressionBlock;
+  }
+  const location = expressionBlock.CodeLocation || { Position: 0, Length: 0 };
+  const position = location.Position ?? 0;
+  const length = location.Length ?? 0;
+  return new FunctionCallExpression(
+    new LiteralBlock(formatFunction),
+    [expressionBlock],
+    position,
+    length
+  );
 }
 
 // Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetUnit.cs :: GetUnit
@@ -1813,6 +1996,11 @@ function getUnit(context, siblings, index) {
 
   let attempt;
 
+  attempt = tryParse(() => getLanguageBindingExpression(context, siblings, index));
+  if (attempt) {
+    return attempt;
+  }
+
   attempt = tryParse(() => getStringTemplate(context, siblings, index));
   if (attempt) {
     return attempt;
@@ -1820,13 +2008,15 @@ function getUnit(context, siblings, index) {
 
   const stringResult = getSimpleString(context, siblings, index, errors);
   if (stringResult.NextIndex > index) {
-    const block = new LiteralBlock(stringResult.Value, stringResult.StartIndex, stringResult.Length);
+    const stringValue = makeValue(FSDataType.String, stringResult.Value ?? '');
+    const block = new LiteralBlock(stringValue, stringResult.StartIndex, stringResult.Length);
     return new ParseBlockResult(stringResult.NextIndex, block);
   }
 
   const numberResult = getNumber(context, siblings, index, errors);
   if (numberResult.NextIndex > index) {
-    const block = new LiteralBlock(numberResult.Value, numberResult.StartIndex, numberResult.Length);
+    const typedNumber = assertTyped(numberResult.Value);
+    const block = new LiteralBlock(typedNumber, numberResult.StartIndex, numberResult.Length);
     return new ParseBlockResult(numberResult.NextIndex, block);
   }
 
@@ -1857,7 +2047,7 @@ function getUnit(context, siblings, index) {
 
   const lambdaResult = getLambdaExpression(context, siblings, index);
   if (lambdaResult.hasProgress && lambdaResult.hasProgress(index) && lambdaResult.Value) {
-    const block = new LiteralBlock(lambdaResult.Value, index, lambdaResult.NextIndex - index);
+    const block = new LiteralBlock(normalize(lambdaResult.Value), index, lambdaResult.NextIndex - index);
     return new ParseBlockResult(lambdaResult.NextIndex, block);
   }
 
@@ -1865,7 +2055,11 @@ function getUnit(context, siblings, index) {
   if (keywordLiteral.nextIndex > index) {
     const literalPos = keywordLiteral.parseNode ? keywordLiteral.parseNode.Pos : index;
     const literalLength = keywordLiteral.parseNode ? keywordLiteral.parseNode.Length : keywordLiteral.nextIndex - literalPos;
-    const block = new LiteralBlock(keywordLiteral.literal, literalPos, literalLength);
+    const literalValue =
+      keywordLiteral.literal === null
+        ? makeValue(FSDataType.Null, null)
+        : makeValue(FSDataType.Boolean, Boolean(keywordLiteral.literal));
+    const block = new LiteralBlock(literalValue, literalPos, literalLength);
     return new ParseBlockResult(keywordLiteral.nextIndex, block);
   }
 
@@ -2021,6 +2215,7 @@ module.exports = {
   getSpaceSeparatedListExpression,
   getSpaceSeparatedStringListExpression,
   getFSTemplate,
+  getLanguageBindingExpression,
   getStringTemplate,
   getUnit,
   getIfThenElseExpression,

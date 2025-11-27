@@ -87,15 +87,27 @@ namespace FuncScript.Core
             }
             else if (parts.Count == 1)
             {
-                expression = parts[0];
-                parseNode = nodeParts.Count > 0 ? nodeParts[0] : null;
+                if (parts[0] is LiteralBlock && nodeParts.Count > 0)
+                {
+                    expression = parts[0];
+                    parseNode = nodeParts[0];
+                }
+                else
+                {
+                    expression = new FunctionCallExpression
+                    (
+                        new LiteralBlock(context.Provider.Get(TemplateMergeMergeFunction.SYMBOL)),
+                        new ListExpression(parts.ToArray())
+                    );
+                    parseNode = new ParseNode(ParseNodeType.StringTemplate, index, currentIndex - index, nodeParts);
+                }
             }
             else
             {
                 expression = new FunctionCallExpression
                 (
                     new LiteralBlock(context.Provider.Get(TemplateMergeMergeFunction.SYMBOL)),
-                    new ListExpression( parts.ToArray())
+                    new ListExpression(parts.ToArray())
                 );
                 parseNode = new ParseNode(ParseNodeType.StringTemplate, index, currentIndex - index, nodeParts);
             }

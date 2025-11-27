@@ -13,27 +13,46 @@ namespace FuncScript
     {
         static readonly Dictionary<string, IFsFunction> s_funcByName = new Dictionary<string, IFsFunction>();
         static readonly Dictionary<string, Dictionary<string, object>> s_providerCollections = new Dictionary<string, Dictionary<string, object>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly object s_registryLock = new object();
         static DefaultFsDataProvider()
         {
             LoadFromAssembly(Assembly.GetExecutingAssembly()); //always load builtin functions. May be we don't need this
         }
-        public bool IsDefined(string key)
+        public bool IsDefined(string key, bool hierarchy = true)
         {
             if (key == null)
                 return false;
             var normalized = key.ToLowerInvariant();
             if (_data != null && _data.ContainsKey(normalized))
                 return true;
-            if (s_funcByName.ContainsKey(normalized))
-                return true;
-            if (s_providerCollections.ContainsKey(normalized))
-                return true;
+            lock (s_registryLock)
+            {
+                if (s_funcByName.ContainsKey(normalized))
+                    return true;
+                if (s_providerCollections.ContainsKey(normalized))
+                    return true;
+            }
             return false;
         }
 
         public IList<KeyValuePair<string, object>> GetAll()
         {
-            throw new NotImplementedException();
+            if (_data == null || _data.Count == 0)
+                return Array.Empty<KeyValuePair<string, object>>();
+
+            var list = new List<KeyValuePair<string, object>>(_data.Count);
+            foreach (var kv in _data)
+            {
+                list.Add(new KeyValuePair<string, object>(kv.Key, Get(kv.Key)));
+            }
+            return list;
+        }
+
+        public IList<string> GetAllKeys()
+        {
+            if (_data == null || _data.Count == 0)
+                return Array.Empty<string>();
+            return _data.Keys.ToArray();
         }
 
         public static void LoadFromAssembly(Assembly a)
@@ -48,8 +67,11 @@ namespace FuncScript
                         var registeredNames = new List<string>();
 
                         var lowerSymbol = f.Symbol.ToLowerInvariant();
-                        if (!s_funcByName.TryAdd(lowerSymbol, f))
-                            throw new Exception($"{f.Symbol} already defined");
+                        lock (s_registryLock)
+                        {
+                            if (!s_funcByName.TryAdd(lowerSymbol, f))
+                                throw new Exception($"{f.Symbol} already defined");
+                        }
                         registeredNames.Add(f.Symbol);
 
                         var alias = t.GetCustomAttribute<FunctionAliasAttribute>();
@@ -60,8 +82,11 @@ namespace FuncScript
                                 if (string.IsNullOrWhiteSpace(al))
                                     continue;
                                 var normalizedAlias = al.ToLowerInvariant();
-                                if (!s_funcByName.TryAdd(normalizedAlias, f))
-                                    throw new Exception($"{f.Symbol} already defined");
+                                lock (s_registryLock)
+                                {
+                                    if (!s_funcByName.TryAdd(normalizedAlias, f))
+                                        throw new Exception($"{f.Symbol} already defined");
+                                }
                                 registeredNames.Add(al);
                             }
 
@@ -109,11 +134,26 @@ namespace FuncScript
                     return v;
                 }
             }
-            if (s_funcByName.TryGetValue(normalized, out var ret))
-                return ret;
-            if (s_providerCollections.TryGetValue(normalized, out var providerMembers))
+            IFsFunction ret;
+            lock (s_registryLock)
             {
-                var pairs = providerMembers
+                s_funcByName.TryGetValue(normalized, out ret);
+            }
+            if (ret != null)
+                return ret;
+
+            KeyValuePair<string, object>[] providerSnapshot = null;
+            lock (s_registryLock)
+            {
+                if (s_providerCollections.TryGetValue(normalized, out var providerMembers))
+                {
+                    providerSnapshot = providerMembers.ToArray();
+                }
+            }
+
+            if (providerSnapshot != null)
+            {
+                var pairs = providerSnapshot
                     .OrderBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
                     .Select(kvp => new KeyValuePair<string, object>(kvp.Key, kvp.Value))
                     .ToArray();
@@ -126,30 +166,33 @@ namespace FuncScript
 
         static void RegisterProviderCollections(ProviderCollectionAttribute attribute, IList<string> names, object member)
         {
-            foreach (var collectionName in attribute.CollectionNames)
+            lock (s_registryLock)
             {
-                if (string.IsNullOrWhiteSpace(collectionName))
-                    continue;
-
-                var normalizedCollection = collectionName.ToLowerInvariant();
-                if (!s_providerCollections.TryGetValue(normalizedCollection, out var members))
+                foreach (var collectionName in attribute.CollectionNames)
                 {
-                    members = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-                    s_providerCollections[normalizedCollection] = members;
-                }
-
-                var collectionNames = names
-                    .Concat(attribute.MemberNames ?? Array.Empty<string>());
-
-                foreach (var name in collectionNames)
-                {
-                    if (string.IsNullOrWhiteSpace(name))
+                    if (string.IsNullOrWhiteSpace(collectionName))
                         continue;
 
-                    if (!members.TryAdd(name, member))
+                    var normalizedCollection = collectionName.ToLowerInvariant();
+                    if (!s_providerCollections.TryGetValue(normalizedCollection, out var members))
                     {
-                        if (!ReferenceEquals(members[name], member))
-                            throw new Exception($"{name} already defined in provider collection '{collectionName}'");
+                        members = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                        s_providerCollections[normalizedCollection] = members;
+                    }
+
+                    var collectionNames = names
+                        .Concat(attribute.MemberNames ?? Array.Empty<string>());
+
+                    foreach (var name in collectionNames)
+                    {
+                        if (string.IsNullOrWhiteSpace(name))
+                            continue;
+
+                        if (!members.TryAdd(name, member))
+                        {
+                            if (!ReferenceEquals(members[name], member))
+                                throw new Exception($"{name} already defined in provider collection '{collectionName}'");
+                        }
                     }
                 }
             }
@@ -160,18 +203,21 @@ namespace FuncScript
             if (string.IsNullOrWhiteSpace(collectionName) || string.IsNullOrWhiteSpace(memberName))
                 return;
 
-            var normalizedCollection = collectionName.ToLowerInvariant();
-            if (!s_providerCollections.TryGetValue(normalizedCollection, out var members))
+            lock (s_registryLock)
             {
-                members = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-                s_providerCollections[normalizedCollection] = members;
-            }
+                var normalizedCollection = collectionName.ToLowerInvariant();
+                if (!s_providerCollections.TryGetValue(normalizedCollection, out var members))
+                {
+                    members = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                    s_providerCollections[normalizedCollection] = members;
+                }
 
-            if (!members.TryAdd(memberName, value))
-            {
-                var existing = members[memberName];
-                if (!ReferenceEquals(existing, value) && !(existing?.Equals(value) ?? value is null))
-                    throw new Exception($"{memberName} already defined in provider collection '{collectionName}'");
+                if (!members.TryAdd(memberName, value))
+                {
+                    var existing = members[memberName];
+                    if (!ReferenceEquals(existing, value) && !(existing?.Equals(value) ?? value is null))
+                        throw new Exception($"{memberName} already defined in provider collection '{collectionName}'");
+                }
             }
         }
 
@@ -234,10 +280,12 @@ namespace FuncScript
 
         public KeyValueCollection ParentProvider { get; }
         public KeyValueCollection Pare => _parent;
-        public bool IsDefined(string key)
+        public bool IsDefined(string key, bool hierarchy = true)
         {
-            if (_kvc.IsDefined(key))
+            if (_kvc.IsDefined(key, hierarchy))
                 return true;
+            if (!hierarchy)
+                return false;
             if (_parent != null)
                 return _parent.IsDefined(key);
             return false;
@@ -245,7 +293,41 @@ namespace FuncScript
 
         public IList<KeyValuePair<string, object>> GetAll()
         {
-            throw new NotImplementedException();
+            var result = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            if (_parent != null)
+            {
+                foreach (var kv in _parent.GetAll())
+                {
+                    if (!result.ContainsKey(kv.Key))
+                        result[kv.Key] = kv.Value;
+                }
+            }
+
+            foreach (var kv in _kvc.GetAll())
+            {
+                result[kv.Key] = kv.Value;
+            }
+
+            return result.Select(kv => KeyValuePair.Create(kv.Key, kv.Value)).ToList();
+        }
+
+        public IList<string> GetAllKeys()
+        {
+            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (_parent != null)
+            {
+                foreach (var key in _parent.GetAllKeys())
+                {
+                    keys.Add(key);
+                }
+            }
+
+            foreach (var key in _kvc.GetAllKeys())
+            {
+                keys.Add(key);
+            }
+
+            return keys.ToList();
         }
     }
 

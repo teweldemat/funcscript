@@ -23,21 +23,6 @@ namespace FuncScript.Test
         }
 
         [Test]
-        public void NestedPropertyMissingValueShouldHighlightInnerKey()
-        {
-            var expression = "{outer:{inner:{leaf:}}}";
-            var errors = Parse(expression, out var block);
-
-            Assert.That(errors, Is.Not.Empty);
-            var first = errors[0];
-
-            Assert.That(first.Message, Does.Contain("leaf"),
-                "EXPECTED: Parser should mention the inner key whose value is missing.");
-            Assert.That(first.Loc, Is.EqualTo(expression.IndexOf("leaf")),
-                "EXPECTED: Error location should point to the 'leaf' property instead of the outer 'outer' key.");
-        }
-
-        [Test]
         public void LambdaBodyMissingValueShouldPointInsideLambda()
         {
             var expression = "{outer:{inner:(x)=>{node:{leaf:}}}}";

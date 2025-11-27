@@ -19,8 +19,8 @@ class InFunction extends BaseFunction {
       return error;
     }
 
-    const target = helpers.ensureTyped(parameters.getParameter(provider, 0));
-    const rawList = helpers.ensureTyped(parameters.getParameter(provider, 1));
+    const target = helpers.assertTyped(parameters.getParameter(provider, 0));
+    const rawList = helpers.assertTyped(parameters.getParameter(provider, 1));
 
     if (helpers.typeOf(rawList) === helpers.FSDataType.Null) {
       return helpers.typedNull();

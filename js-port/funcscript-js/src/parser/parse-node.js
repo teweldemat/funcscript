@@ -36,7 +36,8 @@ const ParseNodeType = Object.freeze({
   Case: 'Case',
   IfExpression: 'IfExpression',
   GeneralInfixExpression: 'GeneralInfixExpression',
-  PrefixOperatorExpression: 'PrefixOperatorExpression'
+  PrefixOperatorExpression: 'PrefixOperatorExpression',
+  LanguageBinding: 'LanguageBinding'
 });
 
 // Mirrors FuncScript/Parser/FuncScriptParser.Main.cs :: FuncScriptParser.SyntaxErrorData

@@ -1,5 +1,5 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
-const { ensureTyped, typeOf, valueOf, makeValue, convertToCommonNumericType } = require('../../core/value');
+const { assertTyped, typeOf, valueOf, makeValue, convertToCommonNumericType } = require('../../core/value');
 const { FSDataType } = require('../../core/fstypes');
 
 class MultiplyFunction extends BaseFunction {
@@ -13,10 +13,10 @@ class MultiplyFunction extends BaseFunction {
     if (parameters.count === 0) {
       return makeValue(FSDataType.Integer, 1);
     }
-    let result = ensureTyped(parameters.getParameter(provider, 0));
+    let result = assertTyped(parameters.getParameter(provider, 0));
 
     for (let i = 1; i < parameters.count; i += 1) {
-      const next = ensureTyped(parameters.getParameter(provider, i));
+      const next = assertTyped(parameters.getParameter(provider, i));
       let [left, right] = convertToCommonNumericType(result, next);
       if (typeOf(left) === FSDataType.BigInteger) {
         result = makeValue(FSDataType.BigInteger, valueOf(left) * valueOf(right));

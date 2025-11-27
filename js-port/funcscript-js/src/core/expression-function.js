@@ -1,6 +1,6 @@
 const { BaseFunction, CallType } = require('./function-base');
 const { KvcProvider, FsDataProvider } = require('./data-provider');
-const { ensureTyped } = require('./value');
+const { assertTyped } = require('./value');
 
 class ParameterProvider extends FsDataProvider {
   constructor(expressionFunction, parentProvider, parameterList) {
@@ -13,7 +13,7 @@ class ParameterProvider extends FsDataProvider {
     const lower = name.toLowerCase();
     const index = this.expressionFunction.parameterIndex.get(lower);
     if (index !== undefined) {
-      return ensureTyped(this.parameterList.getParameter(this.parent, index));
+      return assertTyped(this.parameterList.getParameter(this.parent, index));
     }
     return super.get(name);
   }
@@ -59,7 +59,7 @@ class ExpressionFunction extends BaseFunction {
     const parentChain = new KvcProvider(this.context, provider);
     const parameterProvider = new ParameterProvider(this, parentChain, parameterList);
     const result = this.expression.evaluate(parameterProvider);
-    return ensureTyped(result);
+    return assertTyped(result);
   }
 
   clone() {

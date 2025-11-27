@@ -45,7 +45,7 @@ class SortListFunction extends BaseFunction {
     copy.sort((left, right) => {
       const args = new helpers.ArrayParameterList([left, right]);
       const result = fn.evaluate(provider, args);
-      const typedResult = helpers.ensureTyped(result);
+      const typedResult = helpers.assertTyped(result);
       if (helpers.typeOf(typedResult) !== FSDataType.Integer) {
         throw new Error(`${this.symbol} function: sorting function must return an integer`);
       }

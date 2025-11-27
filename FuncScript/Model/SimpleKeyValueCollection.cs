@@ -43,7 +43,7 @@ namespace FuncScript.Model
 
         public  KeyValueCollection ParentProvider => _parent;
 
-        public  bool IsDefined(string value)
+        public  bool IsDefined(string value, bool hierarchy = true)
         {
             return _index.ContainsKey(value);
         }
@@ -51,6 +51,18 @@ namespace FuncScript.Model
         public  IList<KeyValuePair<string, object>> GetAll()
         {
             return this._data;
+        }
+
+        public IList<string> GetAllKeys()
+        {
+            if (_data == null || _data.Length == 0)
+                return Array.Empty<string>();
+            var keys = new string[_data.Length];
+            for (var i = 0; i < _data.Length; i++)
+            {
+                keys[i] = _data[i].Key;
+            }
+            return keys;
         }
 
         public override bool Equals(object obj)

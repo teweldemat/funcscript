@@ -22,9 +22,17 @@ namespace FuncScript.Functions.Text
             var par0 = pars[0];
             var par1 = pars.Length > 1 ? pars[1] : null;
 
-            string format = par1 as string;
             var sb = new StringBuilder();
-            Engine.Format(sb, par0, format);
+            var format = par1 as string;
+
+            if (string.Equals(format, "json", StringComparison.OrdinalIgnoreCase))
+            {
+                Engine.Format(sb, par0, null, asFuncScriptLiteral: false, asJsonLiteral: true);
+            }
+            else
+            {
+                Engine.Format(sb, par0, format);
+            }
             return sb.ToString();
         }
 

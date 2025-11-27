@@ -12,6 +12,16 @@ namespace FuncScript.Core
         {
 
             var errors = CreateErrorBuffer();
+
+            var languageBlockResult = GetLanguageBindingExpression(context, siblings, referenceMode, index);
+            AppendErrors(errors, languageBlockResult);
+            if (languageBlockResult.HasProgress(index))
+            {
+                if (languageBlockResult.ExpressionBlock != null)
+                    return new ParseBlockResult(languageBlockResult.NextIndex, languageBlockResult.ExpressionBlock, errors);
+                return new ParseBlockResult(languageBlockResult.NextIndex, null, errors);
+            }
+
             // String template
             var stringTemplateResult = GetStringTemplate(context, siblings, referenceMode, index);
             AppendErrors(errors, stringTemplateResult);

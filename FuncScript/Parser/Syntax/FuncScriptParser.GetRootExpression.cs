@@ -25,14 +25,10 @@ namespace FuncScript.Core
                     }
 
                     var last = SkipSpace(context, nodes, kvcResult.NextIndex);
-                    return new ParseBlockResultWithNode(last, kvcExpression,new ParseNode(ParseNodeType.RootExpression,index,last - index,nodes), errors);
+                    return new ParseBlockResultWithNode(last, kvcExpression,new ParseNode(ParseNodeType.RootExpression,index,last - index,nodes), null);
                 }
 
                 return new ParseBlockResultWithNode(kvcResult.NextIndex, null, null, errors);
-            }
-            else if (kvcResult.Errors.Count > 0)
-            {
-                return new ParseBlockResultWithNode(index, null, null, errors);
             }
 
             var expressionResult = GetExpression(context, nodes, ReferenceMode.Standard, index);
@@ -46,7 +42,7 @@ namespace FuncScript.Core
                 }
                 var last = SkipSpace(context, nodes, expressionResult.NextIndex);
 
-                return new ParseBlockResultWithNode(last, expressionResult.ExpressionBlock,new ParseNode(ParseNodeType.RootExpression,index,last - index,nodes), errors);;
+                return new ParseBlockResultWithNode(last, expressionResult.ExpressionBlock,new ParseNode(ParseNodeType.RootExpression,index,last - index,nodes), null);;
             }
 
             if (errors.Count == 0)

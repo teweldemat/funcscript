@@ -50,12 +50,13 @@ describe('AdvancedSyntax', () => {
   });
 
   const generalInfixCases = [
-    ['reduce([4,5,6],(x,s)=>s+x)', 15],
-    ['reduce([4,5,6],(x,s)=>s+x,-2)', 13],
-    ['[4,5,6] reduce (x,s)=>s+x ~ -2', 13],
-    ['(range(0,4) reduce (x,s)=>s+x ~ 0)', 6],
-    ['range(0,4) reduce (x,s)=>s+x ~ 0', 6],
-    ['(range(1,3) map (a)=>a*a) reduce (x,s)=>s+x ~ 5', 19],
+    ['reduce([4,5,6],(s,x)=>s+x)', 15],
+    ['reduce([4,5,6],(s,x)=>s+x,-2)', 13],
+    ['[4,5,6] reduce (s,x)=>s+x ~ -2', 13],
+    ['(range(0,4) reduce (s,x)=>s+x ~ 0)', 6],
+    ['range(0,4) reduce (s,x)=>s+x ~ 0', 6],
+    ['(range(1,3) map (a)=>a*a) reduce (s,x)=>s+x ~ 5', 19],
+    ['[{a:5},{a:6}] reduce (s,x)=>s+x.a', 11],
     ['x?![1,2,3] first(x)=>x*x', null],
     ['{ b:x?! [1,2,3] map(x) => 5; return b}', null],
     ['{x:9; b:x?! [1,2,3] map(x) => 5; return b[1]}', 5]

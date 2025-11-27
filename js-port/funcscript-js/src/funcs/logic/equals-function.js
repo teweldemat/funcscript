@@ -18,8 +18,8 @@ class EqualsFunction extends BaseFunction {
       return error;
     }
 
-    let left = helpers.ensureTyped(parameters.getParameter(provider, 0));
-    let right = helpers.ensureTyped(parameters.getParameter(provider, 1));
+    let left = helpers.assertTyped(parameters.getParameter(provider, 0));
+    let right = helpers.assertTyped(parameters.getParameter(provider, 1));
 
     if (helpers.typeOf(left) === helpers.FSDataType.Null && helpers.typeOf(right) === helpers.FSDataType.Null) {
       return helpers.makeValue(helpers.FSDataType.Boolean, true);

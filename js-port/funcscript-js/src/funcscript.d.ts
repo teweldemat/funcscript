@@ -87,6 +87,33 @@ export declare class DefaultFsDataProvider extends MapDataProvider {
   constructor(map?: Record<string, FuncScriptInput>, parent?: FsDataProvider | null);
 }
 
+export type PackageResolverChild = string | {
+  name: string;
+} | {
+  Name: string;
+};
+
+export interface PackageExpressionDescriptor {
+  expression: string;
+  language?: string | null;
+}
+
+export interface PackageResolver {
+  listChildren(path: readonly string[]): Iterable<PackageResolverChild> | PackageResolverChild[] | null | undefined;
+  getExpression(path: readonly string[]): PackageExpressionDescriptor | string | null | undefined;
+  import?(packageName: string): PackageResolver | null | undefined;
+}
+
+export interface LanguageBindingCompilationResult {
+  compiled: unknown;
+  error?: string | null;
+}
+
+export interface LanguageBinding {
+  compile(code: string): LanguageBindingCompilationResult | unknown;
+  evaluate(compiledCode: unknown, provider: FsDataProvider): FuncScriptInput;
+}
+
 export declare abstract class ParameterList {
   abstract get count(): number;
   abstract getParameter(provider: FsDataProvider, index: number): FuncScriptInput;
@@ -215,13 +242,18 @@ export declare function evaluateTemplate(
   provider?: FsDataProvider
 ): string;
 
-export declare function ensureTyped(value: FuncScriptInput): TypedValue;
+export declare function loadPackage(
+  resolver: PackageResolver,
+  provider?: FsDataProvider
+): TypedValue;
+
+export declare function assertTyped(value: FuncScriptInput): TypedValue;
+export declare function assertTyped(value: FuncScriptInput, message?: string): TypedValue;
 export declare function normalize(value: FuncScriptInput): TypedValue;
 export declare function makeValue(type: FSDataType, value: unknown): TypedValue;
 export declare function typeOf(value: TypedValue): FSDataType;
 export declare function valueOf<T>(value: TypedValue<T>): T;
 export declare function typedNull(): TypedValue<null>;
-export declare function isTyped(value: unknown): value is TypedValue;
 export declare function expectType(
   value: FuncScriptInput,
   expectedType: FSDataType,
@@ -243,6 +275,10 @@ export declare function getTypeName(type: FSDataType): string;
 export type BuiltinFunctionMap = Record<string, BaseFunction>;
 export declare function buildBuiltinMap(): BuiltinFunctionMap;
 
+export declare function registerLanguageBinding(identifier: string, binding: LanguageBinding): void;
+export declare function tryGetLanguageBinding(identifier: string): LanguageBinding | null;
+export declare function clearLanguageBindings(): void;
+
 export declare function colorParseTree(
   node: import('./parser/funcscript-parser').ParseNode | null | undefined
 ): import('./parser/funcscript-parser').ParseNode[];
@@ -250,6 +286,7 @@ export declare function colorParseTree(
 export declare const Engine: {
   evaluate: typeof evaluate;
   evaluateTemplate: typeof evaluateTemplate;
+  loadPackage: typeof loadPackage;
   test: typeof test;
   colorParseTree: typeof colorParseTree;
   FuncScriptParser: typeof import('./parser/funcscript-parser').FuncScriptParser;
@@ -257,13 +294,12 @@ export declare const Engine: {
   FsDataProvider: typeof FsDataProvider;
   MapDataProvider: typeof MapDataProvider;
   KvcProvider: typeof KvcProvider;
-  ensureTyped: typeof ensureTyped;
+  assertTyped: typeof assertTyped;
   normalize: typeof normalize;
   makeValue: typeof makeValue;
   typeOf: typeof typeOf;
   valueOf: typeof valueOf;
   typedNull: typeof typedNull;
-  isTyped: typeof isTyped;
   expectType: typeof expectType;
   convertToCommonNumericType: typeof convertToCommonNumericType;
   FSDataType: typeof FSDataType;
@@ -278,6 +314,9 @@ export declare const Engine: {
   SimpleKeyValueCollection: typeof SimpleKeyValueCollection;
   FsError: typeof FsError;
   buildBuiltinMap: typeof buildBuiltinMap;
+  registerLanguageBinding: typeof registerLanguageBinding;
+  tryGetLanguageBinding: typeof tryGetLanguageBinding;
+  clearLanguageBindings: typeof clearLanguageBindings;
 };
 
 export { FuncScriptParser, ParseNodeType, ParseNode, ParseResult } from './parser/funcscript-parser';

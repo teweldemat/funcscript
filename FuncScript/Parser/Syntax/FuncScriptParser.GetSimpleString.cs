@@ -151,9 +151,11 @@ namespace FuncScript.Core
 
                 if (multiLine)
                 {
-                    i2 = GetLiteralMatch(context.Expression, i, "\r");
-                    i2 = GetLiteralMatch(context.Expression, i2, "\n");
-                    i2 = GetLiteralMatch(context.Expression, i2, delimator);
+                    var i3 = GetLiteralMatch(context.Expression, i, "\r");
+                    i3 = GetLiteralMatch(context.Expression, i3, "\n");
+                    i2 = GetLiteralMatch(context.Expression, i3, delimator);
+                    if (i2 == i3)
+                        i2 = i;
                 }
                 else
                 {

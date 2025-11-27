@@ -53,7 +53,7 @@ namespace FuncScript.Functions.List
             for (int i = 0; i < lst.Length; i++)
             {
 
-                total = func.Evaluate(FunctionArgumentHelper.Create(lst[i], total, i));
+                total = func.Evaluate(FunctionArgumentHelper.Create(total, lst[i], i));
             }
 
             return Engine.NormalizeDataType(total);

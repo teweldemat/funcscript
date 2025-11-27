@@ -20,7 +20,7 @@ FuncScript registers every built-in helper under the symbols documented below. S
 ## Logical & Control Flow
 - `if condition then value else other` – Branching expression (keywords are required).
 - `a and b` / `a or b` – Logical conjunction/disjunction with short-circuit evaluation.
-- `not value` – Logical negation (alias: `!value`).
+- `! value` – Logical negation.
 - `switch selector, condition1: result1, condition2: result2, defaultCondition: defaultResult` – Switch over a selector; commas or semicolons separate branches.
 - `case condition: result` – Case helper written with `condition: result` pairs separated by commas or semicolons; add a `true: fallback` arm for defaults.
 

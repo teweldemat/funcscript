@@ -21,14 +21,14 @@ namespace FuncScript.Functions.Text
 
         public int Precedence => 100;
 
-        void MergeList(StringBuilder sb,FsList list) 
+        void MergeList(StringBuilder sb, FsList list)
         {
             if (list == null || list == null)
                 return;
-            foreach(var o in list)
+            foreach (var o in list)
             {
-                if(o is FsList)
-                    MergeList(sb,(FsList)o);
+                if (o is FsList)
+                    MergeList(sb, (FsList)o);
                 else
                     sb.Append(o == null ? "" : o.ToString());
             }
@@ -41,7 +41,6 @@ namespace FuncScript.Functions.Text
             int c = pars.Length;
             for (int i = 0; i < c; i++)
             {
-
                 var o = pars[i];
                 if (o is FsList)
                     MergeList(sb, (FsList)o);

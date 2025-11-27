@@ -1,5 +1,5 @@
 const { FsDataProvider } = require('../core/data-provider');
-const { ensureTyped, typeOf, valueOf } = require('../core/value');
+const { assertTyped, typeOf, valueOf } = require('../core/value');
 const { FSDataType } = require('../core/fstypes');
 
 class KeyValueCollection extends FsDataProvider {
@@ -36,7 +36,7 @@ class KeyValueCollection extends FsDataProvider {
     const pushEntries = (entries) => {
       for (const [key, value] of entries) {
         const lower = key.toLowerCase();
-        const incomingTyped = ensureTyped(value);
+        const incomingTyped = assertTyped(value);
         if (!seen.has(lower)) {
           merged.push([key, incomingTyped]);
           seen.set(lower, merged.length - 1);
@@ -47,7 +47,7 @@ class KeyValueCollection extends FsDataProvider {
           const incomingType = typeOf(incomingTyped);
           if (existingType === FSDataType.KeyValueCollection && incomingType === FSDataType.KeyValueCollection) {
             const mergedValue = KeyValueCollection.merge(valueOf(existing), valueOf(incomingTyped));
-            merged[index][1] = ensureTyped(mergedValue);
+            merged[index][1] = assertTyped(mergedValue);
           } else {
             merged[index][1] = incomingTyped;
           }
@@ -93,7 +93,7 @@ class SimpleKeyValueCollection extends KeyValueCollection {
       if (this._index.has(lower)) {
         throw new Error(`Duplicate key '${key}' in key-value collection`);
       }
-      const typed = ensureTyped(rawValue);
+      const typed = assertTyped(rawValue);
       this._data.push([key, typed]);
       this._index.set(lower, typed);
     }

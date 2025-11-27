@@ -6,14 +6,18 @@ const {
   DefaultFsDataProvider,
   valueOf,
   typeOf,
-  FSDataType
+  FSDataType,
+  normalize
 } = require('@tewelde/funcscript');
 const { toPlain } = require('../helpers/runtime');
 
 // Mirrors FuncScript.Test/Syntax2.cs.
 describe('Syntax2', () => {
   const builtinProvider = () => new DefaultFsDataProvider();
-  const createProvider = (bindings) => new MapDataProvider(bindings, builtinProvider());
+  const createProvider = (bindings) => {
+    const typedBindings = Object.fromEntries(Object.entries(bindings).map(([key, value]) => [key, normalize(value)]));
+    return new MapDataProvider(typedBindings, builtinProvider());
+  };
 
   describe('String interpolation', () => {
     it('StringInterpolationBasic', () => {
@@ -35,6 +39,22 @@ describe('Syntax2', () => {
       const result = evaluate(expression, builtinProvider());
       expect(typeOf(result)).to.equal(FSDataType.String);
       expect(valueOf(result)).to.equal("test''");
+    });
+
+    it('StringInterpolationFormatsListValues', () => {
+      const expression = "f'{[4,5]}'";
+      const result = evaluate(expression, builtinProvider());
+      expect(typeOf(result)).to.equal(FSDataType.String);
+      const normalized = valueOf(result).replace(/[\s]/g, '');
+      expect(normalized).to.equal('[4,5]');
+    });
+
+    it('StringInterpolationFormatsNestedStrings', () => {
+      const expression = "f'{[4,\"5\"]}'";
+      const result = evaluate(expression, builtinProvider());
+      expect(typeOf(result)).to.equal(FSDataType.String);
+      const normalized = valueOf(result).replace(/[\s]/g, '');
+      expect(normalized).to.equal('[4,\"5\"]');
     });
 
     it('TripleQuotedStringSkipsInitialNewline', () => {

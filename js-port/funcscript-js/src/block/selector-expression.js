@@ -1,6 +1,6 @@
 const { ExpressionBlock } = require('./expression-block');
 const { FsDataProvider } = require('../core/data-provider');
-const { ensureTyped, typeOf, valueOf, makeValue, typedNull } = require('../core/value');
+const { assertTyped, typeOf, valueOf, makeValue, typedNull } = require('../core/value');
 const { FSDataType } = require('../core/fstypes');
 const { ArrayFsList } = require('../model/fs-list');
 
@@ -13,7 +13,7 @@ class SelectorProvider extends FsDataProvider {
   }
 
   setSource(value) {
-    const typed = ensureTyped(value);
+    const typed = assertTyped(value);
     this.sourceValue = typed;
     if (typeOf(typed) === FSDataType.KeyValueCollection) {
       this.sourceCollection = valueOf(typed);
@@ -47,7 +47,7 @@ class SelectorExpression extends ExpressionBlock {
   }
 
   evaluateInternal(provider) {
-    const sourceTyped = ensureTyped(this.Source.evaluate(provider));
+    const sourceTyped = assertTyped(this.Source.evaluate(provider));
     const sourceType = typeOf(sourceTyped);
     const selectorProvider = new SelectorProvider(provider);
 
@@ -57,14 +57,14 @@ class SelectorExpression extends ExpressionBlock {
       for (let i = 0; i < list.length; i += 1) {
         const item = list.get(i) ?? typedNull();
         selectorProvider.setSource(item);
-        const result = ensureTyped(this.Selector.evaluate(selectorProvider));
+        const result = assertTyped(this.Selector.evaluate(selectorProvider));
         results.push(result);
       }
       return makeValue(FSDataType.List, new ArrayFsList(results));
     }
 
     selectorProvider.setSource(sourceTyped);
-    return ensureTyped(this.Selector.evaluate(selectorProvider));
+    return assertTyped(this.Selector.evaluate(selectorProvider));
   }
 
   getChilds() {

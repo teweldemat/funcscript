@@ -557,6 +557,13 @@ function getKvcItem(context, siblings, nakedKvc, index) {
     return new ValueParseResult(keyPair.NextIndex, keyPair.Value);
   }
 
+  const lambdaBuffer = createNodeBuffer(siblings);
+  const lambdaPair = getIdentifierLambdaPair(context, lambdaBuffer, index);
+  if (lambdaPair.hasProgress(index)) {
+    commitNodeBuffer(siblings, lambdaBuffer);
+    return new ValueParseResult(lambdaPair.NextIndex, lambdaPair.Value);
+  }
+
   const returnBuffer = createNodeBuffer(siblings);
   const returnResult = getReturnDefinition(context, returnBuffer, index);
   if (returnResult.hasProgress(index) && returnResult.ExpressionBlock) {
@@ -597,6 +604,45 @@ function getKvcItem(context, siblings, nakedKvc, index) {
   }
 
   return new ValueParseResult(index, null);
+}
+
+// Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetIdentifierLambdaPair :: GetIdentifierLambdaPair
+function getIdentifierLambdaPair(context, siblings, index) {
+  if (!context) {
+    throw new Error('context is required');
+  }
+
+  const childNodes = [];
+  const keyCaptureIndex = childNodes.length;
+  const iden = getIdentifier(context, childNodes, index, KEYWORDS);
+  const identifierIndex = iden.NextIndex;
+  if (identifierIndex === index || !iden.Iden) {
+    return new ValueParseResult(index, null);
+  }
+
+  markKeyNodes(childNodes, keyCaptureIndex, iden.StartIndex, iden.Length);
+
+  let currentIndex = identifierIndex;
+  currentIndex = skipSpace(context, childNodes, currentIndex);
+
+  const lambdaBuffer = createNodeBuffer(childNodes);
+  const lambdaResult = getLambdaExpression(context, lambdaBuffer, currentIndex);
+  if (!lambdaResult.hasProgress(currentIndex) || !lambdaResult.Value) {
+    return new ValueParseResult(index, null);
+  }
+  commitNodeBuffer(childNodes, lambdaBuffer);
+
+  const lambdaEnd = lambdaResult.NextIndex;
+  const literal = new LiteralBlock(lambdaResult.Value);
+  setCodeLocation(literal, currentIndex, lambdaEnd - currentIndex);
+
+  const item = new KeyValueExpression();
+  item.Key = iden.Iden;
+  item.ValueExpression = literal;
+
+  const parseNode = new ParseNode(ParseNodeType.KeyValuePair, index, lambdaEnd - index, childNodes);
+  siblings.push(parseNode);
+  return new ValueParseResult(lambdaEnd, item);
 }
 
 // Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetKeyValuePair.cs :: GetKeyValuePair
@@ -674,6 +720,19 @@ function getKeyValuePair(context, siblings, index) {
   const item = new KeyValueExpression();
   item.Key = name;
   item.ValueExpression = valueResult.ExpressionBlock;
+  if (
+    typeof name === 'string' &&
+    name.length > 0 &&
+    item.ValueExpression instanceof ReferenceBlock
+  ) {
+    const referenceName = item.ValueExpression.name;
+    if (
+      typeof referenceName === 'string' &&
+      referenceName.toLowerCase() === name.toLowerCase()
+    ) {
+      item.ValueExpression.fromParent = true;
+    }
+  }
 
   const parseNode = new ParseNode(
     ParseNodeType.KeyValuePair,

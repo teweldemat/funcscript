@@ -1,6 +1,6 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
 const helpers = require('../helpers');
-const { makeValue, ensureTyped, typeOf, valueOf } = require('../../core/value');
+const { makeValue, assertTyped, typeOf, valueOf } = require('../../core/value');
 const { FSDataType } = require('../../core/fstypes');
 
 class ContainsFunction extends BaseFunction {
@@ -33,7 +33,7 @@ class ContainsFunction extends BaseFunction {
       return makeValue(FSDataType.Boolean, false);
     }
 
-    const contString = ensureTyped(container);
+    const contString = assertTyped(container);
     if (typeOf(contString) === FSDataType.String && typeOf(item) === FSDataType.String) {
       return makeValue(FSDataType.Boolean, valueOf(contString).toLowerCase().includes(valueOf(item).toLowerCase()));
     }

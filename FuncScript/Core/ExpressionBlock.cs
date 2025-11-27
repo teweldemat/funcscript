@@ -9,51 +9,56 @@ using FuncScript.Model;
 
 namespace FuncScript.Core
 {
+    
     public abstract class ExpressionBlock
     {
         internal const int MaxEvaluationDepth = 256;
         private static readonly CodeLocation s_defaultLocation = new CodeLocation(0, 0);
         private CodeLocation _codeLocation = s_defaultLocation;
 
+        public class DepthCounter
+        {
+            public int Count = 0;
+
+            public void Enter()
+            {
+                if (Count > MaxEvaluationDepth)
+                    throw new Error.EvaluationTooDeepTimeException();
+                Count++;
+            }
+
+            public void Exit()
+            {
+                Count--;
+            }
+        }
         public CodeLocation CodeLocation
         {
             get => _codeLocation;
             set => _codeLocation = value ?? s_defaultLocation;
         }
 
-
-        protected static bool IsTooDeep(int depth)
-            => depth > MaxEvaluationDepth;
-
-        
-        public object Evaluate(KeyValueCollection provider, int _)
+        protected static FsError AttachCodeLocation(ExpressionBlock source, FsError error)
         {
-            var previousDepth = ExecContext.EnterScope();
-            try
-            {
-                object result;
-                if (IsTooDeep(ExecContext.CurrentDepth))
-                {
-                    result = FsError.EvaluationDepthError;
-                }
-                else
-                {
-                    result = EvaluateCore(provider);
-                }
-                if (result is FsError fsError && fsError.CodeLocation == null)
-                {
-                    fsError.CodeLocation = CodeLocation;
-                }
+            if (error == null)
+                return null;
 
-                return result;
-            }
-            finally
+            if (source != null)
             {
-                ExecContext.ExitScope(previousDepth);
+                var location = error.CodeLocation;
+                if (location == null || location.Length <= 0)
+                {
+                    error.CodeLocation = source.CodeLocation;
+                }
             }
+
+            return error;
         }
 
-        protected abstract object EvaluateCore(KeyValueCollection provider);
+
+
+
+        public abstract object Evaluate(KeyValueCollection provider,DepthCounter depth);
         public abstract String AsExpString();
         public virtual IEnumerable<ExpressionBlock> GetChilds() => Array.Empty<ExpressionBlock>();
 

@@ -28,7 +28,7 @@ The package ships CommonJS (`require`), ESM (`import`), and browser-friendly bui
 - `evaluateTemplate(expression: string, provider?: FsDataProvider)`
 - `colorParseTree(node: ParseNode): ParseNode[]`
 - `DefaultFsDataProvider`, `MapDataProvider`, `KvcProvider`
-- Data helpers such as `ensureTyped`, `valueOf`, `FSDataType`, and the builtin function map
+- Data helpers such as `assertTyped`, `valueOf`, `FSDataType`, and the builtin function map
 
 Refer to the root project README for language details and additional helpers.
 
