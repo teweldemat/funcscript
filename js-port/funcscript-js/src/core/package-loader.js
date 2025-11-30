@@ -136,7 +136,7 @@ function createPackageLoader({ evaluateExpression, DefaultFsDataProvider, MapDat
     throw new Error('normalize function is required to create package loader');
   }
 
-  function buildNodeExpression(resolver, path, depth) {
+  function buildNodeExpression(resolver, path, depth, selectPath) {
     const normalizedPath = clonePath(path);
     const expressionDescriptor = normalizeExpressionDescriptor(resolver.getExpression(normalizedPath));
     const childEntries = iterableToArray(resolver.listChildren(normalizedPath));
@@ -155,6 +155,9 @@ function createPackageLoader({ evaluateExpression, DefaultFsDataProvider, MapDat
 
     const statements = [];
     const seen = new Set();
+    const childExpressions = new Map();
+    const selection = Array.isArray(selectPath) && selectPath.length > 0 ? selectPath : null;
+    const targetLower = selection ? String(selection[0]).toLowerCase() : null;
 
     for (const entry of childEntries) {
       const name = extractChildName(entry);
@@ -169,9 +172,14 @@ function createPackageLoader({ evaluateExpression, DefaultFsDataProvider, MapDat
       seen.add(lower);
 
       const childPath = normalizedPath.concat([strName]);
-      const valueExpression = buildNodeExpression(resolver, childPath, depth + 1);
-      if (strName.toLowerCase() === 'eval') {
-        statements.push(`eval ${valueExpression}`);
+      const childSelect =
+        selection && lower === targetLower && selection.length > 1 ? selection.slice(1) : null;
+      const valueExpression = buildNodeExpression(resolver, childPath, depth + 1, childSelect);
+      childExpressions.set(lower, valueExpression);
+      if (lower === 'eval') {
+        if (!selection) {
+          statements.push(`eval ${valueExpression}`);
+        }
       } else {
         statements.push(`${escapeKey(strName)}: ${valueExpression}`);
       }
@@ -183,6 +191,13 @@ function createPackageLoader({ evaluateExpression, DefaultFsDataProvider, MapDat
 
     const indentCurrent = indent(depth);
     const indentInner = indent(depth + 1);
+    if (selection) {
+      if (!childExpressions.has(targetLower)) {
+        throw new Error(`Package resolver node '${formatPath(path)}' does not contain entry '${selection[0]}'`);
+      }
+      const targetExpression = childExpressions.get(targetLower);
+      statements.push(`eval ${targetExpression}`);
+    }
     const body = statements.map((statement) => `${indentInner}${statement}`).join(';\n');
     return `{\n${body}\n${indentCurrent}}`;
   }
@@ -218,6 +233,29 @@ function createPackageLoader({ evaluateExpression, DefaultFsDataProvider, MapDat
     const evaluationProvider = createProviderWithPackage(resolver, baseProvider, loadPackage);
     return evaluateExpression(expression, evaluationProvider);
   }
+
+  function buildExpressionForPath(resolver, targetPath) {
+    ensureResolver(resolver);
+    const normalized = clonePath(targetPath);
+    if (normalized.length === 0) {
+      return buildNodeExpression(resolver, [], 0);
+    }
+    const last = normalized[normalized.length - 1];
+    if (typeof last === 'string' && last.toLowerCase() === 'eval') {
+      const parentPath = normalized.slice(0, -1);
+      return buildNodeExpression(resolver, parentPath, 0);
+    }
+    return buildNodeExpression(resolver, [], 0, normalized);
+  }
+
+  function createPackageProvider(resolver, provider) {
+    ensureResolver(resolver);
+    const baseProvider = provider || new DefaultFsDataProvider();
+    return createProviderWithPackage(resolver, baseProvider, loadPackage);
+  }
+
+  loadPackage.buildExpression = buildExpressionForPath;
+  loadPackage.createEvaluationProvider = createPackageProvider;
 
   return loadPackage;
 }

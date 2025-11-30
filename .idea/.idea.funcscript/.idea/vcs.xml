@@ -2,5 +2,38 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../FuncScript" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../addis1" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../agenagn" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../agent_one" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../agg-demo" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../cis10" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../cis10/orch-core" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../dig-oc" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../fft_nn" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../fmm" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/.." vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../funcscript-1" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../intaps-erp" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../intaps-website" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../jseval" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../mahi_injera" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../next_token" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../nrlais" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../nrlais_pub" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../ppm" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../research/arena/arena_agent" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../research/arena/arena_server" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../research/factory/factory_server" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../research/moving_sofa" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../research/robo" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../t2injera" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../t2j_devops" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../vectorart" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../wm" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../wsis2025" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../wumis/function-script" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../wumis/orch-backend" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../wumis/orch-core" vcs="Git" />
   </component>
 </project>

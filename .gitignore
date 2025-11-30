@@ -415,3 +415,4 @@ js-port/funcscript-vscode/dist
 .vercel
 docs/assets/generated
 js-port/examples/funcscript-editor-cra-demo/build
+.idea/.idea.funcscript/.idea

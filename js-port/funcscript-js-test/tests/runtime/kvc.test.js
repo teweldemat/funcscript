@@ -1,10 +1,14 @@
+const fs = require('fs');
+const path = require('path');
 const { expect } = require('chai');
 const {
   evaluate,
   typeOf,
   valueOf,
   FSDataType,
-  DefaultFsDataProvider
+  DefaultFsDataProvider,
+  MapDataProvider,
+  normalize
 } = require('@tewelde/funcscript');
 const { toPlain } = require('../helpers/runtime');
 
@@ -40,6 +44,38 @@ describe('KvcTests', () => {
   it('selector chain', () => {
     const result = evaluate('{a:{id:3}}.a.id', provider);
     expect(toPlain(result)).to.equal(3);
+  });
+
+  it('projection equality matches source object', () => {
+    const expression = `{
+      x:{
+          a:{b:3,c:4};
+          d:6;
+      };
+      y:x{a,d};
+      eval x=y;
+    }`;
+    const result = evaluate(expression, provider);
+    expect(toPlain(result)).to.equal(true);
+  });
+
+  it('projection equality matches large source object from file', () => {
+    const dataRoot = path.resolve(__dirname, '../../../../FuncScript.Test/data');
+    const filePath = path.resolve(__dirname, '../../../../FuncScript.Test/data/big-kvc.fs');
+    const template = fs.readFileSync(filePath, 'utf8').trim();
+    const fetchData = () => {
+      const fetchPath = path.resolve(dataRoot, 'fetch-data.fs');
+      const fetchExpression = fs.readFileSync(fetchPath, 'utf8');
+      return evaluate(fetchExpression, provider);
+    };
+    const evalProvider = new MapDataProvider({ fetchData: normalize(fetchData) }, provider);
+    const expression = `{
+      t:${template};
+      a:t{Uic, Entries};
+      eval a=t;
+    }`;
+    const result = evaluate(expression, evalProvider);
+    expect(toPlain(result)).to.equal(true);
   });
 
   it('selector on array', () => {

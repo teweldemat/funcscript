@@ -297,14 +297,6 @@ namespace FuncScript
             Format( sb, val,  asJsonLiteral:true);
             return  sb.ToString();
         }
-        static String TestFormat(object val, string format = null,
-            bool asFuncScriptLiteral = false,
-            bool asJsonLiteral = false)
-        {
-            var sb = new StringBuilder();
-            Format("", sb, val, format, asFuncScriptLiteral, asJsonLiteral, false);
-            return sb.ToString();
-        }
         static void Format(String indent, StringBuilder sb, object val,
             string format,
             bool asFuncScriptLiteral,
@@ -333,81 +325,48 @@ namespace FuncScript
                     sb.Append("");
                 return;
             }
-            if (val is FsList)
+            if (val is FsList fsList)
             {
-                var list = (FsList)val;
-                bool useLineBreak = false;
+                var snapshot = SnapshotList(fsList);
                 if (adaptiveLineBreak)
                 {
-                    var test = TestFormat(val, format, asFuncScriptLiteral, asJsonLiteral);
-                    useLineBreak = test.Length > BREAK_LINE_THRUSHOLD;
-                }
-                sb.Append($"[");
-                if (list.Length > 0)
-                if (list.Length > 0)
-                {
-                    if (useLineBreak)
-                        sb.Append($"\n{indent}{TAB}");
-                    else
-                        sb.Append($" ");
-                    Format($"{indent}{TAB}", sb, list[0], format, asFuncScriptLiteral, asJsonLiteral, adaptiveLineBreak);
-                    for (int i = 1; i < list.Length; i++)
+                    var inline = new StringBuilder();
+                    AppendList(indent, inline, snapshot, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: false, adaptiveLineBreak: false);
+                    if (inline.Length <= BREAK_LINE_THRUSHOLD)
                     {
-                        if (useLineBreak)
-                            sb.Append($",\n{indent}{TAB}");
-                        else
-                            sb.Append($", ");
-                        Format($"{indent}{TAB}", sb, list[i], format, asFuncScriptLiteral, asJsonLiteral, adaptiveLineBreak);
+                        sb.Append(inline);
+                        return;
                     }
+
+                    AppendList(indent, sb, snapshot, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: true, adaptiveLineBreak: adaptiveLineBreak);
                 }
-                if (useLineBreak)
-                    sb.Append($"\n{indent}]");
                 else
-                    sb.Append($" ]");
+                {
+                    AppendList(indent, sb, snapshot, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: false, adaptiveLineBreak: adaptiveLineBreak);
+                }
+
                 return;
             }
-            if (val is KeyValueCollection)
+            if (val is KeyValueCollection kv)
             {
-                bool useLineBreak = false;
+                var pairs = kv.GetAll() ?? Array.Empty<KeyValuePair<string, object>>();
                 if (adaptiveLineBreak)
                 {
-                    var test = TestFormat(val, format, asFuncScriptLiteral, asJsonLiteral);
-                    useLineBreak = test.Length > BREAK_LINE_THRUSHOLD;
-                }
-
-                var kv = (KeyValueCollection)val;
-                if (useLineBreak)
-                    sb.Append($"{{\n");
-                else
-                    sb.Append("{ ");
-                var pairs = kv.GetAll();
-                if (pairs.Count > 0)
-                {
-                    var pair = pairs[0];
-                    if (useLineBreak)
-                        sb.Append($"{indent}{TAB}\"{pair.Key}\":");
-                    else
-                        sb.Append($"\"{pair.Key}\":");
-                    Format($"{indent}{TAB}", sb, pair.Value, format, asFuncScriptLiteral, asJsonLiteral, adaptiveLineBreak);
-                    for (int i = 1; i < pairs.Count; i++)
+                    var inline = new StringBuilder();
+                    AppendKeyValuePairs(indent, inline, pairs, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: false, adaptiveLineBreak: false);
+                    if (inline.Length <= BREAK_LINE_THRUSHOLD)
                     {
-                        if (useLineBreak)
-                            sb.Append(",\n");
-                        else
-                            sb.Append(", ");
-
-                        pair = pairs[i];
-                        if (useLineBreak)
-                            sb.Append($"{indent}{TAB}\"{pair.Key}\":");
-                        else
-                            sb.Append($"\"{pair.Key}\":");
-                        Format($"{indent}{TAB}", sb, pair.Value, format, asFuncScriptLiteral, asJsonLiteral, adaptiveLineBreak);
+                        sb.Append(inline);
+                        return;
                     }
+
+                    AppendKeyValuePairs(indent, sb, pairs, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: true, adaptiveLineBreak: adaptiveLineBreak);
                 }
-                if (useLineBreak)
-                    sb.Append($"\n{indent}}}");
                 else
-                    sb.Append("}");
+                {
+                    AppendKeyValuePairs(indent, sb, pairs, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: false, adaptiveLineBreak: adaptiveLineBreak);
+                }
+
                 return;
             }
             if (val is bool)
@@ -532,6 +491,82 @@ namespace FuncScript
             sb.Append(val.ToString().Replace("\"", "\\\""));
             if (asJsonLiteral || asFuncScriptLiteral)
                 sb.Append("\"");
+        }
+
+        private static object[] SnapshotList(FsList list)
+        {
+            var length = list?.Length ?? 0;
+            if (length == 0)
+                return Array.Empty<object>();
+
+            var snapshot = new object[length];
+            for (var i = 0; i < length; i++)
+                snapshot[i] = list[i];
+            return snapshot;
+        }
+
+        private static void AppendList(string indent, StringBuilder sb, object[] items, string format, bool asFuncScriptLiteral, bool asJsonLiteral, bool useLineBreak, bool adaptiveLineBreak)
+        {
+            sb.Append("[");
+            if (items.Length > 0)
+            {
+                var nextIndent = $"{indent}{TAB}";
+                if (useLineBreak)
+                    sb.Append($"\n{nextIndent}");
+                else
+                    sb.Append(" ");
+
+                Format(nextIndent, sb, items[0], format, asFuncScriptLiteral, asJsonLiteral, adaptiveLineBreak);
+                for (var i = 1; i < items.Length; i++)
+                {
+                    if (useLineBreak)
+                        sb.Append($",\n{nextIndent}");
+                    else
+                        sb.Append(", ");
+
+                    Format(nextIndent, sb, items[i], format, asFuncScriptLiteral, asJsonLiteral, adaptiveLineBreak);
+                }
+            }
+
+            if (useLineBreak)
+                sb.Append($"\n{indent}]");
+            else
+                sb.Append(" ]");
+        }
+
+        private static void AppendKeyValuePairs(string indent, StringBuilder sb, IList<KeyValuePair<string, object>> pairs, string format, bool asFuncScriptLiteral, bool asJsonLiteral, bool useLineBreak, bool adaptiveLineBreak)
+        {
+            if (useLineBreak)
+                sb.Append("{\n");
+            else
+                sb.Append("{ ");
+
+            if (pairs.Count > 0)
+            {
+                var nextIndent = $"{indent}{TAB}";
+                for (var i = 0; i < pairs.Count; i++)
+                {
+                    if (i > 0)
+                    {
+                        if (useLineBreak)
+                            sb.Append(",\n");
+                        else
+                            sb.Append(", ");
+                    }
+
+                    if (useLineBreak)
+                        sb.Append($"{nextIndent}\"{pairs[i].Key}\":");
+                    else
+                        sb.Append($"\"{pairs[i].Key}\":");
+
+                    Format(nextIndent, sb, pairs[i].Value, format, asFuncScriptLiteral, asJsonLiteral, adaptiveLineBreak);
+                }
+            }
+
+            if (useLineBreak)
+                sb.Append($"\n{indent}}}");
+            else
+                sb.Append("}");
         }
 
         /// <summary>

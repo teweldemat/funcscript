@@ -22,14 +22,14 @@ describe('ErrorReporting', () => {
 
   it('reports function error span (length)', () => {
     const result = evaluate('length(a)', builtinProvider());
-    expect(typeOf(result)).to.equal(FSDataType.Error);
-    const err = valueOf(result);
-    expect(err.errorType).to.equal('TYPE_MISMATCH');
-    expect(err.errorMessage.toLowerCase()).to.include('length');
+    expect(typeOf(result)).to.equal(FSDataType.Integer);
+    expect(valueOf(result)).to.equal(0);
   });
 
   it('reports nested function error span', () => {
-    expect(() => evaluate('10+length(a)', builtinProvider())).to.throw(/Length function:.*length\(a\)/);
+    const result = evaluate('10+length(a)', builtinProvider());
+    expect(typeOf(result)).to.equal(FSDataType.Integer);
+    expect(valueOf(result)).to.equal(10);
   });
 
   it('reports type mismatch inside expression', () => {

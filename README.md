@@ -1,13 +1,20 @@
 # FuncScript
 
-FuncScript is a .NET-first expression language and runtime that lets you embed concise, functional business logic inside your applications. It ships with a parser, evaluator, formatter, CLI, unit tests, and optional SQL/GIS helpers, making it straightforward to evaluate custom scripts, map data, or compute derived values at runtime.
+FuncScript is a pure functional expression language and runtime. It layers onto a conventional host application to give it runtime programmability, so product teams can ship configuration-driven behavior without constant redeploys. Common uses include letting end users define custom business rules inside their own domain.
 
 ## Highlights
 - Expression-oriented language with blocks, lambdas, pattern-like switches, string templates, lists, and key-value collections.
 - Batteries-included standard library covering math, logic, text, list processing, OS helpers, HTML utilities, and JSON conversion.
-- Ergonomic .NET embedding via `FuncScript.Engine.Evaluate(...)`, strongly-typed error reporting, and deterministic formatting utilities.
+- Ships as a lightweight runtime so configuration can define behavior instead of scattered feature flags.
+- Ergonomic .NET embedding via `FuncScript.Engine.Evaluate(...)`, strongly typed error reporting, and deterministic formatting utilities.
 - Extensible through custom `IFsFunction` implementations or ad-hoc variables injected with `DefaultFsDataProvider`.
 - Extra packages for SQL Server and NetTopologySuite geometries, plus an experimental JavaScript interpreter port.
+
+## Common Use Cases
+- Let administrators express workflow rules (routing, approvals, state transitions) directly in configuration.
+- Model pricing, scoring, and validation rules that change faster than release cycles.
+- Generate derived fields and mappings in ETL or integration pipelines without shipping new code.
+- Power in-product calculators and what-if tools where end users control the formulae.
 
 ## Repository Layout
 - `FuncScript/` - core library targeting .NET 6.0; contains the parser, runtime, standard library, and data model.
@@ -19,9 +26,10 @@ FuncScript is a .NET-first expression language and runtime that lets you embed c
 
 ## Quick Start
 ### Prerequisites
-Install the .NET 8 SDK (includes the .NET 6 tooling required by the library projects).
+Install the .NET 8 SDK; it includes the .NET 6 tooling required by the library projects.
 
 ### Build Everything
+Restore and build the solution:
 ```bash
 dotnet restore FuncScript.sln
 dotnet build FuncScript.sln
@@ -37,6 +45,7 @@ dotnet run --project FuncScript.Cli -- "{ rate:0.13; net:(gross)=>gross*(1-rate)
 ```
 
 ### Embed in Your Application
+Inject globals, evaluate an expression, and format the result:
 ```csharp
 using System;
 using System.Collections.Generic;
@@ -57,26 +66,26 @@ var output = new StringBuilder();
 FuncScript.Engine.Format(output, result);
 Console.WriteLine(output);
 ```
-The runtime normalizes .NET values so that primitive types, lists, key-value collections, GUIDs, byte arrays, and even delegates translate seamlessly to script data.
+The runtime normalizes .NET values so that primitive types, lists, key-value collections, GUIDs, byte arrays, and delegates translate seamlessly to script data.
 
 ## Language at a Glance
-Script files are case-insensitive and expression-oriented. Common constructs include:
+Scripts are case-insensitive, expression-oriented, and intentionally small. Core constructs:
 - **Blocks**: `{ items:[1,2,3]; eval Sum(items); }`
 - **Lambdas**: `(x)=>x*x` or `(row, index)=>{ ... }`
 - **String templates**: `f"Hello {name}!"`
 - **Strings**: standard `'single'`/`"double"` literals or triple-quoted `"""multi-line"""` blocks when you need verbatim text
-- **Collections**: Lists `[1, 2, 3]` and records `{name:"Ada", skills:["math","logic"]}`
-- **Control**: `If`, `Switch`, `Case`, `fault` for structured errors
+- **Collections**: lists `[1, 2, 3]` and records `{name:"Ada", skills:["math","logic"]}`
+- **Control**: `If`, `Switch`, `Case`, and `fault` for structured errors
 - **Functions**: `Map`, `Reduce`, `Filter`, `Distinct`, `Take`, `JoinText`, `Format`, `TicksToDate`, `point`, and many more
-- **Operators**: `/` promotes to floating point if a remainder appears, while `div` performs integer-only division (accepting only 32/64-bit integers) and `==` is a synonym for `=` when comparing values
-- **Comments**: both `// inline` and `/* multi-line */` styles are supported wherever whitespace is allowed
+- **Operators**: `/` promotes to floating point when needed, `div` enforces integer-only division (accepting only 32/64-bit integers), and `==` is a synonym for `=` when comparing values
+- **Comments**: `//` inline and `/* ... */` multi-line comments wherever whitespace is allowed
 
-A new `eval` keyword now serves as the preferred way to emit the final value from a block. The historical `return` keyword continues to work for existing scripts but will be phased out in a future release.
+Use `eval` to emit the final value from a block. `return` remains for backward compatibility but will be phased out.
 
-A more elaborate example lives in `FuncScript/TestFormula.text`, where a payroll table is generated via mapping and HTML string templates.
+See `FuncScript/TestFormula.text` for a fuller payroll example built with mapping and HTML string templates.
 
 ## Extending the Runtime
-Custom functions are regular .NET classes implementing `IFsFunction`:
+Custom functions are regular .NET classes implementing `IFsFunction`. Example `hex` formatter:
 ```csharp
 public class HexFunction : IFsFunction
 {
@@ -97,13 +106,13 @@ public class HexFunction : IFsFunction
 Create a parameterless constructor, reference the assembly, and `DefaultFsDataProvider.LoadFromAssembly(...)` will auto-register the symbol (including optional aliases via `FunctionAliasAttribute`).
 
 ## SQL & GIS Helpers
-`FuncScript.Sql` adds converters for `Sql*` types and NetTopologySuite geometries plus GIS helpers such as `point(x, y)`. Reference the project alongside the core library to normalize database values before exposing them to scripts.
+`FuncScript.Sql` adds converters for `Sql*` types and NetTopologySuite geometries plus GIS helpers such as `point(x, y)`. Reference the project alongside the core library to normalize database values and geometry types before exposing them to scripts.
 
 ## JavaScript Port (Experimental)
-The `js-port/` folder contains a progressively feature-complete JavaScript interpreter that mirrors the .NET runtime. See `js-port/AGENTS.md` and `js-port/port-progress.md` for implementation notes and status.
+The `js-port/` folder contains a progressively feature-complete JavaScript interpreter that mirrors the .NET runtime. See `js-port/AGENTS.md` and `js-port/port-progress.md` for implementation notes and status; it is useful when you need FuncScript behavior inside browser-based tools.
 
 ## Testing
-Run the NUnit suite to ensure language changes remain backwards compatible:
+Run the NUnit suite to keep parsing, evaluation, and formatting changes backwards compatible:
 ```bash
 dotnet test FuncScript.sln
 ```
@@ -125,17 +134,10 @@ make docs-serve
 make docs-build
 ```
 
-The published manual currently covers the language overview, practical examples, and a reference hub
-for functions and types. Add new pages inside `docs/`, update the navigation tree in `mkdocs.yml`,
-and the `Documentation` GitHub Actions workflow (`.github/workflows/docs.yml`) will keep building the
-site for GitHub Pages whenever `main` receives documentation changes. The Vercel deployment uses the
-same inputs but is now the canonical host for https://funcscript.org.
+The manual covers the language overview, practical examples, and a reference hub for functions and types. Add pages inside `docs/`, update navigation in `mkdocs.yml`, and CI (`.github/workflows/docs.yml`) will rebuild the site on `main`. Vercel uses the same build and is the canonical host for https://funcscript.org.
 
 ### Vercel Deployment
-The repository includes `vercel.json` plus `scripts/vercel-build.sh`, which Vercel calls to
-reproduce the GitHub Pages bundle. The script installs MkDocs, builds the React-based FuncScript
-Studio demo with `PUBLIC_PATH=./`, runs `mkdocs build --clean --site-dir public`, and copies the demo
-into `public/web/funcscript-studio/` so the static site can serve everything from the same origin.
+The repository includes `vercel.json` plus `scripts/vercel-build.sh`, which Vercel calls to reproduce the GitHub Pages bundle. The script installs MkDocs, builds the React-based FuncScript Studio demo with `PUBLIC_PATH=./`, runs `mkdocs build --clean --site-dir public`, and copies the demo into `public/web/funcscript-studio/` so the static site can serve everything from the same origin.
 
 To publish updates to https://funcscript.org:
 1. Install the Vercel CLI (`npm i -g vercel`) and authenticate (`vercel login`).
@@ -148,10 +150,7 @@ To publish updates to https://funcscript.org:
 5. Attach the domain inside Vercel (`vercel domains add funcscript.org`) so certificates are issued
    automatically.
 
-Once linked, subsequent pushes to `main` can be auto-deployed by enabling Vercel's GitHub import, or
-you can continue triggering manual `vercel deploy --prod` runs after reviewing changes locally.
-FuncDraw lives at https://funcdraw.com as a separately built project, so the docs link to it instead
-of building it locally.
+Once linked, you can enable Vercel's GitHub import for automatic deploys from `main`, or keep running `vercel deploy --prod` after reviewing changes locally. FuncDraw lives at https://funcdraw.com as a separately built project, so the docs link to it instead of building it locally.
 
 ## Maintainers
 - Tewelde Ma. Tegegne (<teweldemat@gmail.com>)

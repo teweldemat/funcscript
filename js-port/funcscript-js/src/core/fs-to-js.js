@@ -19,6 +19,10 @@ function convertJsValueToFuncScript(value) {
     };
     return normalize(wrapped);
   }
+  if (value && typeof value === 'object' && !Array.isArray(value) && !value.__fsKind) {
+    const entries = Object.entries(value).map(([key, val]) => [key, convertJsValueToFuncScript(val)]);
+    return normalize(new SimpleKeyValueCollection(null, entries));
+  }
   try {
     return normalize(value);
   } catch (error) {
@@ -46,11 +50,55 @@ function createKvcObject(collection, provider) {
     return {};
   }
   const entries = collection.getAll();
-  const result = {};
+  const valueMap = new Map();
+  const keySet = new Set();
   for (const [key, value] of entries) {
-    result[key] = convertTypedValueToJs(value, collection);
+    const normalizedKey = typeof key === 'string' ? key : String(key);
+    const lowerKey = normalizedKey.toLowerCase();
+    const converted = convertTypedValueToJs(value, collection);
+    keySet.add(normalizedKey);
+    if (!valueMap.has(lowerKey)) {
+      valueMap.set(lowerKey, converted);
+    }
   }
-  return result;
+  return new Proxy(
+    {},
+    {
+      has(target, prop) {
+        if (typeof prop === 'string' && valueMap.has(prop.toLowerCase())) {
+          return true;
+        }
+        return Reflect.has(target, prop);
+      },
+      ownKeys(target) {
+        const keys = new Set(Reflect.ownKeys(target));
+        keySet.forEach((key) => keys.add(key));
+        return Array.from(keys);
+      },
+      getOwnPropertyDescriptor(target, prop) {
+        if (typeof prop === 'string') {
+          const lower = prop.toLowerCase();
+          if (valueMap.has(lower)) {
+            return {
+              enumerable: true,
+              configurable: true,
+              value: valueMap.get(lower)
+            };
+          }
+        }
+        return Object.getOwnPropertyDescriptor(target, prop);
+      },
+      get(target, prop) {
+        if (typeof prop === 'string') {
+          const lower = prop.toLowerCase();
+          if (valueMap.has(lower)) {
+            return valueMap.get(lower);
+          }
+        }
+        return Reflect.get(target, prop);
+      }
+    }
+  );
 }
 
 function convertTypedValueToJs(value, provider) {

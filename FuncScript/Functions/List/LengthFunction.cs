@@ -1,6 +1,5 @@
 ﻿using FuncScript.Core;
 using FuncScript.Model;
-using System.Collections.Generic;
 
 namespace FuncScript.Functions.List
 {
@@ -17,7 +16,7 @@ namespace FuncScript.Functions.List
 
         public object Evaluate(object par)
         {
-            var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
+            var pars = par as FsList ?? FunctionArgumentHelper.Create(par);
 
             if (pars.Length != this.MaxParsCount)
                 return new FsError(FsError.ERROR_PARAMETER_COUNT_MISMATCH,

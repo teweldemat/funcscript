@@ -79,7 +79,6 @@ type EvaluationState = {
 
 type PersistedTesterState = {
   mode: 'standard' | 'tree';
-  showTesting: boolean;
 };
 
 const STORAGE_PREFIX = 'funcscript-tester:';
@@ -100,8 +99,7 @@ const loadPersistedState = (key: string): PersistedTesterState | null => {
       return null;
     }
     const mode = parsed.mode === 'tree' ? 'tree' : 'standard';
-    const showTesting = parsed.showTesting === true;
-    return { mode, showTesting };
+    return { mode };
   } catch {
     return null;
   }
@@ -851,17 +849,11 @@ const leftPaneBaseStyle: CSSProperties = {
 const toolbarStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'space-between',
+  justifyContent: 'flex-end',
   padding: '6px 8px',
   borderBottom: '1px solid #d0d7de',
   backgroundColor: '#f6f8fa',
   gap: 8
-};
-
-const toolbarButtonGroupStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 6
 };
 
 const modeButtonBaseStyle: CSSProperties = {
@@ -873,17 +865,6 @@ const modeButtonBaseStyle: CSSProperties = {
   fontSize: 12,
   padding: '2px 8px',
   cursor: 'pointer'
-};
-
-const modeButtonActiveStyle: CSSProperties = {
-  backgroundColor: '#24292f',
-  color: '#ffffff',
-  borderColor: '#24292f'
-};
-
-const testToggleStyle: CSSProperties = {
-  ...modeButtonBaseStyle,
-  fontWeight: 600
 };
 
 const playButtonStyle: CSSProperties = {
@@ -1446,9 +1427,6 @@ const FuncScriptTester = ({
     initialPersistedState?.mode ?? resolvedInitialMode
   );
   const [collapsedNodeIds, setCollapsedNodeIds] = useState<Set<string>>(() => new Set());
-  const [showTestingControls, setShowTestingControls] = useState<boolean>(
-    initialPersistedState?.showTesting ?? false
-  );
 
   const [currentExpressionBlock, setCurrentExpressionBlock] = useState<FuncScriptExpressionBlock>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -1526,16 +1504,14 @@ const FuncScriptTester = ({
 
   useEffect(() => {
     if (!saveKey) {
-      setMode((prev) => (prev === resolvedInitialMode ? prev : resolvedInitialMode));
+      setMode(resolvedInitialMode);
       collapsedInitializedRef.current = false;
       initialAutoSelectRef.current = true;
       setCollapsedNodeIds((prev) => (prev.size === 0 ? prev : new Set<string>()));
-      setShowTestingControls(false);
       return;
     }
     const stored = loadPersistedState(saveKey);
-    setMode((prev) => (prev === resolvedInitialMode ? prev : resolvedInitialMode));
-    setShowTestingControls(stored?.showTesting ?? false);
+    setMode(stored?.mode ?? resolvedInitialMode);
     collapsedInitializedRef.current = false;
     initialAutoSelectRef.current = true;
     setCollapsedNodeIds((prev) => (prev.size === 0 ? prev : new Set<string>()));
@@ -1546,10 +1522,9 @@ const FuncScriptTester = ({
       return;
     }
     storePersistedState(saveKey, {
-      mode: 'standard',
-      showTesting: showTestingControls
+      mode
     });
-  }, [saveKey, showTestingControls]);
+  }, [saveKey, mode]);
 
   const handleEditorError = useCallback(
     (message: string | null) => {
@@ -2676,9 +2651,6 @@ const FuncScriptTester = ({
 
   const handleMainSplitterPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!showTestingControls) {
-        return;
-      }
       const container = containerRef.current;
       if (!container) {
         return;
@@ -2705,14 +2677,11 @@ const FuncScriptTester = ({
         }
       });
     },
-    [showTestingControls, safeMainSplitRatio]
+    [safeMainSplitRatio]
   );
 
   const handleMainSplitterKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (!showTestingControls) {
-        return;
-      }
       if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
         event.preventDefault();
         const direction = event.key === 'ArrowLeft' ? -1 : 1;
@@ -2720,7 +2689,7 @@ const FuncScriptTester = ({
         setMainSplitRatio((prev) => clamp(prev + direction * step, MAIN_SPLIT_MIN, MAIN_SPLIT_MAX));
       }
     },
-    [showTestingControls]
+    []
   );
 
   const handleTreeSplitterPointerDown = useCallback(
@@ -2780,9 +2749,6 @@ const FuncScriptTester = ({
 
   const handleVariableSplitterPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!showTestingControls) {
-        return;
-      }
       const column = testingColumnRef.current;
       if (!column) {
         return;
@@ -2809,14 +2775,11 @@ const FuncScriptTester = ({
         }
       });
     },
-    [showTestingControls, safeVariableSplitRatio]
+    [safeVariableSplitRatio]
   );
 
   const handleVariableSplitterKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (!showTestingControls) {
-        return;
-      }
       if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
         event.preventDefault();
         const direction = event.key === 'ArrowUp' ? -1 : 1;
@@ -2824,7 +2787,7 @@ const FuncScriptTester = ({
         setVariableSplitRatio((prev) => clamp(prev + direction * step, VARIABLE_SPLIT_MIN, VARIABLE_SPLIT_MAX));
       }
     },
-    [showTestingControls]
+    []
   );
 
   const handleTreeExpressionSplitterPointerDown = useCallback(
@@ -2884,23 +2847,14 @@ const FuncScriptTester = ({
   );
 
   const leftPaneStyle = useMemo(() => {
-    const base: CSSProperties = {
-      ...leftPaneBaseStyle,
-      borderRight: showTestingControls ? '1px solid #d0d7de' : 'none'
-    };
-    if (!showTestingControls) {
-      return {
-        ...base,
-        flex: 1
-      };
-    }
     return {
-      ...base,
+      ...leftPaneBaseStyle,
+      borderRight: '1px solid #d0d7de',
       flex: '0 0 auto',
       width: `${safeMainSplitRatio}%`,
       minWidth: 320
     };
-  }, [showTestingControls, safeMainSplitRatio]);
+  }, [safeMainSplitRatio]);
 
   const testingColumnStyle = useMemo(
     () => ({
@@ -2980,39 +2934,19 @@ const FuncScriptTester = ({
     };
   }, [expressionPreviewSegments, safeTreeExpressionSplitRatio]);
 
-  const testToggleButtonStyle = useMemo(
-    () => ({
-      ...testToggleStyle,
-      ...(showTestingControls ? modeButtonActiveStyle : {})
-    }),
-    [showTestingControls]
-  );
-
   return (
     <div className="funcscript-tester" ref={containerRef} style={containerStyle}>
       <div style={leftPaneStyle}>
         <div style={toolbarStyle}>
-          <div style={toolbarButtonGroupStyle}>
-            <button
-              type="button"
-              style={testToggleButtonStyle}
-              onClick={() => setShowTestingControls((prev) => !prev)}
-              aria-pressed={showTestingControls}
-            >
-              Test
-            </button>
-          </div>
-          {showTestingControls && (
-            <button
-              type="button"
-              style={playButtonStyle}
-              onClick={runTest}
-              title="Run test"
-              aria-label="Run test"
-            >
-              {'\u25B6'}
-            </button>
-          )}
+          <button
+            type="button"
+            style={playButtonStyle}
+            onClick={runTest}
+            title="Evaluate"
+            aria-label="Evaluate"
+          >
+            Evaluate
+          </button>
         </div>
         <div style={leftPaneContentStyle}>
           <div style={editorBodyStyle}>
@@ -3114,150 +3048,146 @@ const FuncScriptTester = ({
               </div>
             )}
           </div>
-          {showTestingControls && <div style={resultPanelStyle}>{resultContent}</div>}
+          <div style={resultPanelStyle}>{resultContent}</div>
         </div>
       </div>
-      {showTestingControls && (
-        <>
-          <div
-            role="separator"
-            tabIndex={0}
-            aria-orientation="vertical"
-            aria-label="Resize testing column"
-            aria-valuemin={MAIN_SPLIT_MIN}
-            aria-valuemax={MAIN_SPLIT_MAX}
-            aria-valuenow={Math.round(safeMainSplitRatio)}
-            style={mainSplitterStyle}
-            onPointerDown={handleMainSplitterPointerDown}
-            onKeyDown={handleMainSplitterKeyDown}
-          />
-          <div ref={testingColumnRef} style={testingColumnStyle}>
-            <div style={variablesListStyle}>
-              <div style={variablesHeaderStyle}>
-                <div style={variablesTitleStyle}>Variables</div>
-                <button
-                  type="button"
-                  onClick={handleClearVariables}
-                  style={{
-                    ...variableToolbarButtonStyle,
-                    ...(variableEntries.length === 0 ? iconButtonDisabledStyle : {})
-                  }}
-                  disabled={variableEntries.length === 0}
-                  aria-label="Clear variables"
-                  title="Clear variables"
-                >
-                  <TrashIcon />
-                </button>
-              </div>
-              <div style={variableAddRowStyle}>
-                <input
-                  type="text"
-                  value={newVariableName}
-                  onChange={(event) => {
-                    setNewVariableName(event.target.value);
-                    if (variableNameError) {
-                      setVariableNameError(null);
-                    }
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      handleAddVariable();
-                    }
-                  }}
-                  placeholder="Variable name"
-                  aria-label="Variable name"
-                  style={variableNameInputStyle}
-                />
-                <button
-                  type="button"
-                  onClick={handleAddVariable}
-                  style={{
-                    ...addVariableButtonStyle,
-                    ...(newVariableName.trim().length === 0 ? iconButtonDisabledStyle : {})
-                  }}
-                  disabled={newVariableName.trim().length === 0}
-                  aria-label="Add variable"
-                >
-                  Add
-                </button>
-              </div>
-              {variableNameError ? <div style={errorTextStyle}>{variableNameError}</div> : null}
-              <div style={variableListItemsStyle}>
-                {variableEntries.length === 0 ? (
-                  <div style={unsetTokenStyle}>Variables will appear here when referenced.</div>
-                ) : (
-                  variableEntries.map((entry) => {
-                    const isSelected = entry.key === selectedVariableKey;
-                    const hasValue = entry.typedValue !== null && !entry.error;
-                    const summaryText = entry.error
-                      ? 'Error'
-                      : hasValue
-                      ? Engine.getTypeName(Engine.typeOf(entry.typedValue as TypedValue))
-                      : 'Unset';
-                    return (
-                      <div
-                        key={entry.key}
-                        role="button"
-                        tabIndex={0}
-                        aria-pressed={isSelected}
-                        onClick={() => handleSelectVariable(entry.key)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
-                            event.preventDefault();
-                            handleSelectVariable(entry.key);
-                          }
-                        }}
-                        style={isSelected ? selectedListItemStyle : listItemStyle}
-                      >
-                        <div style={variableItemHeaderStyle}>
-                          <strong>{entry.name}</strong>
-                          <button
-                            type="button"
-                            style={variableDeleteButtonStyle}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleDeleteVariable(entry.key);
-                            }}
-                            aria-label={`Delete variable ${entry.name}`}
-                            title={`Delete variable ${entry.name}`}
-                          >
-                            <CrossIcon />
-                          </button>
-                        </div>
-                        <div style={hasValue ? undefined : unsetTokenStyle}>{summaryText}</div>
-                        {entry.error ? <div style={errorTextStyle}>{entry.error}</div> : null}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-            <div
-              role="separator"
-              tabIndex={0}
-              aria-orientation="horizontal"
-              aria-label="Resize variable editor"
-              aria-valuemin={VARIABLE_SPLIT_MIN}
-              aria-valuemax={VARIABLE_SPLIT_MAX}
-              aria-valuenow={Math.round(safeVariableSplitRatio)}
-              style={variableSplitterStyle}
-              onPointerDown={handleVariableSplitterPointerDown}
-              onKeyDown={handleVariableSplitterKeyDown}
-            />
-            <div style={variableEditorContainerStyle}>
-              <FuncScriptEditor
-                key={selectedVariableKey ?? 'variable-editor'}
-                value={variableEditorValue}
-                onChange={handleVariableEditorChange}
-                onBlur={handleVariableEditorBlur}
-                minHeight={160}
-                style={variableEditorSurfaceStyle}
-              />
-            </div>
+      <div
+        role="separator"
+        tabIndex={0}
+        aria-orientation="vertical"
+        aria-label="Resize testing column"
+        aria-valuemin={MAIN_SPLIT_MIN}
+        aria-valuemax={MAIN_SPLIT_MAX}
+        aria-valuenow={Math.round(safeMainSplitRatio)}
+        style={mainSplitterStyle}
+        onPointerDown={handleMainSplitterPointerDown}
+        onKeyDown={handleMainSplitterKeyDown}
+      />
+      <div ref={testingColumnRef} style={testingColumnStyle}>
+        <div style={variablesListStyle}>
+          <div style={variablesHeaderStyle}>
+            <div style={variablesTitleStyle}>Variables</div>
+            <button
+              type="button"
+              onClick={handleClearVariables}
+              style={{
+                ...variableToolbarButtonStyle,
+                ...(variableEntries.length === 0 ? iconButtonDisabledStyle : {})
+              }}
+              disabled={variableEntries.length === 0}
+              aria-label="Clear variables"
+              title="Clear variables"
+            >
+              <TrashIcon />
+            </button>
           </div>
-        </>
-      )}
+          <div style={variableAddRowStyle}>
+            <input
+              type="text"
+              value={newVariableName}
+              onChange={(event) => {
+                setNewVariableName(event.target.value);
+                if (variableNameError) {
+                  setVariableNameError(null);
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  handleAddVariable();
+                }
+              }}
+              placeholder="Variable name"
+              aria-label="Variable name"
+              style={variableNameInputStyle}
+            />
+            <button
+              type="button"
+              onClick={handleAddVariable}
+              style={{
+                ...addVariableButtonStyle,
+                ...(newVariableName.trim().length === 0 ? iconButtonDisabledStyle : {})
+              }}
+              disabled={newVariableName.trim().length === 0}
+              aria-label="Add variable"
+            >
+              Add
+            </button>
+          </div>
+          {variableNameError ? <div style={errorTextStyle}>{variableNameError}</div> : null}
+          <div style={variableListItemsStyle}>
+            {variableEntries.length === 0 ? (
+              <div style={unsetTokenStyle}>Variables will appear here when referenced.</div>
+            ) : (
+              variableEntries.map((entry) => {
+                const isSelected = entry.key === selectedVariableKey;
+                const hasValue = entry.typedValue !== null && !entry.error;
+                const summaryText = entry.error
+                  ? 'Error'
+                  : hasValue
+                  ? Engine.getTypeName(Engine.typeOf(entry.typedValue as TypedValue))
+                  : 'Unset';
+                return (
+                  <div
+                    key={entry.key}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={isSelected}
+                    onClick={() => handleSelectVariable(entry.key)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+                        event.preventDefault();
+                        handleSelectVariable(entry.key);
+                      }
+                    }}
+                    style={isSelected ? selectedListItemStyle : listItemStyle}
+                  >
+                    <div style={variableItemHeaderStyle}>
+                      <strong>{entry.name}</strong>
+                      <button
+                        type="button"
+                        style={variableDeleteButtonStyle}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleDeleteVariable(entry.key);
+                        }}
+                        aria-label={`Delete variable ${entry.name}`}
+                        title={`Delete variable ${entry.name}`}
+                      >
+                        <CrossIcon />
+                      </button>
+                    </div>
+                    <div style={hasValue ? undefined : unsetTokenStyle}>{summaryText}</div>
+                    {entry.error ? <div style={errorTextStyle}>{entry.error}</div> : null}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+        <div
+          role="separator"
+          tabIndex={0}
+          aria-orientation="horizontal"
+          aria-label="Resize variable editor"
+          aria-valuemin={VARIABLE_SPLIT_MIN}
+          aria-valuemax={VARIABLE_SPLIT_MAX}
+          aria-valuenow={Math.round(safeVariableSplitRatio)}
+          style={variableSplitterStyle}
+          onPointerDown={handleVariableSplitterPointerDown}
+          onKeyDown={handleVariableSplitterKeyDown}
+        />
+        <div style={variableEditorContainerStyle}>
+          <FuncScriptEditor
+            key={selectedVariableKey ?? 'variable-editor'}
+            value={variableEditorValue}
+            onChange={handleVariableEditorChange}
+            onBlur={handleVariableEditorBlur}
+            minHeight={160}
+            style={variableEditorSurfaceStyle}
+          />
+        </div>
+      </div>
     </div>
   );
 };

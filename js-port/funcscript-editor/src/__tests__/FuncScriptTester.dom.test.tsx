@@ -231,17 +231,12 @@ describe('FuncScriptTester tree workflow', () => {
       expect(within(treeEditor).queryByRole('button', { name: /^x$/ })).toBeNull();
     });
 
-    const testToggle = screen.getAllByRole('button', { name: 'Test' })[0];
-    await user.click(testToggle);
-
     unmount();
 
     render(<TesterHarness saveKey="persist-test" mode="tree" />);
 
     await screen.findByTestId('tester-tree-editor');
     expect(screen.queryByRole('button', { name: /^x$/ })).toBeNull();
-    const toggles = screen.getAllByRole('button', { name: 'Test' });
-    expect(toggles[0]).toHaveAttribute('aria-pressed', 'true');
 
     const expandAfterReload = await screen.findByRole('button', {
       name: /^Expand node sin\(x\)$/
@@ -293,20 +288,12 @@ describe('FuncScriptTester tree workflow', () => {
     expect(screen.getByTestId('tree-node-error')).toBeInTheDocument();
   });
 
-  it('hides testing controls by default and toggles visibility', async () => {
-    const user = userEvent.setup();
+  it('shows testing controls by default with evaluate action visible', async () => {
     render(<TesterHarness />);
 
-    expect(screen.queryByText('Variables will appear here when referenced.')).toBeNull();
-
-    const testToggle = screen.getAllByRole('button', { name: 'Test' })[0];
-    await user.click(testToggle);
     expect(await screen.findByText('Variables will appear here when referenced.')).toBeInTheDocument();
-
-    await user.click(screen.getAllByRole('button', { name: 'Test' })[0]);
-    await waitFor(() => {
-      expect(screen.queryByText('Variables will appear here when referenced.')).toBeNull();
-    });
+    expect(screen.queryByRole('button', { name: 'Test' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Evaluate' })).toBeInTheDocument();
   });
 });
 
@@ -321,8 +308,6 @@ describe('FuncScriptTester variable controls', () => {
         ]}
       />
     );
-
-    await user.click(screen.getAllByRole('button', { name: 'Test' })[0]);
 
     const clearButton = await screen.findByRole('button', { name: 'Clear variables' });
     expect(clearButton).not.toBeDisabled();
@@ -350,8 +335,6 @@ describe('FuncScriptTester variable controls', () => {
       />
     );
 
-    await user.click(screen.getAllByRole('button', { name: 'Test' })[0]);
-
     const deleteBeta = await screen.findByRole('button', { name: 'Delete variable beta' });
     await user.click(deleteBeta);
 
@@ -365,8 +348,6 @@ describe('FuncScriptTester variable controls', () => {
   it('adds a variable manually', async () => {
     const user = userEvent.setup();
     render(<VariablesHarness initialVariables={[]} />);
-
-    await user.click(screen.getAllByRole('button', { name: 'Test' })[0]);
 
     const nameInput = await screen.findByLabelText('Variable name');
     await user.type(nameInput, 'gamma');
@@ -389,8 +370,6 @@ describe('FuncScriptTester variable controls', () => {
         ]}
       />
     );
-
-    await user.click(screen.getAllByRole('button', { name: 'Test' })[0]);
 
     const nameInput = await screen.findByLabelText('Variable name');
     await user.type(nameInput, 'ALPHA');

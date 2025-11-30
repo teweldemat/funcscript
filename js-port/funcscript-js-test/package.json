@@ -5,11 +5,14 @@
   "description": "Test scaffolding for FuncScript JavaScript port",
   "type": "commonjs",
   "scripts": {
-    "test": "mocha \"tests/**/*.test.js\""
+    "test": "npm run test:mocha && npm run test:vitest",
+    "test:mocha": "mocha \"tests/**/*.test.js\"",
+    "test:vitest": "vitest run"
   },
   "devDependencies": {
     "chai": "^4.4.1",
-    "mocha": "^10.4.0"
+    "mocha": "^10.4.0",
+    "vitest": "^1.6.1"
   },
   "dependencies": {
     "@tewelde/funcscript": "file:../funcscript-js"

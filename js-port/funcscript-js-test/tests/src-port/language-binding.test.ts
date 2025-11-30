@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import {
+import * as FuncScriptModule from '@tewelde/funcscript';
+const FuncScript: any = (FuncScriptModule as any).Engine ? FuncScriptModule : (FuncScriptModule as any).default;
+const {
   Engine,
   SimpleKeyValueCollection,
   ArrayFsList,
@@ -10,9 +12,10 @@ import {
   valueOf,
   typeOf,
   DefaultFsDataProvider,
+  MapDataProvider,
   FSDataType,
   FsError
-} from '../funcscript.js';
+} = FuncScript;
 
 class ArrayParameterList extends ParameterList {
   private readonly typedValues: ReturnType<typeof normalize>[];
@@ -54,8 +57,7 @@ return value + 5;
   });
 
   it('returns key-value collection', () => {
-    const typedItems = [normalize(1), normalize(2), normalize(3)];
-    const provider = new SimpleKeyValueCollection(null, [['items', normalize(new ArrayFsList(typedItems))]]);
+    const provider = new MapDataProvider({ items: normalize([1, 2, 3]) }, new DefaultFsDataProvider());
     const expression = `
 \`\`\`javascript
 const doubled = (items || []).map(x => x * 2);
@@ -67,12 +69,16 @@ return {
 
     const typedResult = Engine.evaluate(expression, provider);
     const result = valueOf(typedResult) as KeyValueCollection;
-    expect(result).toBeInstanceOf(KeyValueCollection);
+    if ((result as any).__fsKind === 'FsError') {
+      const err = result as any;
+      throw new Error(err.errorMessage || 'JavaScript binding returned FsError');
+    }
+    expect((result as any).__fsKind).toBe('KeyValueCollection');
 
     const count = valueOf(result.get('count'));
     expect(count).toBe(3);
     const valuesList = valueOf(result.get('values')) as ArrayFsList;
-    expect(valuesList).toBeInstanceOf(ArrayFsList);
+    expect((valuesList as any).__fsKind).toBe('FsList');
     const values = valuesList.toArray().map((item) => valueOf(item));
     expect(values).toEqual([2, 4, 6]);
   });
@@ -87,7 +93,7 @@ throw new Error('boom');
     const typed = Engine.evaluate(expression, provider);
     expect(typeOf(typed)).toBe(FSDataType.Error);
     const error = valueOf(typed) as FsError;
-    expect(error).toBeInstanceOf(FsError);
+    expect((error as any).__fsKind || error instanceof FsError).toBeTruthy();
     expect(error.errorMessage).toContain('Runtime error');
   });
 
@@ -137,10 +143,10 @@ ${body}
 
       const typed = Engine.evaluate(expression);
       const result = valueOf(typed) as KeyValueCollection;
-      expect(result).toBeInstanceOf(KeyValueCollection);
+      expect((result as any).__fsKind).toBe('KeyValueCollection');
 
       const arrayValue = valueOf(result.get('x')) as ArrayFsList;
-      expect(arrayValue).toBeInstanceOf(ArrayFsList);
+      expect((arrayValue as any).__fsKind).toBe('FsList');
       const values = arrayValue.toArray().map((item) => valueOf(item));
       expect(values).toEqual(expected);
     }
@@ -275,7 +281,7 @@ eval g(3)
 `;
     const typed = Engine.evaluate(expression);
     const result = valueOf(typed) as KeyValueCollection;
-    expect(result).toBeInstanceOf(KeyValueCollection);
+    expect((result as any).__fsKind).toBe('KeyValueCollection');
     expect(valueOf(result.get('h'))).toBe(3);
   });
 

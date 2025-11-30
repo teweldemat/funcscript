@@ -81,16 +81,16 @@ namespace FuncScript.Binding.JavaScript
                 return provider?.IsDefined(key?.ToLowerInvariant()) ?? false;
             }));
 
-            engine.Execute("var provider = new Proxy({}, { get: (_, prop) => __fs_get(prop), has: (_, prop) => __fs_has(prop) });");
+            engine.Execute("var provider = new Proxy({}, { get: (_, prop) => typeof prop === 'string' ? __fs_get(prop) : undefined, has: (_, prop) => typeof prop === 'string' && __fs_has(prop) });");
         }
 
         private static void DefineLazyIdentifiers(Jint.Engine engine, KeyValueCollection provider)
         {
-            var keys = provider?.GetAllKeys() ?? Array.Empty<string>();
+            var keys = CollectProviderKeys(provider);
             if (keys.Count == 0)
                 return;
 
-            foreach (var key in keys.Distinct(StringComparer.OrdinalIgnoreCase))
+            foreach (var key in keys)
             {
                 if (!IsValidIdentifier(key))
                     continue;
@@ -102,6 +102,36 @@ namespace FuncScript.Binding.JavaScript
                     $"Object.defineProperty(globalThis, '{escapedName}', {{ configurable: true, get: function() {{ return __fs_get('{escapedKey}'); }} }});";
                 engine.Execute(script);
             }
+        }
+
+        private static IReadOnlyCollection<string> CollectProviderKeys(KeyValueCollection provider)
+        {
+            if (provider == null)
+            {
+                return Array.Empty<string>();
+            }
+
+            var visitedProviders = new HashSet<KeyValueCollection>(ReferenceEqualityComparer.Instance);
+            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var current = provider;
+
+            while (current != null && visitedProviders.Add(current))
+            {
+                var currentKeys = current.GetAllKeys() ?? Array.Empty<string>();
+                foreach (var key in currentKeys)
+                {
+                    if (string.IsNullOrWhiteSpace(key))
+                    {
+                        continue;
+                    }
+
+                    keys.Add(key);
+                }
+
+                current = current.ParentProvider;
+            }
+
+            return keys;
         }
 
         private static bool IsValidIdentifier(string key)
@@ -330,9 +360,23 @@ namespace FuncScript.Binding.JavaScript
                     jsArgs[i] = JsValue.FromObject(_engine, prepared);
                 }
 
-                var jsResult = (JsValue)_callMethod.Invoke(_function, new object[] { JsValue.Undefined, jsArgs });
-                var converted = ConvertResult(_engine, jsResult);
-                return Engine.NormalizeDataType(converted);
+                try
+                {
+                    var jsResult = (JsValue)_callMethod.Invoke(_function, new object[] { JsValue.Undefined, jsArgs });
+                    var converted = ConvertResult(_engine, jsResult);
+                    return Engine.NormalizeDataType(converted);
+                }
+                catch (TargetInvocationException tex)
+                {
+                    var inner = tex.InnerException ?? tex;
+                    var message = inner.Message ?? tex.Message;
+                    if (inner is JavaScriptException jsEx)
+                    {
+                        message = $"JavaScript error: {jsEx.Message}";
+                    }
+
+                    return new FsError(FsError.ERROR_DEFAULT, message);
+                }
             }
 
             public string ParName(int index) => $"arg{index}";

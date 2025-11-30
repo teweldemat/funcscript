@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FuncScript\FuncScript.csproj" />
+    <ProjectReference Include="..\Bindings\JS\FuncScript.Binding.JavaScript\FuncScript.Binding.JavaScript.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -26,6 +27,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="data\test-file.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="data\big-kvc.fs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="data\fetch-data.fs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

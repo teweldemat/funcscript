@@ -68,7 +68,8 @@ function createScopeProxy(provider) {
         if (typed === null || typed === undefined) {
           return undefined;
         }
-        return convertTypedValueToJs(typed, provider);
+        const converted = convertTypedValueToJs(typed, provider);
+        return converted;
       }
     }
   );

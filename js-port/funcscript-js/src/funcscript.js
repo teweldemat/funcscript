@@ -26,6 +26,92 @@ const builtinCollections = {};
 
 ensureJavaScriptLanguageBinding();
 
+function iterableToArray(value) {
+  if (!value) {
+    return [];
+  }
+  if (Array.isArray(value)) {
+    return value.slice();
+  }
+  if (typeof value[Symbol.iterator] === 'function') {
+    return Array.from(value);
+  }
+  return [];
+}
+
+function extractResolverChildName(entry) {
+  if (entry == null) {
+    return null;
+  }
+  if (typeof entry === 'string') {
+    return entry;
+  }
+  if (typeof entry === 'object') {
+    if (typeof entry.name === 'string') {
+      return entry.name;
+    }
+    if (typeof entry.Name === 'string') {
+      return entry.Name;
+    }
+  }
+  return null;
+}
+
+function formatResolverPath(path) {
+  if (!Array.isArray(path) || path.length === 0) {
+    return '<root>';
+  }
+  return path.join('/');
+}
+
+function collectPackageTestPairs(resolver, path = [], accumulator = []) {
+  const childEntries = iterableToArray(resolver.listChildren(path));
+  if (childEntries.length === 0) {
+    return accumulator;
+  }
+  const nameMap = new Map();
+  for (const entry of childEntries) {
+    const name = extractResolverChildName(entry);
+    if (!name) {
+      throw new Error(`Package resolver returned invalid child entry under '${formatResolverPath(path)}'`);
+    }
+    const lower = String(name).toLowerCase();
+    if (nameMap.has(lower)) {
+      throw new Error(`Duplicate entry '${name}' under '${formatResolverPath(path)}'`);
+    }
+    nameMap.set(lower, String(name));
+  }
+
+  for (const [lower, actualName] of nameMap.entries()) {
+    if (!lower.endsWith('.test')) {
+      continue;
+    }
+    const baseLower = lower.slice(0, -5);
+    if (!baseLower || !nameMap.has(baseLower)) {
+      continue;
+    }
+    accumulator.push({
+      folderPath: path.slice(),
+      scriptName: nameMap.get(baseLower),
+      testName: actualName
+    });
+  }
+
+  for (const actualName of nameMap.values()) {
+    const childPath = path.concat([actualName]);
+    const grandChildren = iterableToArray(resolver.listChildren(childPath));
+    if (grandChildren.length === 0) {
+      continue;
+    }
+    const expression = resolver.getExpression(childPath);
+    if (expression !== null && expression !== undefined) {
+      throw new Error(`Package resolver node '${formatResolverPath(childPath)}' cannot have both children and an expression`);
+    }
+    collectPackageTestPairs(resolver, childPath, accumulator);
+  }
+  return accumulator;
+}
+
 function attachExpressionSource(provider, expression) {
   if (!provider || typeof provider !== 'object') {
     return;
@@ -275,6 +361,89 @@ const loadPackage = createPackageLoader({
   MapDataProvider,
   normalize
 });
+const buildPackageExpression = typeof loadPackage.buildExpression === 'function' ? loadPackage.buildExpression : null;
+const createPackageEvaluationProvider =
+  typeof loadPackage.createEvaluationProvider === 'function' ? loadPackage.createEvaluationProvider : null;
+
+function ensurePackageResolver(resolver) {
+  if (!resolver || typeof resolver !== 'object') {
+    throw new Error('testPackage requires a package resolver instance');
+  }
+  if (typeof resolver.listChildren !== 'function') {
+    throw new Error('Package resolver must implement listChildren(path)');
+  }
+  if (typeof resolver.getExpression !== 'function') {
+    throw new Error('Package resolver must implement getExpression(path)');
+  }
+}
+
+function formatPackagePath(pathSegments) {
+  return formatResolverPath(pathSegments);
+}
+
+function buildExpressionFromPackage(resolver, pathSegments) {
+  if (typeof buildPackageExpression !== 'function') {
+    throw new Error('Package loader does not support targeted expressions');
+  }
+  return buildPackageExpression(resolver, pathSegments);
+}
+
+function createPackageProvider(resolver, provider) {
+  if (typeof createPackageEvaluationProvider === 'function') {
+    return createPackageEvaluationProvider(resolver, provider);
+  }
+  return provider || new DefaultFsDataProvider();
+}
+
+function testPackage(resolver, provider = new DefaultFsDataProvider()) {
+  ensurePackageResolver(resolver);
+  const testPairs = collectPackageTestPairs(resolver, []);
+  if (testPairs.length === 0) {
+    return {
+      tests: [],
+      summary: {
+        scripts: 0,
+        suites: 0,
+        cases: 0,
+        passed: 0,
+        failed: 0
+      }
+    };
+  }
+
+  const evaluationProvider = createPackageProvider(resolver, provider);
+  const tests = [];
+  const totals = {
+    scripts: 0,
+    suites: 0,
+    cases: 0,
+    passed: 0,
+    failed: 0
+  };
+
+  for (const pair of testPairs) {
+    const scriptPath = pair.folderPath.concat([pair.scriptName]);
+    const testPath = pair.folderPath.concat([pair.testName]);
+    const expressionSource = buildExpressionFromPackage(resolver, scriptPath);
+    const testExpressionSource = buildExpressionFromPackage(resolver, testPath);
+    const runResult = test(expressionSource, testExpressionSource, evaluationProvider);
+    totals.scripts += 1;
+    totals.suites += runResult.summary.suites;
+    totals.cases += runResult.summary.cases;
+    totals.passed += runResult.summary.passed;
+    totals.failed += runResult.summary.failed;
+    tests.push({
+      path: formatPackagePath(scriptPath),
+      testPath: formatPackagePath(testPath),
+      result: runResult
+    });
+  }
+
+  return {
+    tests,
+    summary: totals
+  };
+}
 
 function isListContainer(nodeType) {
   return nodeType === ParseNodeType.FunctionParameterList || nodeType === ParseNodeType.IdentiferList;
@@ -340,6 +509,7 @@ const Engine = {
   evaluateTemplate,
   loadPackage,
   test,
+  testPackage,
   colorParseTree,
   FuncScriptParser,
   DefaultFsDataProvider,
@@ -377,6 +547,7 @@ module.exports = {
   evaluateTemplate,
   loadPackage,
   test,
+  testPackage,
   colorParseTree,
   DefaultFsDataProvider,
   FsDataProvider: dataProviders.FsDataProvider,

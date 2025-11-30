@@ -29,12 +29,20 @@ const {
   TangentFunction,
   ArcSineFunction,
   ArcCosineFunction,
-  ArcTangentFunction
+  ArcTangentFunction,
+  HyperbolicSineFunction,
+  HyperbolicCosineFunction,
+  HyperbolicTangentFunction,
+  InverseHyperbolicSineFunction,
+  InverseHyperbolicCosineFunction,
+  InverseHyperbolicTangentFunction,
+  ArcTangent2Function
 } = require('./math/trigonometry-functions');
 const {
   SquareRootFunction,
   AbsoluteValueFunction,
   PowerFunction,
+  PowerOperatorFunction,
   ExponentialFunction,
   NaturalLogFunction,
   Log10Function,
@@ -46,7 +54,11 @@ const {
   MinFunction,
   MaxFunction,
   ClampFunction,
-  RandomFunction
+  RandomFunction,
+  Log2Function,
+  CubeRootFunction,
+  DegreesToRadiansFunction,
+  RadiansToDegreesFunction
 } = require('./math/advanced-functions');
 
 const { MapListFunction } = require('./list/map-list-function');
@@ -136,7 +148,8 @@ module.exports = function buildBrowserBuiltinMap() {
     { fn: new ArcTangentFunction(), collections: { math: ['atan'] } },
     { fn: new SquareRootFunction(), collections: { math: ['sqrt'] } },
     { fn: new AbsoluteValueFunction(), collections: { math: ['abs'] } },
-    { fn: new PowerFunction(), collections: { math: ['pow'] } },
+    { fn: new PowerFunction(), collections: { math: ['pow', 'power'] } },
+    { fn: new PowerOperatorFunction(), names: ['^'] },
     { fn: new ExponentialFunction(), collections: { math: ['exp'] } },
     { fn: new NaturalLogFunction(), collections: { math: ['ln', 'log'] } },
     { fn: new Log10Function(), collections: { math: ['log10'] } },
@@ -149,8 +162,19 @@ module.exports = function buildBrowserBuiltinMap() {
     { fn: new MaxFunction(), collections: { math: ['max'] } },
     { fn: new ClampFunction(), collections: { math: ['clamp'] } },
     { fn: new RandomFunction(), collections: { math: ['random'] } },
+    { fn: new Log2Function(), collections: { math: ['log2'] } },
+    { fn: new CubeRootFunction(), collections: { math: ['cbrt'] } },
+    { fn: new DegreesToRadiansFunction(), collections: { math: ['degtorad', 'deg2rad'] } },
+    { fn: new RadiansToDegreesFunction(), collections: { math: ['radtodeg', 'rad2deg'] } },
     { value: Math.PI, names: [], collections: { math: ['pi'] } },
     { value: Math.E, names: [], collections: { math: ['e'] } },
+    { fn: new HyperbolicSineFunction(), collections: { math: ['sinh'] } },
+    { fn: new HyperbolicCosineFunction(), collections: { math: ['cosh'] } },
+    { fn: new HyperbolicTangentFunction(), collections: { math: ['tanh'] } },
+    { fn: new InverseHyperbolicSineFunction(), collections: { math: ['asinh'] } },
+    { fn: new InverseHyperbolicCosineFunction(), collections: { math: ['acosh'] } },
+    { fn: new InverseHyperbolicTangentFunction(), collections: { math: ['atanh'] } },
+    { fn: new ArcTangent2Function(), collections: { math: ['atan2'] } },
     { fn: new MapListFunction(), names: ['map'] },
     { fn: new ReduceListFunction(), names: ['reduce'] },
     { fn: new FilterListFunction(), names: ['filter'] },

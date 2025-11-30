@@ -63,6 +63,21 @@ namespace FuncScript.Block
             {
                 return ((FsList)this).GetEnumerator();
             }
+
+            public override bool Equals(object obj)
+            {
+                return FsList.Equals(this, obj);
+            }
+
+            public override int GetHashCode()
+            {
+                var hash = new HashCode();
+                for (var i = 0; i < Length; i++)
+                {
+                    hash.Add(this[i]);
+                }
+                return hash.ToHashCode();
+            }
         }
         public ExpressionBlock[] ValueExpressions;
 

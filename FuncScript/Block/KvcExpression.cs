@@ -16,6 +16,7 @@ namespace FuncScript.Block
             private readonly KeyValueCollection provider;
             private readonly KvcExpression thisKvc;
             protected DepthCounter _depth;
+            private readonly Dictionary<string, object> _evaluatedValues = new Dictionary<string, object>(StringComparer.Ordinal);
             public KvcExpressionCollection(KeyValueCollection provider, KvcExpression thisKvc,DepthCounter depth)
             {
                 this.provider = provider;
@@ -32,17 +33,7 @@ namespace FuncScript.Block
 
                 var lookupKey = key.ToLower();
                 if (thisKvc.index.TryGetValue(lookupKey, out var exp) && exp.ValueExpression != null)
-                {
-                    _depth.Enter();
-                    try
-                    {
-                        return exp.ValueExpression.Evaluate(this, _depth);
-                    }
-                    finally
-                    {
-                        _depth.Exit();
-                    }
-                }
+                    return EvaluateKeyValue(exp);
 
                 if (ParentProvider != null)
                     return ParentProvider.Get(key);
@@ -64,11 +55,15 @@ namespace FuncScript.Block
 
             public IList<KeyValuePair<string, object>> GetAll()
             {
-                _depth.Enter();
-                var ret= thisKvc._keyValues
-                    .Select(kv => KeyValuePair.Create(kv.Key, kv.ValueExpression.Evaluate(this, _depth)))
-                    .ToList();
-                _depth.Exit();
+                if (thisKvc._keyValues == null || thisKvc._keyValues.Count == 0)
+                    return Array.Empty<KeyValuePair<string, object>>();
+
+                var ret = new List<KeyValuePair<string, object>>(thisKvc._keyValues.Count);
+                foreach (var kv in thisKvc._keyValues)
+                {
+                    ret.Add(KeyValuePair.Create(kv.Key, EvaluateKeyValue(kv)));
+                }
+
                 return ret;
             }
 
@@ -89,6 +84,32 @@ namespace FuncScript.Block
             public override int GetHashCode()
             {
                 return KeyValueCollection.GetHashCode(this);
+            }
+
+            private object EvaluateKeyValue(KeyValueExpression expression)
+            {
+                if (expression == null || expression.ValueExpression == null)
+                    return null;
+
+                var cacheKey = expression.KeyLower;
+                if (!string.IsNullOrEmpty(cacheKey) && _evaluatedValues.TryGetValue(cacheKey, out var cached))
+                    return cached;
+
+                _depth.Enter();
+                object value;
+                try
+                {
+                    value = expression.ValueExpression.Evaluate(this, _depth);
+                }
+                finally
+                {
+                    _depth.Exit();
+                }
+
+                if (!string.IsNullOrEmpty(cacheKey))
+                    _evaluatedValues[cacheKey] = value;
+
+                return value;
             }
         }
         public class KeyValueExpression

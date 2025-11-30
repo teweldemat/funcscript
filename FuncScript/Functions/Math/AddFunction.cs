@@ -50,6 +50,21 @@ namespace FuncScript.Functions.Math
         {
             return GetEnumerator();
         }
+
+        public override bool Equals(object obj)
+        {
+            return FsList.Equals(this, obj);
+        }
+
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            for (var i = 0; i < _length; i++)
+            {
+                hash.Add(this[i]);
+            }
+            return hash.ToHashCode();
+        }
     }
     public class AddFunction : IFsFunction
     {

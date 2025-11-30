@@ -2,6 +2,8 @@
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -148,6 +150,137 @@ namespace FuncScript.Test
             var expected = 3;
             ;
             Assert.AreEqual(expected, res);
+        }
+
+        [Test]
+        public void SelectorProjectionEqualityMatchesSource()
+        {
+            var exp =
+@"{
+    x:{
+        a:{b:3,c:4};
+        d:6;
+    };
+    y:x{a,d};
+    eval x=y;
+}";
+
+            var res = FuncScriptRuntime.Evaluate(exp);
+            Assert.AreEqual(true, res);
+        }
+
+        [Test]
+        public void SelectorProjectionHandlesLargeKvcFromFile()
+        {
+            var dataPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "data", "big-kvc.fs");
+            var template = File.ReadAllText(dataPath);
+
+            var exp =
+$@"{{
+    t:{template};
+    a:t{{
+        Type,
+        Register,
+        CaseId,
+        OldStatus,
+        Status,
+        FirstRequestUserId,
+        DataSubmitUserId,
+        SpatialSubmitUserId,
+        Actions,
+        SourceLandRecords,
+        TargetLandRecords,
+        NewTitleDeeds,
+        AllNewDocuments,
+        AllNewBills,
+        AllNewBillsPaid,
+        AnyUnpaidBills,
+        SpatialTasks,
+        TaskId,
+        Reference,
+        Description,
+        CreateTime,
+        CreateCommandId,
+        UpdateTime,
+        UpdateCommandId
+    }};
+    eval a=t;
+}}";
+
+            var res = FuncScriptRuntime.Evaluate(exp);
+            Assert.AreEqual(true, res);
+        }
+
+        [Test]
+        public void FormatToJsonHandlesLargeKvcInUnderThreeSeconds()
+        {
+            var dataRoot = Path.Combine(TestContext.CurrentContext.TestDirectory, "data");
+
+            Func<string, object> fetch = new Func<string, object>((uic) =>
+            {
+                var dataPath = Path.Combine(dataRoot, "fetch-data.fs");
+                var expression = File.ReadAllText(dataPath);
+                var result = FuncScriptRuntime.Evaluate(expression);
+                return result;
+            });
+            
+            var dataPath = Path.Combine(dataRoot, "big-kvc.fs");
+            var expression = File.ReadAllText(dataPath);
+            var result = FuncScriptRuntime.EvaluateWithVars(expression,new
+            {
+                fetchData=fetch
+            });
+
+            Assert.IsNotNull(result);
+
+            // Warm up to exclude JIT and first-run allocations from the measurement.
+            FuncScriptRuntime.FormatToJson(result);
+
+            var sw = Stopwatch.StartNew();
+            string formatted = null;
+            for (var i = 0; i < 100; i++)
+            {
+                formatted = FuncScriptRuntime.FormatToJson(result);
+            }
+
+            sw.Stop();
+            Assert.IsNotEmpty(formatted);
+            Assert.Less(sw.Elapsed.TotalSeconds, 3, $"FormatToJson took {sw.Elapsed.TotalSeconds:F2}s");
+        }
+        
+        [Test]
+        public void FormatToJsonHandlesLargeKvcInEvaluatesAtMostTwice()
+        {
+            var dataRoot = Path.Combine(TestContext.CurrentContext.TestDirectory, "data");
+
+            var evaluateCount = 0;
+            Func<string, object> fetch = new Func<string, object>((uic) =>
+            {
+                var dataPath = Path.Combine(dataRoot, "fetch-data.fs");
+                var expression = File.ReadAllText(dataPath);
+                var result = FuncScriptRuntime.Evaluate(expression);
+                evaluateCount++;
+                Console.Write("Evaluate\n");
+                return result;
+            });
+            
+            var dataPath = Path.Combine(dataRoot, "big-kvc.fs");
+            var expression = File.ReadAllText(dataPath);
+            var result = FuncScriptRuntime.EvaluateWithVars(expression,new
+            {
+                fetchData=fetch
+            });
+
+            Assert.IsNotNull(result);
+
+            // Warm up to exclude JIT and first-run allocations from the measurement.
+            FuncScriptRuntime.FormatToJson(result);
+
+            
+            var    formatted = FuncScriptRuntime.FormatToJson(result);
+
+            Assert.IsNotEmpty(formatted);
+            Assert.Less(evaluateCount, 3, $"FormatToJson evaluated function more than 2 times");
         }
 
         [Test]
@@ -399,8 +532,8 @@ return Map(z,(x)=>x*x);
         }
         class XY
         {
-            String a;
-            String b;
+            public string a { get; set; }
+            public string b { get; set; }
         }
         [Test]
         public void TestJsonEquivalenceWithTextLineFeed()

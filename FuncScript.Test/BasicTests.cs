@@ -86,6 +86,15 @@ namespace FuncScript.Test
         [TestCase("12.0", 12.0)]
         [TestCase("12e1", 120)]
         [TestCase("12.0e1", 120.0)]
+        [TestCase("1_000", 1000)]
+        [TestCase("-1_000", -1000)]
+        [TestCase("1_0e2", 1000)]
+        [TestCase("1_000l", 1000L)]
+        [TestCase("-1_000l", -1000L)]
+        [TestCase("1_0e2l", 1000L)]
+        [TestCase("1_0.5", 10.5)]
+        [TestCase("-1_000.5", -1000.5)]
+        [TestCase("1.0_5", 1.05)]
 
         [TestCase("-12", -12)]
         [TestCase("-12.", -12.0)]
@@ -180,6 +189,7 @@ namespace FuncScript.Test
 
         [TestCase("length([1,2,3])", 3)]
         [TestCase("length(\"hello\")", 5)]
+        [TestCase("length(null)", 0)]
         public void LengthFunctionAcceptsListsAndStrings(string expression, int expected)
         {
             var provider = new DefaultFsDataProvider();

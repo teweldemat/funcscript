@@ -91,7 +91,7 @@ function normalize(value) {
     return makeValue(FSDataType.List, value);
   }
   const { KeyValueCollection } = ensureKvcModule();
-  if (value instanceof KeyValueCollection) {
+  if (value instanceof KeyValueCollection || value?.__fsKind === 'KeyValueCollection') {
     return makeValue(FSDataType.KeyValueCollection, value);
   }
   const { BaseFunction } = ensureFuncModule();
@@ -104,6 +104,19 @@ function normalize(value) {
   }
   if (value instanceof FsError) {
     return makeValue(FSDataType.Error, value);
+  }
+  if (value && value.__fsKind === 'FsError') {
+    return makeValue(FSDataType.Error, value);
+  }
+  if (Array.isArray(value)) {
+    const { ArrayFsList } = ensureListModule();
+    const items = value.map((item) => normalize(item));
+    return makeValue(FSDataType.List, new ArrayFsList(items));
+  }
+  if (value && typeof value === 'object') {
+    const { SimpleKeyValueCollection } = ensureKvcModule();
+    const entries = Object.entries(value).map(([key, val]) => [key, normalize(val)]);
+    return makeValue(FSDataType.KeyValueCollection, new SimpleKeyValueCollection(null, entries));
   }
   throw new Error(`Unsupported JS value for FuncScript: ${value}`);
 }

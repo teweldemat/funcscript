@@ -489,14 +489,34 @@ function getInt(context, allowNegative, index) {
       i = withMinus;
     }
   }
+  const expression = context.Expression;
+  const length = expression.length;
   let i2 = i;
-  while (i2 < context.Expression.length && /[0-9]/.test(context.Expression[i2])) {
-    i2 += 1;
+  let previousWasDigit = false;
+  while (i2 < length) {
+    const currentChar = expression[i2];
+    if (/[0-9]/.test(currentChar)) {
+      previousWasDigit = true;
+      i2 += 1;
+      continue;
+    }
+    if (
+      currentChar === '_' &&
+      previousWasDigit &&
+      i2 + 1 < length &&
+      /[0-9]/.test(expression[i2 + 1])
+    ) {
+      previousWasDigit = false;
+      i2 += 1;
+      continue;
+    }
+    break;
   }
   if (i === i2) {
     return { nextIndex: index, digits: null };
   }
-  const digits = context.Expression.substring(index, i2);
+  const rawDigits = expression.substring(index, i2);
+  const digits = rawDigits.includes('_') ? rawDigits.replace(/_/g, '') : rawDigits;
   return { nextIndex: i2, digits };
 }
 
@@ -557,7 +577,8 @@ function getNumber(context, siblings, index, errors) {
 
   if (hasDecimal) {
     const text = context.Expression.substring(currentIndex, i);
-    const parsed = Number(text);
+    const sanitizedText = text.includes('_') ? text.replace(/_/g, '') : text;
+    const parsed = Number(sanitizedText);
     if (!Number.isFinite(parsed)) {
       errors.push(new SyntaxErrorData(currentIndex, i - currentIndex, `${text} couldn't be parsed as floating point`));
       return { NextIndex: index, Value: null, StartIndex: index, Length: 0, ParseNode: null };

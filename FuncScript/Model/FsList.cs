@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.ComponentModel;
 using System.Reflection;
 using System.Text;
@@ -96,7 +97,17 @@ namespace FuncScript.Model
         }
         public override int GetHashCode()
         {
-            return this.GetHashCode();
+            var hash = new HashCode();
+            foreach (var item in _data)
+            {
+                hash.Add(item);
+            }
+            return hash.ToHashCode();
+        }
+
+        public override bool Equals(object obj)
+        {
+            return FsList.Equals(this, obj);
         }
 
         IEnumerator IEnumerable.GetEnumerator()

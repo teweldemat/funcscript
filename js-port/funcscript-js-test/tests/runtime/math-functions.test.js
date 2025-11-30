@@ -2,6 +2,7 @@ const { expect } = require('chai');
 const {
   evaluate,
   DefaultFsDataProvider,
+  MapDataProvider,
   typeOf,
   valueOf,
   FSDataType
@@ -110,5 +111,34 @@ describe('MathFunctions', () => {
     for (const expression of cases) {
       expect(() => evaluate(expression)).to.throw();
     }
+  });
+
+  it('resolves math.pi consistently across casing and JS bindings', () => {
+    const plainExpressions = ['math.pi', 'math.Pi', 'math.PI'];
+    for (const expression of plainExpressions) {
+      const result = evaluate(expression, new DefaultFsDataProvider());
+      expect(typeOf(result)).to.equal(FSDataType.Float, `Expected ${expression} to be a float`);
+      expect(valueOf(result)).to.be.closeTo(Math.PI, 1e-10, `Expression ${expression} mismatch`);
+    }
+
+    const builtinProvider = new DefaultFsDataProvider();
+    const mathBinding = builtinProvider.get('math');
+    const bindingProvider = new MapDataProvider({ Math: mathBinding }, builtinProvider);
+    const bindingExpressions = ['Math.pi', 'Math.Pi', 'Math.PI', 'math.pi'];
+    for (const expression of bindingExpressions) {
+      const result = evaluate(expression, bindingProvider);
+      expect(typeOf(result)).to.equal(FSDataType.Float, `Expected ${expression} via binding to be a float`);
+      expect(valueOf(result)).to.be.closeTo(Math.PI, 1e-10, `Binding expression ${expression} mismatch`);
+    }
+
+    const jsLowerCaseExpression = "{ result: ```javascript\nreturn math.pi;\n```; eval result; }";
+    const jsLowerCase = evaluate(jsLowerCaseExpression, builtinProvider);
+    expect(typeOf(jsLowerCase)).to.equal(FSDataType.Float);
+    expect(valueOf(jsLowerCase)).to.be.closeTo(Math.PI, 1e-10);
+
+    const jsGlobalExpression = "{ result: ```javascript\nreturn Math.PI;\n```; eval result; }";
+    const jsGlobal = evaluate(jsGlobalExpression, builtinProvider);
+    expect(typeOf(jsGlobal)).to.equal(FSDataType.Float);
+    expect(valueOf(jsGlobal)).to.be.closeTo(Math.PI, 1e-10);
   });
 });

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { Engine, DefaultFsDataProvider, valueOf, typeOf, FSDataType } from '../funcscript.js';
+import * as FuncScriptModule from '@tewelde/funcscript';
+const FuncScript: any = (FuncScriptModule as any).Engine ? FuncScriptModule : (FuncScriptModule as any).default;
+const { Engine, DefaultFsDataProvider, valueOf, typeOf, FSDataType } = FuncScript;
 
 function createProviderWithText() {
   const provider = new DefaultFsDataProvider();

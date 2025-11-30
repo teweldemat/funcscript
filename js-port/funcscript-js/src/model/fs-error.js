@@ -6,6 +6,7 @@ class FsError {
   static ERROR_EVALUATION_DEPTH_OVERFLOW = 'EVALUATION_DEPTH_OVERFLOW';
 
   constructor(type, message, data = null) {
+    this.__fsKind = 'FsError';
     this.errorType = type || FsError.ERROR_DEFAULT;
     this.errorMessage = message || '';
     this.errorData = data;

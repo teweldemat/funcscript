@@ -11,8 +11,28 @@ namespace FuncScript.Core
                 i = GetLiteralMatch(context.Expression, i, "-");
 
             var i2 = i;
-            while (i2 < context.Expression.Length && char.IsDigit(context.Expression[i2]))
-                i2++;
+            var expression = context.Expression;
+            var length = expression.Length;
+            var previousWasDigit = false;
+            while (i2 < length)
+            {
+                var currentChar = expression[i2];
+                if (char.IsDigit(currentChar))
+                {
+                    previousWasDigit = true;
+                    i2++;
+                    continue;
+                }
+
+                if (currentChar == '_' && previousWasDigit && i2 + 1 < length && char.IsDigit(expression[i2 + 1]))
+                {
+                    previousWasDigit = false;
+                    i2++;
+                    continue;
+                }
+
+                break;
+            }
 
             if (i == i2)
             {
@@ -22,7 +42,8 @@ namespace FuncScript.Core
 
             i = i2;
 
-            intVal = context.Expression.Substring(index, i - index);
+            var rawValue = expression.Substring(index, i - index);
+            intVal = rawValue.IndexOf('_') >= 0 ? rawValue.Replace("_", string.Empty) : rawValue;
             return i;
         }
     }

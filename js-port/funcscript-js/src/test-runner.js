@@ -1,3 +1,5 @@
+const { SimpleKeyValueCollection } = require('./model/key-value-collection');
+
 const createTestRunner = ({
   FuncScriptParser,
   DefaultFsDataProvider,
@@ -130,6 +132,11 @@ const createTestRunner = ({
     };
   }
 
+  function caseLabel(suite, caseData) {
+    const suiteName = suite?.name || suite?.id || 'Suite';
+    return `Case #${caseData.index} in suite "${suiteName}"`;
+  }
+
   function interpretAssertionOutcome(typedResult) {
     const typed = assertTyped(typedResult);
     const resultType = typeOf(typed);
@@ -206,19 +213,23 @@ const createTestRunner = ({
       }
 
       const casesRaw = collection.get('cases');
-      if (casesRaw === null || casesRaw === undefined) {
-        throw new Error(`Test suite "${displayName}" must include a cases list.`);
-      }
-      const caseList = ensureList(casesRaw, `Suite "${displayName}" cases must be a list.`);
       const cases = [];
-      let caseIndex = 0;
-      for (const caseEntry of caseList) {
-        caseIndex += 1;
-        const { typed: caseTyped, collection: caseCollection } = ensureKeyValue(
-          caseEntry,
-          `Case #${caseIndex} in suite "${displayName}" must be an object.`
-        );
-        cases.push({ index: caseIndex, typed: caseTyped, collection: caseCollection });
+      if (casesRaw === null || casesRaw === undefined) {
+        cases.push(createEmptyCase());
+      } else {
+        const caseList = ensureList(casesRaw, `Suite "${displayName}" cases must be a list.`);
+        let caseIndex = 0;
+        for (const caseEntry of caseList) {
+          caseIndex += 1;
+          const { typed: caseTyped, collection: caseCollection } = ensureKeyValue(
+            caseEntry,
+            `Case #${caseIndex} in suite "${displayName}" must be an object.`
+          );
+          cases.push({ index: caseIndex, typed: caseTyped, collection: caseCollection });
+        }
+        if (caseList.length === 0) {
+          cases.push(createEmptyCase());
+        }
       }
 
       const testRaw = collection.get('test');
@@ -242,6 +253,15 @@ const createTestRunner = ({
       });
     }
     return suites;
+  }
+
+  function createEmptyCase() {
+    const collection = new SimpleKeyValueCollection(null, []);
+    return {
+      index: 1,
+      typed: [FSDataType.KeyValueCollection, collection],
+      collection
+    };
   }
 
   function runSingleTest(testFn, caseProvider, args) {
@@ -317,7 +337,22 @@ const createTestRunner = ({
   }
 
   function runCase(expressionBlock, baseProvider, suite, caseData) {
-    const caseProvider = new KvcProvider(caseData.collection, baseProvider);
+    const ambientValue = caseData.collection.get('ambient');
+    let providerCollection = caseData.collection;
+    if (ambientValue !== null && ambientValue !== undefined) {
+      const typedAmbient = assertTyped(ambientValue);
+      if (typeOf(typedAmbient) === FSDataType.Null) {
+        providerCollection = new SimpleKeyValueCollection();
+      } else {
+        const { collection: ambientCollection } = ensureKeyValue(
+          typedAmbient,
+          `${caseLabel(suite, caseData)} ambient must be an object.`
+        );
+        providerCollection = ambientCollection;
+      }
+    }
+
+    const caseProvider = new KvcProvider(providerCollection, baseProvider);
     const caseResult = {
       index: caseData.index,
       input: convertValue(caseData.typed)
@@ -326,6 +361,17 @@ const createTestRunner = ({
     let expressionValue;
     try {
       expressionValue = assertTyped(expressionBlock.evaluate(caseProvider));
+      if (typeOf(expressionValue) === FSDataType.Function) {
+        const inputValue = caseData.collection.get('input');
+        if (inputValue !== null && inputValue !== undefined) {
+          const inputList = ensureList(inputValue, `${caseLabel(suite, caseData)} input must be a list.`);
+          const args = [];
+          for (const entry of inputList) {
+            args.push(entry);
+          }
+          expressionValue = invokeFunction(expressionValue, caseProvider, args);
+        }
+      }
       caseResult.expressionResult = convertValue(expressionValue);
     } catch (error) {
       caseResult.error = formatCaseError('evaluation', error);

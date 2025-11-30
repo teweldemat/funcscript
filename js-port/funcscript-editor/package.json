@@ -1,6 +1,6 @@
 {
   "name": "@tewelde/funcscript-editor",
-  "version": "0.2.21",
+  "version": "0.2.23",
   "private": false,
   "type": "module",
   "main": "./dist/index.cjs",
@@ -17,6 +17,7 @@
     "dist"
   ],
   "scripts": {
+    "prepare": "npm run build",
     "build": "tsup",
     "clean": "rm -rf dist",
     "test": "vitest run"

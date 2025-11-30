@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { test as runTests, DefaultFsDataProvider } from '../funcscript.js';
+import * as FuncScriptModule from '@tewelde/funcscript';
+const FuncScript: any = (FuncScriptModule as any).test ? FuncScriptModule : (FuncScriptModule as any).default;
+const { test: runTests, DefaultFsDataProvider } = FuncScript;
 
 describe('FuncScript test runner', () => {
   it('evaluates suites and reports passing cases', () => {
@@ -94,5 +96,68 @@ describe('FuncScript test runner', () => {
     const result = runTests(expression, testExpression);
     expect(result.summary.failed).toBe(0);
     expect(result.summary.passed).toBe(2);
+  });
+
+  it('invokes function expressions using ambient data and input lists', () => {
+    const expression = '(a, b) => (a + b) * scale';
+    const testExpression = `
+{
+  suite: {
+    name: "function inputs";
+    cases: [
+      { ambient: { scale: 2 }, input: [3, 4] },
+      { ambient: { scale: 3 }, input: [1, 5] }
+    ];
+    test: (res, caseData) => {
+      sum: caseData.input reduce (acc, value) => acc + value ~ 0;
+      eval assert.equal(res, sum * caseData.ambient.scale);
+    };
+  };
+
+  return [suite];
+}`;
+
+    const result = runTests(expression, testExpression);
+    expect(result.summary.failed).toBe(0);
+    expect(result.summary.passed).toBe(2);
+    expect(result.suites[0].cases.map((c) => c.expressionResult)).toEqual([14, 18]);
+  });
+
+  it('runs a single implicit case when cases are omitted', () => {
+    const expression = '(x)=> x * 2';
+    const testExpression = `
+{
+  suite: {
+    name: "implicit case";
+    test: (fn) => assert.equal(fn(3), 6);
+  };
+
+  eval [suite];
+}`;
+
+    const result = runTests(expression, testExpression);
+    expect(result.summary.failed).toBe(0);
+    expect(result.summary.passed).toBe(1);
+  });
+
+  it('treats null ambient as empty for function suites', () => {
+    const expression = '(value) => value';
+    const testExpression = `
+{
+  suite: {
+    name: "null ambient";
+    cases: [
+      { ambient: null, input: [7] }
+    ];
+    test: (res, data) => assert.equal(res, data.input[0]);
+  };
+
+  return [suite];
+}`;
+
+    const result = runTests(expression, testExpression);
+    expect(result.summary.failed).toBe(0);
+    expect(result.summary.passed).toBe(1);
+    expect(result.suites[0].cases[0].expressionResult).toBe(7);
   });
 });

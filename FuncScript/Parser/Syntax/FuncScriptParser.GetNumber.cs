@@ -76,10 +76,14 @@ namespace FuncScript.Core
 
             if (hasDecimal) //if it has decimal we treat it as 
             {
-                if (!double.TryParse(context.Expression.Substring(currentIndex, i - currentIndex), out var dval))
+                var literalText = context.Expression.Substring(currentIndex, i - currentIndex);
+                var sanitizedText = literalText.IndexOf('_') >= 0
+                    ? literalText.Replace("_", string.Empty)
+                    : literalText;
+                if (!double.TryParse(sanitizedText, out var dval))
                 {
                     serros.Add(new SyntaxErrorData(currentIndex, i - currentIndex,
-                        $"{context.Expression.Substring(currentIndex, i - currentIndex)} couldn't be parsed as floating point"));
+                        $"{literalText} couldn't be parsed as floating point"));
                     return new NumberResult(index, null, index, 0, null); //we don't expect this to happen
                 }
 

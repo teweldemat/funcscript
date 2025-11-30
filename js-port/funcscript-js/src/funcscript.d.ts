@@ -232,6 +232,25 @@ export interface TestRunResult {
   summary: TestRunSummary;
 }
 
+export interface PackageTestResultEntry {
+  path: string;
+  testPath: string;
+  result: TestRunResult;
+}
+
+export interface PackageTestSummary {
+  scripts: number;
+  suites: number;
+  cases: number;
+  passed: number;
+  failed: number;
+}
+
+export interface PackageTestRunResult {
+  tests: PackageTestResultEntry[];
+  summary: PackageTestSummary;
+}
+
 export declare function evaluate(
   expression: string,
   provider?: FsDataProvider
@@ -270,6 +289,11 @@ export declare function test(
   provider?: FsDataProvider
 ): TestRunResult;
 
+export declare function testPackage(
+  resolver: PackageResolver,
+  provider?: FsDataProvider
+): PackageTestRunResult;
+
 export declare function getTypeName(type: FSDataType): string;
 
 export type BuiltinFunctionMap = Record<string, BaseFunction>;
@@ -288,6 +312,7 @@ export declare const Engine: {
   evaluateTemplate: typeof evaluateTemplate;
   loadPackage: typeof loadPackage;
   test: typeof test;
+  testPackage: typeof testPackage;
   colorParseTree: typeof colorParseTree;
   FuncScriptParser: typeof import('./parser/funcscript-parser').FuncScriptParser;
   DefaultFsDataProvider: typeof DefaultFsDataProvider;

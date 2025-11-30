@@ -150,4 +150,55 @@ describe('Packages with ```javascript``` blocks', () => {
     expect(typeOf(typed)).to.equal(FSDataType.Integer);
     expect(valueOf(typed)).to.equal(15);
   });
+
+  it('injects helper folders into nested JavaScript expressions', () => {
+    const resolver = createMockResolver({
+      children: {
+        cartoon: {
+          children: {
+            helpers: {
+              children: {
+                toPoint: {
+                  expression: jsBlock`
+                    return function toPoint(value) {
+                      if (Array.isArray(value) && value.length >= 2) {
+                        return value;
+                      }
+                      if (value && typeof value === 'object') {
+                        if ('x' in value || 'y' in value) {
+                          return [Number(value.x) || 0, Number(value.y) || 0];
+                        }
+                      }
+                      return [0, 0];
+                    };
+                  `
+                },
+                marker: {
+                  expression: jsBlock`return 21;`
+                }
+              }
+            },
+            stickman: {
+              children: {
+                leg: {
+                  expression: jsBlock`
+                    if (!helpers || typeof helpers.toPoint !== 'function') {
+                      throw new Error('helpers.toPoint missing');
+                    }
+                    const coord = helpers.toPoint({ x: helpers.marker, y: 0 });
+                    return coord[0] * 2;
+                  `
+                }
+              }
+            }
+          }
+        },
+        eval: { expression: jsBlock`return cartoon.stickman.leg;` }
+      }
+    });
+
+    const typed = loadPackage(resolver);
+    expect(typeOf(typed)).to.equal(FSDataType.Integer);
+    expect(valueOf(typed)).to.equal(42);
+  });
 });

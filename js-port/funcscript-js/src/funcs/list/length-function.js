@@ -23,6 +23,10 @@ class LengthFunction extends BaseFunction {
     const typedArg = helpers.assertTyped(parameters.getParameter(provider, 0));
     const argType = helpers.typeOf(typedArg);
 
+    if (argType === FSDataType.Null) {
+      return helpers.makeValue(FSDataType.Integer, 0);
+    }
+
     if (argType === FSDataType.List) {
       return helpers.makeValue(FSDataType.Integer, helpers.valueOf(typedArg).length);
     }

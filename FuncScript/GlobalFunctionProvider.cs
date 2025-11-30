@@ -50,9 +50,24 @@ namespace FuncScript
 
         public IList<string> GetAllKeys()
         {
-            if (_data == null || _data.Count == 0)
+            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (_data != null && _data.Count > 0)
+            {
+                keys.UnionWith(_data.Keys);
+            }
+
+            lock (s_registryLock)
+            {
+                keys.UnionWith(s_funcByName.Keys);
+                keys.UnionWith(s_providerCollections.Keys);
+            }
+
+            if (keys.Count == 0)
+            {
                 return Array.Empty<string>();
-            return _data.Keys.ToArray();
+            }
+
+            return keys.ToArray();
         }
 
         public static void LoadFromAssembly(Assembly a)
@@ -278,7 +293,7 @@ namespace FuncScript
             return _parent.Get(name);
         }
 
-        public KeyValueCollection ParentProvider { get; }
+        public KeyValueCollection ParentProvider => _parent;
         public KeyValueCollection Pare => _parent;
         public bool IsDefined(string key, bool hierarchy = true)
         {

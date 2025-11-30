@@ -11,15 +11,80 @@ A FuncScript expression **A** can be tested using another FuncScript expression 
 Each test script returns one or more `testSuite` objects (analogous to test suites). A `testSuite` typically defines:
 
 - `name`: A description of what the suite validates.
-- `cases`: Mock input values for intercepted symbols.
-- `test`: A function that runs once per case and performs assertions against the evaluated result. The function returns the assertion outcome, and when multiple assertions run it can return a list of results.
+- `cases`: Mock variables that the expression refers to (ambient variables). Skip this when you want a single implicit case, which is handy for function targets you plan to call yourself.
+- `test`: A function that runs once per case and performs assertions against the evaluated result. The function returns the assertion outcome, and multiple assertions are combined into list.
 
 The `test` function receives two arguments:
 
-1. `resData` — the result of evaluating expression **A** with the mocked inputs.
-2. `caseData` — the mock values for the current case, which is handy when assertions depend on the provided inputs.
+1. `resData` — the result of evaluating expression **A** with the mocked inputs. When **A** is a function and you do not provide an `input` list, `resData` is the uninvoked function so your test can decide how to call it.
+2. `caseData` — the mock values for the current case, which is handy when assertions depend on the provided inputs (or an empty object when `cases` is omitted).
 
-### Example
+### Testing Functions
+
+FuncScript functions can be exercised either by calling them directly inside the test or by letting the framework invoke them for each case.
+
+#### Manual invocation (no ambient or input lists)
+
+Skip `cases` to run a single implicit pass and receive the function itself:
+
+```funcscript
+// Expression under test
+(value, offset) => value + offset
+```
+
+```funcscript
+// Test script
+{
+  callDirectly: {
+    name: "manual function testing";
+    test: (fn) => [
+      assert.equal(fn(2, 3), 5),
+      assert.equal(fn(-1, 4), 3)
+    ];
+  };
+
+  eval [callDirectly];
+}
+```
+
+Here the test gets `fn` as the first argument and decides how many times and with which parameters to invoke it. This pattern is useful when you want to explore multiple inputs without wiring up `cases`.
+
+#### Automatic invocation with ambient and input data
+
+When you prefer the framework to call the function for you, each case can describe:
+
+- `ambient` — Optional key/value collection of variables to inject while evaluating the function expression. This plays the same role as the case object in non-function tests.
+- `input` — Optional list of positional arguments that will be passed to the function after evaluation. When `input` is omitted, the framework passes the unevaluated function into your `test` without calling it.
+
+Example:
+
+```funcscript
+// Expression under test
+(value, offset) => (value + offset) * scale
+```
+
+```funcscript
+// Test script
+{
+  scaleFunction: {
+    name: "invokes function expressions";
+    cases: [
+      { ambient: { scale: 2 }, input: [3, 1] },
+      { ambient: { scale: 3 }, input: [4, 0] }
+    ];
+    test: (resData, caseData) => {
+      sum: caseData.input reduce (acc, value) => acc + value ~ 0;
+      eval assert.equal(resData, sum * caseData.ambient.scale);
+    };
+  };
+
+  eval [scaleFunction];
+}
+```
+
+Each case supplies per-run `ambient` data (`scale`) that feeds the expression, plus an `input` list that becomes `(value, offset)`. The framework automatically invokes the function with the provided arguments before running the assertions, so `resData` captures the function’s output.
+
+### Testing Non-function Expressions
 
 Script under test:
 
@@ -45,7 +110,7 @@ Test script:
       { "a": 1.0, "b": 2.0, "c": -1.0 },
       { "a": 1.0, "b": 4.0, "c": 2.0 }
     ];
-    test: (resData, caseData) => assert.isnotnull(resData);
+    test: (resData, caseData) => assert.noerror(resData);
   };
   shouldBeError: {
     name: "Returns an error result for non-solvable quadratic equations";
@@ -97,7 +162,7 @@ These predicates make it easy to validate both normal and exceptional results fr
 ## Execution Flow
 
 1. The framework intercepts `IFsDataProvider.Get` calls inside the tested expression **A**.
-2. For each mock case defined in `cases`, the specified symbols are substituted with the provided mock values.
+2. For each mock case defined in `cases` (or a single implicit case when `cases` is omitted), the specified symbols are substituted with the provided mock values.
 3. Expression **A** executes with the substituted data.
 4. The resulting value is passed to the `test` function defined by each `testSuite`.
 5. Assertion outcomes are reported per case, letting you see which inputs triggered which results.
@@ -109,3 +174,7 @@ Each test script must evaluate to an array of `testSuite` objects:
 ```funcscript
 eval [testSuite1, testSuite2, ...];
 ```
+
+### Package Integration
+
+The `testPackage(resolver, provider?)` helper walks a FuncScript package resolver, looks for `<name>` / `<name>.test` siblings (plus the special `eval` / `eval.test` pair), and executes each discovered test file using this framework. Package expressions and their tests share the same folder-local scope, so helpers and nested bindings stay available, and function expressions can either be passed through directly to the test (skipping `cases`) or use the `{ ambient, input }` case shape to supply provider overrides and positional parameters.
