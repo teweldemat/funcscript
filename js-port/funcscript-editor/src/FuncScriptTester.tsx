@@ -1369,6 +1369,10 @@ type PlainFormatStats = {
   kvcs: number;
   truncations: number;
   maxDepthHit: boolean;
+  maxStringLength: number;
+  maxStringPath: string | null;
+  maxListLength: number;
+  maxKvcSize: number;
 };
 
 type PlainFormatOptions = {
@@ -1380,14 +1384,19 @@ type PlainFormatOptions = {
 const typedValueToPlain = (
   typedValue: TypedValue,
   options?: PlainFormatOptions,
-  depth = 0
+  depth = 0,
+  path = 'root'
 ): unknown => {
   const stats: PlainFormatStats = options?.stats ?? {
     nodes: 0,
     lists: 0,
     kvcs: 0,
     truncations: 0,
-    maxDepthHit: false
+    maxDepthHit: false,
+    maxStringLength: 0,
+    maxStringPath: null,
+    maxListLength: 0,
+    maxKvcSize: 0
   };
   stats.nodes += 1;
 
@@ -1410,6 +1419,13 @@ const typedValueToPlain = (
     case FSDataType.Float:
     case FSDataType.String:
     case FSDataType.Guid:
+      if (typeof rawValue === 'string') {
+        const len = rawValue.length;
+        if (len > stats.maxStringLength) {
+          stats.maxStringLength = len;
+          stats.maxStringPath = path;
+        }
+      }
       return rawValue;
     case FSDataType.List: {
       stats.lists += 1;
@@ -1417,10 +1433,15 @@ const typedValueToPlain = (
         return rawValue;
       }
       const arr = (rawValue as { toArray: () => TypedValue[] }).toArray();
+      if (arr.length > stats.maxListLength) {
+        stats.maxListLength = arr.length;
+      }
       if (depth >= maxDepth) {
         return formatTruncated(`[List length=${arr.length}]`);
       }
-      const items = arr.slice(0, maxItems).map((entry) => typedValueToPlain(entry, options, depth + 1));
+      const items = arr
+        .slice(0, maxItems)
+        .map((entry, index) => typedValueToPlain(entry, options, depth + 1, `${path}[${index}]`));
       if (arr.length > maxItems) {
         items.push(`…(+${arr.length - maxItems} more items)`);
         stats.truncations += 1;
@@ -1433,13 +1454,16 @@ const typedValueToPlain = (
         return rawValue;
       }
       const entries = (rawValue as { getAll: () => Array<readonly [string, TypedValue]> }).getAll();
+      if (entries.length > stats.maxKvcSize) {
+        stats.maxKvcSize = entries.length;
+      }
       if (depth >= maxDepth) {
         return formatTruncated(`[KVC size=${entries.length}]`);
       }
       const limited = entries.slice(0, maxItems);
       const result: Record<string, unknown> = {};
       for (const [key, value] of limited) {
-        result[key] = typedValueToPlain(value, options, depth + 1);
+        result[key] = typedValueToPlain(value, options, depth + 1, `${path}.${key}`);
       }
       if (entries.length > maxItems) {
         result.__truncated__ = `+${entries.length - maxItems} more entries`;
@@ -1458,7 +1482,11 @@ const formatTypedValue = (typedValue: TypedValue): string => {
     lists: 0,
     kvcs: 0,
     truncations: 0,
-    maxDepthHit: false
+    maxDepthHit: false,
+    maxStringLength: 0,
+    maxStringPath: null,
+    maxListLength: 0,
+    maxKvcSize: 0
   };
   const plain = typedValueToPlain(typedValue, { maxDepth: 4, maxItems: 200, stats });
   if (plain === null || plain === undefined) {
@@ -1478,7 +1506,11 @@ const formatTypedValue = (typedValue: TypedValue): string => {
         lists: stats.lists,
         kvcs: stats.kvcs,
         truncated: stats.truncations > 0,
-        maxDepthHit: stats.maxDepthHit
+        maxDepthHit: stats.maxDepthHit,
+        maxStringLength: stats.maxStringLength,
+        maxStringPath: stats.maxStringPath ?? 'n/a',
+        maxListLength: stats.maxListLength,
+        maxKvcSize: stats.maxKvcSize
       });
     }
     return formatted;
@@ -2784,7 +2816,8 @@ const FuncScriptTester = ({
     const start = nowMs();
     const formatted = formatTypedValue(resultState.value);
     logTiming('formatResult', nowMs() - start, {
-      type: resultTypeName ?? Engine.getTypeName(Engine.typeOf(resultState.value))
+      type: resultTypeName ?? Engine.getTypeName(Engine.typeOf(resultState.value)),
+      length: formatted.length
     });
     return formatted;
   }, [resultState.value, resultTypeName]);
