@@ -21,25 +21,35 @@ namespace FuncScript.Block
         public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {
             depth.Enter();
+            object result = null;
             try
             {
                 var target = _function.Evaluate(provider, depth);
                 if (target is FsError targetError)
-                    return AttachCodeLocation(_function, targetError);
+                {
+                    result = AttachCodeLocation(_function, targetError);
+                    return result;
+                }
 
                 var input = _parameter.Evaluate(provider, depth);
                 if (input is FsError inputError)
-                    return AttachCodeLocation(_parameter, inputError);
+                {
+                    result = AttachCodeLocation(_parameter, inputError);
+                    return result;
+                }
 
-                var result = Engine.Apply(target, input);
+                result = Engine.Apply(target, input);
                 if (result is FsError callError)
-                    return AttachCodeLocation(this, callError);
+                {
+                    result = AttachCodeLocation(this, callError);
+                    return result;
+                }
 
                 return result;
             }
             finally
             {
-                depth.Exit();
+                depth.Exit(result, this);
             }
         }
 

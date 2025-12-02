@@ -30,9 +30,17 @@ namespace FuncScript.Block
                     if (index < 0 || index >= expression.ValueExpressions.Length)
                         return null;
                     _depth.Enter();
-                    var ret= expression.ValueExpressions[index].Evaluate(provider, _depth);
-                    _depth.Exit();
-                    return ret;
+                    object result = null;
+                    var block = expression.ValueExpressions[index];
+                    try
+                    {
+                        result = block.Evaluate(provider, _depth);
+                        return result;
+                    }
+                    finally
+                    {
+                        _depth.Exit(result, block);
+                    }
                 }
             }
 

@@ -28,30 +28,38 @@ namespace FuncScript.Block
         public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {
             depth.Enter();
-            object ret;
-            switch (_referenceMode)
+            object result = null;
+            try
             {
-                case ReferenceMode.Standard:
-                    ret= provider.Get(_nameLower);
-                    break;
-                case ReferenceMode.SkipSiblings:
-                    ret= provider.ParentProvider?.Get(_nameLower);
-                    break;
-                case ReferenceMode.ParentsThenSiblings:
-                    if (provider.ParentProvider!=null && provider.ParentProvider.IsDefined(_nameLower))
-                        ret= provider.ParentProvider.Get(_nameLower);
-                    else
-                        ret=provider.Get(_nameLower);
-                    break;
-                default:
-                    ret= new FsError(FsError.ERROR_TYPE_INVALID_PARAMETER,
-                        $"Unsupported reference mode {_referenceMode}");
-                    break;
+                switch (_referenceMode)
+                {
+                    case ReferenceMode.Standard:
+                        result = provider.Get(_nameLower);
+                        break;
+                    case ReferenceMode.SkipSiblings:
+                        result = provider.ParentProvider?.Get(_nameLower);
+                        break;
+                    case ReferenceMode.ParentsThenSiblings:
+                        if (provider.ParentProvider != null && provider.ParentProvider.IsDefined(_nameLower))
+                            result = provider.ParentProvider.Get(_nameLower);
+                        else
+                            result = provider.Get(_nameLower);
+                        break;
+                    default:
+                        result = new FsError(FsError.ERROR_TYPE_INVALID_PARAMETER,
+                            $"Unsupported reference mode {_referenceMode}");
+                        break;
+                }
+
+                if (result is FsError error)
+                    result = AttachCodeLocation(this, error);
+
+                return result;
             }
-            depth.Exit();
-            if (ret is FsError error)
-                return AttachCodeLocation(this, error);
-            return ret;
+            finally
+            {
+                depth.Exit(result, this);
+            }
         }
 
         public override IEnumerable<ExpressionBlock> GetChilds() => Array.Empty<ExpressionBlock>();

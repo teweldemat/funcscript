@@ -713,6 +713,42 @@ namespace FuncScript
         {
             return Evaluate(expression, providers, null, ParseMode.Standard);
         }
+
+        public record TraceInfo(int startIndex,int StartLine, int StartColumn,int endIndex, int EndLine, int EndColumn, string Snippet, object Result);
+
+        public static object Trace(string expression, Action<object> hook = null)
+        {
+            return Trace(expression, (result, info) =>
+            {
+                if (info == null)
+                    return;
+
+                Console.WriteLine($"Evaluating {info.StartLine}:{info.StartColumn}-{info.EndLine}:{info.EndColumn}");
+                if (!string.IsNullOrEmpty(info.Snippet))
+                    Console.WriteLine($" {info.Snippet}");
+
+                hook?.Invoke(info.Result);
+            });
+        }
+
+        public static object Trace(string expression, Action<object, TraceInfo> hook)
+        {
+            return Trace(expression, new DefaultFsDataProvider(), hook);
+        }
+        public static object Trace(string expression,KeyValueCollection provider,  Action<object, TraceInfo> hook)
+        {
+            var lineStarts = BuildLineStarts(expression);
+            var depth = new ExpressionBlock.DepthCounter((result, block) =>
+            {
+                if (block == null)
+                    return;
+
+                var info = BuildTraceInfo(expression, lineStarts, block, result);
+                hook?.Invoke(result, info);
+            });
+
+            return EvaluateInternal(expression,provider, null, ParseMode.Standard, depth);
+        }
         public enum ParseMode
         {
             Standard,
@@ -720,6 +756,10 @@ namespace FuncScript
             FsTemplate
         }
         public static object Evaluate(string expression, KeyValueCollection provider, object vars, ParseMode mode)
+        {
+            return EvaluateInternal(expression, provider, vars, mode, new ExpressionBlock.DepthCounter());
+        }
+        private static object EvaluateInternal(string expression, KeyValueCollection provider, object vars, ParseMode mode, ExpressionBlock.DepthCounter depth)
         {
             if (vars != null)
             {
@@ -746,13 +786,18 @@ namespace FuncScript
 
             if (exp == null)
                 throw new Error.SyntaxError(expression,serrors);
-            return Evaluate(exp, expression, provider, vars);
+            return EvaluateInternal(exp, expression, provider, vars, depth);
         }
         public static object Evaluate(ExpressionBlock exp, string expression, KeyValueCollection provider, object vars)
         {
+            return EvaluateInternal(exp, expression, provider, vars, new ExpressionBlock.DepthCounter());
+        }
+        private static object EvaluateInternal(ExpressionBlock exp, string expression, KeyValueCollection provider, object vars, ExpressionBlock.DepthCounter depth)
+        {
+            depth ??= new ExpressionBlock.DepthCounter();
             try
             {
-                var ret = exp.Evaluate(provider, new ExpressionBlock.DepthCounter());
+                var ret = exp.Evaluate(provider, depth);
 
                 if (ret is Block.KvcExpression.KvcExpressionCollection kvc)
                 {
@@ -793,6 +838,76 @@ namespace FuncScript
 
                 throw new EvaluationException(finalMessage, ex.Pos, ex.Len, ex.InnerException);
             }
+        }
+
+        private static TraceInfo BuildTraceInfo(string expression, List<int> lineStarts, ExpressionBlock block, object result)
+        {
+            var location = block?.CodeLocation ?? new CodeLocation(0, 0);
+            var start = GetLineAndColumn(lineStarts, expression, location.Position);
+            var endPos = location.Length > 0 ? location.Position + location.Length - 1 : location.Position;
+            var end = GetLineAndColumn(lineStarts, expression, endPos);
+            var snippet = ExtractSnippet(expression, block, location);
+
+            return new TraceInfo(location?.Position??-1,  start.line, start.column, location?.Length??-1, end.line, end.column, snippet, result);
+        }
+
+        private static (int line, int column) GetLineAndColumn(List<int> lineStarts, string expression, int position)
+        {
+            if (string.IsNullOrEmpty(expression))
+                return (1, 1);
+
+            position = Math.Max(0, Math.Min(position, expression.Length));
+            var index = lineStarts.BinarySearch(position);
+            var lineIndex = index >= 0 ? index : ~index - 1;
+            if (lineIndex < 0)
+                lineIndex = 0;
+
+            var lineStart = lineStarts[lineIndex];
+            var column = position - lineStart + 1;
+            return (lineIndex + 1, column);
+        }
+
+        private static List<int> BuildLineStarts(string expression)
+        {
+            var starts = new List<int>();
+            if (expression == null)
+            {
+                starts.Add(0);
+                return starts;
+            }
+
+            starts.Add(0);
+            for (var i = 0; i < expression.Length; i++)
+            {
+                if (expression[i] == '\n')
+                    starts.Add(i + 1);
+            }
+            return starts;
+        }
+
+        private static string ExtractSnippet(string expression, ExpressionBlock block, CodeLocation location)
+        {
+            const int maxLength = 200;
+            if (string.IsNullOrEmpty(expression))
+                return Truncate(block?.AsExpString(), maxLength);
+
+            var start = Math.Max(0, location?.Position ?? 0);
+            start = Math.Min(start, expression.Length);
+            var length = Math.Max(0, location?.Length ?? 0);
+            if (length <= 0)
+                length = Math.Min(maxLength, expression.Length - start);
+            else
+                length = Math.Min(length, expression.Length - start);
+
+            var snippet = length > 0 ? expression.Substring(start, length) : expression;
+            return Truncate(snippet, maxLength);
+        }
+
+        private static string Truncate(string text, int maxLength)
+        {
+            if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
+                return text;
+            return $"{text.Substring(0, maxLength)}...";
         }
 
         public static IEnumerable<ParseNode> ColorParseTree(ParseNode node)

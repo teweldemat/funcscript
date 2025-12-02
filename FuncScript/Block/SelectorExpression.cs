@@ -20,39 +20,45 @@ namespace FuncScript.Block
         public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {
             depth.Enter();
-            var sourceVal = Source.Evaluate(provider, depth);
-            if (sourceVal is FsList)
+            object result = null;
+            try
             {
-                var lst = (FsList)sourceVal;
-                var ret = new object[lst.Length];
-                int i = 0;
-
-                foreach (var l in lst)
+                var sourceVal = Source.Evaluate(provider, depth);
+                if (sourceVal is FsList lst)
                 {
-                    if (l is KeyValueCollection kvc)
-                    {
-                        var selectorProvider = CreateSelectorProvider(kvc, provider);
-                        ret[i] = Selector.Evaluate(selectorProvider,depth );
-                    }
-                    else
-                    {
-                        ret[i] = null;
-                    }
-                    i++;
-                }
-                depth.Exit();
-                return new ArrayFsList(ret);
+                    var ret = new object[lst.Length];
+                    int i = 0;
 
+                    foreach (var l in lst)
+                    {
+                        if (l is KeyValueCollection kvc)
+                        {
+                            var selectorProvider = CreateSelectorProvider(kvc, provider);
+                            ret[i] = Selector.Evaluate(selectorProvider, depth);
+                        }
+                        else
+                        {
+                            ret[i] = null;
+                        }
+                        i++;
+                    }
+                    result = new ArrayFsList(ret);
+                    return result;
+                }
+
+                if (sourceVal is KeyValueCollection sourceKvc)
+                {
+                    var selectorProvider = CreateSelectorProvider(sourceKvc, provider);
+                    result = Selector.Evaluate(selectorProvider, depth);
+                    return result;
+                }
+
+                result = null;
+                return result;
             }
-            else
+            finally
             {
-                if (sourceVal is KeyValueCollection kvc)
-                {
-                    var selectorProvider = CreateSelectorProvider(kvc, provider);
-                    return Selector.Evaluate(selectorProvider, depth);
-                }
-                depth.Exit();
-                return null;
+                depth.Exit(result, this);
             }
         }
 

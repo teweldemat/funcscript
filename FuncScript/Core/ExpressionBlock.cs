@@ -18,7 +18,13 @@ namespace FuncScript.Core
 
         public class DepthCounter
         {
+            private readonly Action<object, ExpressionBlock> _hook;
             public int Count = 0;
+
+            public DepthCounter(Action<object, ExpressionBlock> hook = null)
+            {
+                _hook = hook;
+            }
 
             public void Enter()
             {
@@ -27,9 +33,10 @@ namespace FuncScript.Core
                 Count++;
             }
 
-            public void Exit()
+            public void Exit(object result, ExpressionBlock block)
             {
                 Count--;
+                _hook?.Invoke(result, block);
             }
         }
         public CodeLocation CodeLocation

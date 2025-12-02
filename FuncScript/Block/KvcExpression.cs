@@ -96,14 +96,15 @@ namespace FuncScript.Block
                     return cached;
 
                 _depth.Enter();
-                object value;
+                object value = null;
+                var block = expression.ValueExpression;
                 try
                 {
-                    value = expression.ValueExpression.Evaluate(this, _depth);
+                    value = block.Evaluate(this, _depth);
                 }
                 finally
                 {
-                    _depth.Exit();
+                    _depth.Exit(value, block);
                 }
 
                 if (!string.IsNullOrEmpty(cacheKey))

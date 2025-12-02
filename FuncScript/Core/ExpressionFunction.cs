@@ -25,9 +25,16 @@ namespace FuncScript.Core
                     parentSymbolProvider = provider
                 };
                 depth.Enter();
-                var ret=parent.Expression.Evaluate(parProvider, depth);
-                depth.Exit();
-                return ret;
+                object result = null;
+                try
+                {
+                    result = parent.Expression.Evaluate(parProvider, depth);
+                    return result;
+                }
+                finally
+                {
+                    depth.Exit(result, parent.Expression);
+                }
             }
 
             public CallType CallType { get; } = CallType.Prefix;
