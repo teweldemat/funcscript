@@ -23,6 +23,7 @@ This extension adds parser-backed language support for FuncScript `.fx` and `.fs
 ## Packaging
 
 Use `vsce package` (from the [VSCE CLI](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)) to build a `.vsix` package for distribution.
+Run `npm ci --omit=dev && npm run compile` first so `node_modules/@tewelde/funcscript` is present; the checked-in `.vscodeignore` keeps that parser runtime in the VSIX.
 
 ## Icon Theme
 

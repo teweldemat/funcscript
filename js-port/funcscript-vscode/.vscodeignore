@@ -1,0 +1,23 @@
+# Keep node_modules so the bundled @tewelde/funcscript parser ships in the VSIX.
+
+# Editor and VCS state
+.vscode/**
+.vscode-test/**
+.git/**
+.gitignore
+.vscodeignore
+
+# Packaging and OS cruft
+*.vsix
+npm-debug.log*
+yarn-error.log*
+**/.DS_Store
+
+# Build/test-only sources
+src/__tests__/**
+dist/__tests__/**
+scripts/**
+tsconfig.json
+vercel.json
+public/**
+site/**

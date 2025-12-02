@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -25,6 +26,23 @@ type VariableState = {
   key: string;
   expression: string;
   typedValue: TypedValue | null;
+  error: string | null;
+};
+
+export type EvaluationTiming = {
+  name: string;
+  duration: number;
+};
+
+export type EvaluationProfile = {
+  startedAt: number;
+  endedAt: number;
+  expressionChars: number;
+  variableCount: number;
+  variableTotalMs: number;
+  expressionMs: number;
+  totalMs: number;
+  variables: EvaluationTiming[];
   error: string | null;
 };
 
@@ -121,6 +139,24 @@ const clamp = (value: number, min: number, max: number) => {
     return min;
   }
   return Math.min(max, Math.max(min, value));
+};
+
+const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+const TIMING_LOG_THRESHOLD_MS = 15;
+const logTiming = (
+  label: string,
+  duration: number,
+  details?: Record<string, number | string | boolean | null | undefined>
+) => {
+  if (duration < TIMING_LOG_THRESHOLD_MS) {
+    return;
+  }
+  if (typeof console !== 'undefined' && typeof console.log === 'function') {
+    console.log(`FuncScriptTester timing: ${label}`, {
+      ms: Math.round(duration),
+      ...(details ?? {})
+    });
+  }
 };
 
 type PointerDragOptions = {
@@ -1327,9 +1363,44 @@ const treeEditorContentStyle: CSSProperties = {
   overflow: 'hidden'
 };
 
-const typedValueToPlain = (typedValue: TypedValue): unknown => {
+type PlainFormatStats = {
+  nodes: number;
+  lists: number;
+  kvcs: number;
+  truncations: number;
+  maxDepthHit: boolean;
+};
+
+type PlainFormatOptions = {
+  maxDepth?: number;
+  maxItems?: number;
+  stats?: PlainFormatStats;
+};
+
+const typedValueToPlain = (
+  typedValue: TypedValue,
+  options?: PlainFormatOptions,
+  depth = 0
+): unknown => {
+  const stats: PlainFormatStats = options?.stats ?? {
+    nodes: 0,
+    lists: 0,
+    kvcs: 0,
+    truncations: 0,
+    maxDepthHit: false
+  };
+  stats.nodes += 1;
+
+  const maxDepth = options?.maxDepth ?? 4;
+  const maxItems = options?.maxItems ?? 200;
   const valueType = Engine.typeOf(typedValue);
   const rawValue = Engine.valueOf(typedValue as TypedValue<unknown>);
+
+  const formatTruncated = (hint: string) => {
+    stats.truncations += 1;
+    stats.maxDepthHit = stats.maxDepthHit || depth >= maxDepth;
+    return hint;
+  };
 
   switch (valueType) {
     case FSDataType.Null:
@@ -1341,23 +1412,40 @@ const typedValueToPlain = (typedValue: TypedValue): unknown => {
     case FSDataType.Guid:
       return rawValue;
     case FSDataType.List: {
-      if (rawValue && typeof (rawValue as { toArray?: () => TypedValue[] }).toArray === 'function') {
-        return (rawValue as { toArray: () => TypedValue[] }).toArray().map(typedValueToPlain);
+      stats.lists += 1;
+      if (!rawValue || typeof (rawValue as { toArray?: () => TypedValue[] }).toArray !== 'function') {
+        return rawValue;
       }
-      return rawValue;
+      const arr = (rawValue as { toArray: () => TypedValue[] }).toArray();
+      if (depth >= maxDepth) {
+        return formatTruncated(`[List length=${arr.length}]`);
+      }
+      const items = arr.slice(0, maxItems).map((entry) => typedValueToPlain(entry, options, depth + 1));
+      if (arr.length > maxItems) {
+        items.push(`…(+${arr.length - maxItems} more items)`);
+        stats.truncations += 1;
+      }
+      return items;
     }
     case FSDataType.KeyValueCollection: {
-      if (rawValue && typeof (rawValue as { getAll?: () => Array<readonly [string, TypedValue]> }).getAll === 'function') {
-        const entries = (rawValue as {
-          getAll: () => Array<readonly [string, TypedValue]>;
-        }).getAll();
-        const result: Record<string, unknown> = {};
-        for (const [key, value] of entries) {
-          result[key] = typedValueToPlain(value);
-        }
-        return result;
+      stats.kvcs += 1;
+      if (!rawValue || typeof (rawValue as { getAll?: () => Array<readonly [string, TypedValue]> }).getAll !== 'function') {
+        return rawValue;
       }
-      return rawValue;
+      const entries = (rawValue as { getAll: () => Array<readonly [string, TypedValue]> }).getAll();
+      if (depth >= maxDepth) {
+        return formatTruncated(`[KVC size=${entries.length}]`);
+      }
+      const limited = entries.slice(0, maxItems);
+      const result: Record<string, unknown> = {};
+      for (const [key, value] of limited) {
+        result[key] = typedValueToPlain(value, options, depth + 1);
+      }
+      if (entries.length > maxItems) {
+        result.__truncated__ = `+${entries.length - maxItems} more entries`;
+        stats.truncations += 1;
+      }
+      return result;
     }
     default:
       return rawValue;
@@ -1365,7 +1453,14 @@ const typedValueToPlain = (typedValue: TypedValue): unknown => {
 };
 
 const formatTypedValue = (typedValue: TypedValue): string => {
-  const plain = typedValueToPlain(typedValue);
+  const stats: PlainFormatStats = {
+    nodes: 0,
+    lists: 0,
+    kvcs: 0,
+    truncations: 0,
+    maxDepthHit: false
+  };
+  const plain = typedValueToPlain(typedValue, { maxDepth: 4, maxItems: 200, stats });
   if (plain === null || plain === undefined) {
     return 'null';
   }
@@ -1376,7 +1471,17 @@ const formatTypedValue = (typedValue: TypedValue): string => {
     return String(plain);
   }
   try {
-    return JSON.stringify(plain, null, 2);
+    const formatted = JSON.stringify(plain, null, 2);
+    if (typeof console !== 'undefined' && typeof console.log === 'function' && formatted && formatted.length > 0) {
+      logTiming('formatResult-details', 0, {
+        nodes: stats.nodes,
+        lists: stats.lists,
+        kvcs: stats.kvcs,
+        truncated: stats.truncations > 0,
+        maxDepthHit: stats.maxDepthHit
+      });
+    }
+    return formatted;
   } catch {
     if (typeof plain === 'object' && plain && 'toString' in plain) {
       return String((plain as { toString: () => string }).toString());
@@ -1396,6 +1501,7 @@ export type FuncScriptTesterProps = Omit<FuncScriptEditorProps, 'onParseModelCha
   onVariablesChange?: (variables: FuncScriptTesterVariableInput[]) => void;
   initialMode?: 'standard' | 'tree';
   onEvaluationError?: (message: string | null) => void;
+  onEvaluationProfile?: (profile: EvaluationProfile) => void;
 };
 
 const FuncScriptTester = ({
@@ -1409,8 +1515,11 @@ const FuncScriptTester = ({
   variables: externalVariables,
   onVariablesChange,
   initialMode = 'standard',
-  onEvaluationError
+  onEvaluationError,
+  onEvaluationProfile
 }: FuncScriptTesterProps) => {
+  const renderStartRef = useRef<number>(nowMs());
+  renderStartRef.current = nowMs();
   const [variables, setVariables] = useState<Map<string, VariableState>>(() => new Map());
   const variablesRef = useRef<Map<string, VariableState>>(variables);
   const [selectedVariableKey, setSelectedVariableKey] = useState<string | null>(null);
@@ -1438,6 +1547,7 @@ const FuncScriptTester = ({
   const [hasPendingChanges, setHasPendingChanges] = useState(false);
   const [currentParseError, setCurrentParseError] = useState<string | null>(null);
   const [nodeEditorParseError, setNodeEditorParseError] = useState<string | null>(null);
+  const [isResultExpanded, setIsResultExpanded] = useState(false);
 
   const pendingSelectionRangeRef = useRef<{ start: number; end: number } | null>(null);
   const selectedNodeRef = useRef<ParseTreeNode | null>(null);
@@ -1853,9 +1963,18 @@ const FuncScriptTester = ({
       return;
     }
 
+    const totalStart = nowMs();
+    const variableTimings: Array<EvaluationTiming> = [];
+
     const nextVariables = new Map<string, VariableState>();
+    const variablesStart = nowMs();
     for (const [key, entry] of variablesRef.current.entries()) {
+      const variableStart = nowMs();
       const { typedValue, error } = evaluateExpression(entry.expression);
+      variableTimings.push({
+        name: entry.name || key,
+        duration: nowMs() - variableStart
+      });
 
       nextVariables.set(key, {
         ...entry,
@@ -1863,26 +1982,82 @@ const FuncScriptTester = ({
         error
       });
     }
+    const variablesDuration = nowMs() - variablesStart;
 
     variablesRef.current = nextVariables;
     setVariables(nextVariables);
 
+    let evaluationDuration = 0;
+    let evaluationError: string | null = null;
+
+    const evaluationStart = nowMs();
     try {
       const evaluated = Engine.evaluate(value, provider);
+      evaluationDuration = nowMs() - evaluationStart;
       setResultState({ value: evaluated, error: null });
       reportEvaluationError(null);
     } catch (err) {
+      evaluationDuration = nowMs() - evaluationStart;
       const message = err instanceof Error ? err.message : String(err);
+      evaluationError = message;
       setResultState({
         value: null,
         error: message
       });
       reportEvaluationError(message);
+    } finally {
+      const totalDuration = nowMs() - totalStart;
+      const profile: EvaluationProfile = {
+        startedAt: totalStart,
+        endedAt: totalStart + totalDuration,
+        expressionChars: value?.length ?? 0,
+        variableCount: variableTimings.length,
+        variableTotalMs: variablesDuration,
+        expressionMs: evaluationDuration,
+        totalMs: totalDuration,
+        variables: variableTimings,
+        error: evaluationError
+      };
+      if (typeof console !== 'undefined' && typeof console.log === 'function') {
+        if (typeof console.groupCollapsed === 'function') {
+          console.groupCollapsed('FuncScriptTester evaluation timings');
+          console.log('Summary (ms)', {
+            variables: Math.round(profile.variableTotalMs),
+            expression: Math.round(profile.expressionMs),
+            total: Math.round(profile.totalMs)
+          });
+          console.log('Variables (ms)', profile.variables);
+          console.log('Expression length', profile.expressionChars);
+          if (profile.error) {
+            console.log('Error', profile.error);
+          }
+          console.groupEnd();
+        } else {
+          console.log('FuncScriptTester evaluation timings', profile);
+        }
+      }
+      if (onEvaluationProfile) {
+        try {
+          onEvaluationProfile(profile);
+        } catch {
+          // ignore consumer errors
+        }
+      }
     }
-  }, [evaluateExpression, value, reportEvaluationError]);
+  }, [evaluateExpression, value, reportEvaluationError, onEvaluationProfile]);
 
-  const parseTree = useMemo(() => buildExpressionTree(currentExpressionBlock, value), [currentExpressionBlock, value]);
-  const parseNodeMap = useMemo(() => createParseNodeIndex(parseTree), [parseTree]);
+  const parseTree = useMemo(() => {
+    const start = nowMs();
+    const tree = buildExpressionTree(currentExpressionBlock, value);
+    logTiming('parseTree', nowMs() - start, { docLength: value?.length ?? 0 });
+    return tree;
+  }, [currentExpressionBlock, value]);
+  const parseNodeMap = useMemo(() => {
+    const start = nowMs();
+    const map = createParseNodeIndex(parseTree);
+    logTiming('parseNodeIndex', nowMs() - start, { nodeCount: map.size ?? 0 });
+    return map;
+  }, [parseTree]);
   const firstEditableNode = useMemo(() => findFirstEditableNode(parseTree), [parseTree]);
   const selectedNode = selectedNodeId ? parseNodeMap.get(selectedNodeId) ?? null : null;
   const expandNodePath = useCallback(
@@ -2227,6 +2402,7 @@ const FuncScriptTester = ({
     if (!value) {
       return null;
     }
+    const startTime = nowMs();
     const docLength = value.length;
     const selectionRangeRaw =
       selectedNode?.isEditable && selectedNode.range
@@ -2240,6 +2416,8 @@ const FuncScriptTester = ({
     const hoverRange = hoverRangeRaw;
 
     if (!selectionRange && !hoverRange) {
+      const duration = nowMs() - startTime;
+      logTiming('expressionPreviewSegments', duration, { docLength });
       return {
         segments: [
           {
@@ -2285,7 +2463,10 @@ const FuncScriptTester = ({
       segments.push({ text, isSelected, isHovered });
     }
 
+    const duration = nowMs() - startTime;
+
     if (segments.length === 0) {
+      logTiming('expressionPreviewSegments', duration, { docLength });
       return {
         segments: [
           {
@@ -2300,6 +2481,12 @@ const FuncScriptTester = ({
         selectionText: selectionRange ? pendingNodeValue : null
       };
     }
+
+    logTiming('expressionPreviewSegments', duration, {
+      docLength,
+      segments: segments.length,
+      hasSelection: Boolean(selectionRange)
+    });
 
     return {
       segments,
@@ -2584,14 +2771,58 @@ const FuncScriptTester = ({
     if (!resultState.value) {
       return null;
     }
-    return Engine.getTypeName(Engine.typeOf(resultState.value));
+    const start = nowMs();
+    const typeName = Engine.getTypeName(Engine.typeOf(resultState.value));
+    logTiming('resultTypeName', nowMs() - start);
+    return typeName;
   }, [resultState.value]);
 
   const formattedResult = useMemo(() => {
     if (!resultState.value) {
       return '';
     }
-    return formatTypedValue(resultState.value);
+    const start = nowMs();
+    const formatted = formatTypedValue(resultState.value);
+    logTiming('formatResult', nowMs() - start, {
+      type: resultTypeName ?? Engine.getTypeName(Engine.typeOf(resultState.value))
+    });
+    return formatted;
+  }, [resultState.value, resultTypeName]);
+
+  const previewSegmentCount = expressionPreviewSegments?.segments.length ?? 0;
+
+  const RESULT_PREVIEW_LIMIT = 8000;
+  const resultLength = formattedResult?.length ?? 0;
+  const isResultTruncated = resultLength > RESULT_PREVIEW_LIMIT;
+  const displayedResult = useMemo(() => {
+    if (!isResultTruncated || isResultExpanded) {
+      return formattedResult;
+    }
+    return `${formattedResult.slice(0, RESULT_PREVIEW_LIMIT)}\n… result truncated for display (showing ${RESULT_PREVIEW_LIMIT.toLocaleString()} of ${resultLength.toLocaleString()} characters) …`;
+  }, [formattedResult, isResultExpanded, isResultTruncated, resultLength]);
+
+  useLayoutEffect(() => {
+    const commitDuration = nowMs() - renderStartRef.current;
+    logTiming('renderCommit', commitDuration, {
+      expressionChars: value?.length ?? 0,
+      resultType: resultTypeName ?? 'none',
+      segments: previewSegmentCount
+    });
+    if (typeof requestAnimationFrame === 'function') {
+      const rafStart = nowMs();
+      requestAnimationFrame(() => {
+        const paintDuration = nowMs() - rafStart;
+        logTiming('renderPostPaint', paintDuration, {
+          expressionChars: value?.length ?? 0,
+          resultType: resultTypeName ?? 'none',
+          segments: previewSegmentCount
+        });
+      });
+    }
+  }, [value, resultTypeName, previewSegmentCount]);
+
+  useEffect(() => {
+    setIsResultExpanded(false);
   }, [resultState.value]);
 
   const resultContent: ReactNode = resultState.error ? (
@@ -2601,15 +2832,28 @@ const FuncScriptTester = ({
       <div>
         <strong>Type:</strong> {resultTypeName}
       </div>
+      {isResultTruncated ? (
+        <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '0.25rem' }}>
+          Showing first {RESULT_PREVIEW_LIMIT.toLocaleString()} of {resultLength.toLocaleString()} characters.
+          <button
+            type="button"
+            style={{ marginLeft: '0.5rem' }}
+            onClick={() => setIsResultExpanded((prev) => !prev)}
+          >
+            {isResultExpanded ? 'Show less' : 'Show full result'}
+          </button>
+        </div>
+      ) : null}
       <pre
         style={{
           marginTop: '0.5rem',
           marginBottom: 0,
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word'
+          whiteSpace: 'pre',
+          wordBreak: 'normal',
+          overflow: 'auto'
         }}
       >
-        {formattedResult}
+        {displayedResult}
       </pre>
     </>
   ) : (

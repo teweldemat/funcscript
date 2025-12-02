@@ -1,6 +1,10 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
-import { FuncScriptTester, type FuncScriptTesterVariableInput } from '@tewelde/funcscript-editor';
+import {
+  FuncScriptTester,
+  type EvaluationProfile,
+  type FuncScriptTesterVariableInput
+} from '@tewelde/funcscript-editor';
 
 type StoredTestCase = {
   id: string;
@@ -567,6 +571,18 @@ const persistedTestCasesSignature = useMemo(
     [selectedTestCaseId]
   );
 
+  const handleEvaluationProfile = useCallback((profile: EvaluationProfile) => {
+    if (typeof console !== 'undefined' && typeof console.log === 'function') {
+      const summary = {
+        variablesMs: Math.round(profile.variableTotalMs),
+        expressionMs: Math.round(profile.expressionMs),
+        totalMs: Math.round(profile.totalMs),
+        variableCount: profile.variableCount
+      };
+      console.log('FuncScript Studio evaluation timings', summary, profile);
+    }
+  }, []);
+
   const handleSelectTestCase = useCallback(
     (testCaseId: string) => {
       setSelectedTestCaseId(testCaseId);
@@ -1017,6 +1033,7 @@ const persistedTestCasesSignature = useMemo(
                 onVariablesChange={handleVariablesChange}
                 onError={setEditorError}
                 onEvaluationError={setEvaluationError}
+                onEvaluationProfile={handleEvaluationProfile}
               />
             </div>
           </div>

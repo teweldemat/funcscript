@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { analyzeText, collectFoldRegions, ParseOutcome } from './analysis';
 import type { ParseNode } from '@tewelde/funcscript/parser';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 const tokenTypesLegend: vscode.SemanticTokensLegend['tokenTypes'] = [
   'comment',
@@ -85,6 +87,17 @@ const log = (message: string) => {
   }
   const timestamp = new Date().toISOString();
   outputChannel.appendLine(`[${timestamp}] ${message}`);
+};
+
+const readJson = (filePath: string) => {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(raw) as unknown;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    log(`Failed to read JSON at ${filePath}: ${message}`);
+    return null;
+  }
 };
 
 class DocumentAnalysisCache {
@@ -298,9 +311,45 @@ class FuncScriptFoldingRangeProvider implements vscode.FoldingRangeProvider {
   }
 }
 
+const logInitializationDetails = (context: vscode.ExtensionContext) => {
+  log(`Host: node ${process.version}; platform=${process.platform}; arch=${process.arch}`);
+
+  const manifestPath = path.join(context.extensionPath, 'package.json');
+  const manifest = readJson(manifestPath) as { version?: string } | null;
+  if (manifest?.version) {
+    log(`Extension version: ${manifest.version}`);
+  }
+
+  try {
+    const runtimePackagePath = require.resolve('@tewelde/funcscript/package.json', {
+      paths: [context.extensionPath]
+    });
+    const runtimePackage = readJson(runtimePackagePath) as { version?: string } | null;
+    log(
+      `Runtime resolved: ${runtimePackagePath} (version=${runtimePackage?.version ?? '<unknown>'})`
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    log(`Runtime resolution failed: ${message}`);
+  }
+
+  try {
+    const sample = analyzeText('{ x:1; }');
+    log(
+      `Runtime self-check: sample parse segments=${sample.segments.length}; parseNode=${
+        sample.parseNode ? 'present' : 'null'
+      }`
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    log(`Runtime self-check failed: ${message}`);
+  }
+};
+
 export function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel(outputChannelId);
   log('Activating FuncScript extension');
+  logInitializationDetails(context);
   const iconThemeSetting = vscode.workspace.getConfiguration('workbench').get<string>('iconTheme');
   log(`Current workbench.iconTheme: ${iconThemeSetting ?? '<unset>'}`);
   const iconUri = vscode.Uri.joinPath(context.extensionUri, 'media', 'funcscript-icon.svg');

@@ -93,4 +93,21 @@ testData.Samples map (sample) => sample
     expect(plain).to.have.property('x', 2);
   });
 
+  it('processes large KVC repeatedly within budget (Bug20251202 parity)', function () {
+    this.timeout(7000);
+    const exp = fs.readFileSync(
+      path.join(__dirname, '../../../../FuncScript.Test/data/big-kvc2.fs'),
+      'utf8'
+    );
+    const provider = new DefaultFsDataProvider();
+    const start = performance.now();
+    for (let i = 0; i < 100; i += 1) {
+      const res = evaluate(exp, provider);
+      JSON.stringify(toPlain(res));
+    }
+    const duration = performance.now() - start;
+    console.log(`Bug20251202 JS loop took ${duration.toFixed(1)} ms`);
+    expect(duration).to.be.below(2000);
+  });
+
 });

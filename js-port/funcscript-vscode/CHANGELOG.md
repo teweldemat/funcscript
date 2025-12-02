@@ -1,5 +1,10 @@
 # Change Log
 
+# Change Log
+
+## 0.2.24
+- Ship the bundled FuncScript parser runtime inside the VSIX to restore semantic highlighting.
+
 ## 0.2.1
 - Version alignment with the FuncScript 0.2.1 release.
 
