@@ -185,6 +185,19 @@ export declare class SimpleKeyValueCollection extends KeyValueCollection {
   constructor(parent: FsDataProvider | null, entries: Array<readonly [string, FuncScriptInput]>);
 }
 
+export interface TraceInfo {
+  startIndex: number;
+  startLine: number;
+  startColumn: number;
+  endIndex: number;
+  endLine: number;
+  endColumn: number;
+  snippet: string | null;
+  result: unknown;
+}
+
+export type TraceHook = (result: unknown, info: TraceInfo) => void;
+
 export interface TestCaseResultError {
   type: 'evaluation' | 'assertion';
   message?: string;
@@ -254,6 +267,17 @@ export interface PackageTestRunResult {
 export declare function evaluate(
   expression: string,
   provider?: FsDataProvider
+): TypedValue;
+
+export declare function trace(
+  expression: string,
+  hook?: TraceHook
+): TypedValue;
+
+export declare function trace(
+  expression: string,
+  provider: FsDataProvider,
+  hook?: TraceHook
 ): TypedValue;
 
 export declare function evaluateTemplate(

@@ -36,6 +36,8 @@ namespace FuncScript.Block
             _compileError = compilation.Error;
         }
 
+        public override bool UsesDepthCounter => false;
+
         public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {
 

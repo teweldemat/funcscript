@@ -124,6 +124,13 @@ function attachExpressionSource(provider, expression) {
   }
 }
 
+function attachTraceState(provider, traceState) {
+  if (!provider || typeof provider !== 'object' || !traceState) {
+    return;
+  }
+  provider.__fsTrace = traceState;
+}
+
 const rawCollections = builtinSymbols.__collections || {};
 for (const [collectionName, members] of Object.entries(rawCollections)) {
   const lowerCollection = collectionName.toLowerCase();
@@ -191,9 +198,13 @@ const test = createTestRunner({
   FSDataType
 });
 
-function evaluate(expression, provider = new DefaultFsDataProvider()) {
+function evaluateExpression(expression, provider, traceState) {
   const source = expression == null ? '' : String(expression);
   attachExpressionSource(provider, source);
+  if (traceState) {
+    traceState.expression = source;
+    attachTraceState(provider, traceState);
+  }
   const parseOutcome = FuncScriptParser.parse(provider, source);
   const block = parseOutcome?.block;
   if (!block) {
@@ -217,6 +228,30 @@ function evaluate(expression, provider = new DefaultFsDataProvider()) {
     }
     throw error;
   }
+}
+
+function evaluate(expression, provider = new DefaultFsDataProvider()) {
+  return evaluateExpression(expression, provider);
+}
+
+function trace(expression, providerOrHook, hookMaybe) {
+  let provider = new DefaultFsDataProvider();
+  let hook = null;
+
+  if (typeof providerOrHook === 'function') {
+    hook = providerOrHook;
+  } else if (providerOrHook) {
+    provider = providerOrHook;
+    hook = typeof hookMaybe === 'function' ? hookMaybe : null;
+  }
+
+  const traceState = {
+    expression: expression == null ? '' : String(expression),
+    hook,
+    logToConsole: !hook
+  };
+
+  return evaluateExpression(expression, provider, traceState);
 }
 
 function appendTemplateValue(parts, value) {
@@ -506,6 +541,7 @@ function colorParseTree(node) {
 
 const Engine = {
   evaluate,
+  trace,
   evaluateTemplate,
   loadPackage,
   test,
@@ -544,6 +580,7 @@ const Engine = {
 module.exports = {
   Engine,
   evaluate,
+  trace,
   evaluateTemplate,
   loadPackage,
   test,

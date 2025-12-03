@@ -111,9 +111,6 @@ namespace FuncScript.Test
                 infos.Add((Engine.TraceInfo)infoObj);
             });
 
-        
-            
-            Assert.That(infos.Count, Is.Not.Empty);
             var last = infos[^1];
             Assert.That(last.Result, Is.TypeOf<FsError>());
             var e = (FsError)last.Result;
@@ -202,6 +199,27 @@ namespace FuncScript.Test
             //literal 3
             //function call f with parameter [3]
             //reference block 'f'
+            Assert.That(infos.Count,Is.EqualTo(3));
+        }
+        
+        [Test]
+        public void TraceNumberOfEvaluations_4()
+        {
+            var infos = new List<Engine.TraceInfo>();
+            var  errMsg = "The error";
+            var kvc=new ObjectKvc(new
+            {
+                f=new Func<object,object>((x)=>throw new Exception(errMsg))
+            });
+            var p = new KvcProvider(kvc, new DefaultFsDataProvider());
+            FuncScriptRuntime.Trace("2+f(3)",p,(trace, infoObj) =>
+            {
+                Assert.That(trace, Is.Not.Null);
+                infos.Add((Engine.TraceInfo)infoObj);
+            });
+            //literal 2
+            //function call +, [2,f(3)]
+            //
             Assert.That(infos.Count,Is.EqualTo(3));
         }
     }

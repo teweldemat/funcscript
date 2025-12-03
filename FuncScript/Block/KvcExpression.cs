@@ -11,6 +11,8 @@ namespace FuncScript.Block
 {
     public class KvcExpression : ExpressionBlock
     {
+        public override bool UsesDepthCounter => false;
+
         public class KvcExpressionCollection : KeyValueCollection
         {
             private readonly KeyValueCollection provider;
@@ -95,16 +97,19 @@ namespace FuncScript.Block
                 if (!string.IsNullOrEmpty(cacheKey) && _evaluatedValues.TryGetValue(cacheKey, out var cached))
                     return cached;
 
-                _depth.Enter();
-                object value = null;
                 var block = expression.ValueExpression;
+                var needsDepthWrapper = block == null || !block.UsesDepthCounter;
+                object value = null;
+                if (needsDepthWrapper)
+                    _depth.Enter();
                 try
                 {
-                    value = block.Evaluate(this, _depth);
+                    value = block?.Evaluate(this, _depth);
                 }
                 finally
                 {
-                    _depth.Exit(value, block);
+                    if (needsDepthWrapper)
+                        _depth.Exit(value, block);
                 }
 
                 if (!string.IsNullOrEmpty(cacheKey))

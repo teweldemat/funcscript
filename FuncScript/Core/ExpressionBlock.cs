@@ -45,6 +45,10 @@ namespace FuncScript.Core
             set => _codeLocation = value ?? s_defaultLocation;
         }
 
+        // Indicates whether the expression implementation handles DepthCounter entry/exit itself.
+        // Containers (like list enumerators) can use this to avoid double-counting traces.
+        public virtual bool UsesDepthCounter => true;
+
         protected static FsError AttachCodeLocation(ExpressionBlock source, FsError error)
         {
             if (error == null)

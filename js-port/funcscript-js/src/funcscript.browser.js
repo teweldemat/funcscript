@@ -40,6 +40,13 @@ function attachExpressionSource(provider, expression) {
   }
 }
 
+function attachTraceState(provider, traceState) {
+  if (!provider || typeof provider !== 'object' || !traceState) {
+    return;
+  }
+  provider.__fsTrace = traceState;
+}
+
 const rawCollections = builtinSymbols.__collections || {};
 for (const [collectionName, members] of Object.entries(rawCollections)) {
   const lowerCollection = collectionName.toLowerCase();
@@ -107,13 +114,61 @@ const test = createTestRunner({
   FSDataType
 });
 
-function evaluate(expression, provider = new DefaultFsDataProvider()) {
-  attachExpressionSource(provider, expression);
-  const { block } = FuncScriptParser.parse(provider, expression);
-  if (!block) {
-    throw new Error('Failed to parse expression');
+function evaluateExpression(expression, provider, traceState) {
+  const source = expression == null ? '' : String(expression);
+  attachExpressionSource(provider, source);
+  if (traceState) {
+    traceState.expression = source;
+    attachTraceState(provider, traceState);
   }
-  return assertTyped(block.evaluate(provider), 'Expression must return typed value');
+
+  const parseOutcome = FuncScriptParser.parse(provider, source);
+  const block = parseOutcome?.block;
+  if (!block) {
+    const firstError = Array.isArray(parseOutcome?.errors) && parseOutcome.errors.length > 0
+      ? parseOutcome.errors[0]
+      : null;
+    const message = firstError
+      ? `Failed to parse expression (pos ${firstError.Loc}): ${firstError.Message}`
+      : 'Failed to parse expression';
+    throw new Error(message);
+  }
+
+  try {
+    return assertTyped(block.evaluate(provider), 'Expression must return typed value');
+  } catch (error) {
+    if (error instanceof Error && error.message) {
+      const position = parseOutcome?.parseNode?.Pos;
+      if (typeof position === 'number') {
+        error.message = `${error.message} (at position ${position})`;
+      }
+    }
+    throw error;
+  }
+}
+
+function evaluate(expression, provider = new DefaultFsDataProvider()) {
+  return evaluateExpression(expression, provider);
+}
+
+function trace(expression, providerOrHook, hookMaybe) {
+  let provider = new DefaultFsDataProvider();
+  let hook = null;
+
+  if (typeof providerOrHook === 'function') {
+    hook = providerOrHook;
+  } else if (providerOrHook) {
+    provider = providerOrHook;
+    hook = typeof hookMaybe === 'function' ? hookMaybe : null;
+  }
+
+  const traceState = {
+    expression: expression == null ? '' : String(expression),
+    hook,
+    logToConsole: !hook
+  };
+
+  return evaluateExpression(expression, provider, traceState);
 }
 
 const loadPackage = createPackageLoader({
@@ -159,6 +214,7 @@ function colorParseTree(node) {
 
 const Engine = {
   evaluate,
+  trace,
   loadPackage,
   test,
   colorParseTree,
@@ -194,6 +250,7 @@ const Engine = {
 
 exports.Engine = Engine;
 exports.evaluate = evaluate;
+exports.trace = trace;
 exports.loadPackage = loadPackage;
 exports.test = test;
 exports.colorParseTree = colorParseTree;

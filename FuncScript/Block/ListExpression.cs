@@ -8,7 +8,7 @@ using Newtonsoft.Json.Serialization;
 
 namespace FuncScript.Block
 {
-    public class ListExpression:ExpressionBlock
+        public class ListExpression:ExpressionBlock
     {
 
         public class ExpressionFsList : FsList
@@ -29,17 +29,20 @@ namespace FuncScript.Block
                 {
                     if (index < 0 || index >= expression.ValueExpressions.Length)
                         return null;
-                    _depth.Enter();
                     object result = null;
                     var block = expression.ValueExpressions[index];
+                    var needsDepthWrapper = block == null || !block.UsesDepthCounter;
+                    if (needsDepthWrapper)
+                        _depth.Enter();
                     try
                     {
-                        result = block.Evaluate(provider, _depth);
+                        result = block?.Evaluate(provider, _depth);
                         return result;
                     }
                     finally
                     {
-                        _depth.Exit(result, block);
+                        if (needsDepthWrapper)
+                            _depth.Exit(result, block);
                     }
                 }
             }
@@ -93,6 +96,8 @@ namespace FuncScript.Block
         {
             this.ValueExpressions = exps;
         }
+
+        public override bool UsesDepthCounter => false;
         
         public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {

@@ -13,6 +13,8 @@ namespace FuncScript.Block
             Value = val;
         }
 
+        public override bool UsesDepthCounter => false;
+
         
 
         public override string AsExpString()
