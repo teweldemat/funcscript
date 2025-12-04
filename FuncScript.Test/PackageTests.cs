@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using FuncScript;
 using FuncScript.Binding.JavaScript;
+using FuncScript.Core;
 using FuncScript.Error;
 using FuncScript.Package;
 using FuncScript.Model;
@@ -118,6 +119,98 @@ namespace FuncScript.Test
             var fserror=(FsError)err;
             Assert.That(fserror.ErrorType,Is.EqualTo(FsError.ERROR_SYNTAX_ERROR));
             Assert.That(traces, Is.Not.Empty);
+        }
+
+        [Test]
+        public void LoadPackage_TraceDetailedPackageEvaluation()
+        {
+            var traces = new List<(string Path, Engine.TraceInfo Info)>();
+            var resolver = new TestPackageResolver(new
+            {
+                x="math.abs(-2)",
+                eval = "3+x"
+            });
+
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) => { traces.Add((path, info)); });
+
+            var formatValue = new Func<object, string>((v) =>
+            {
+                if (v is KeyValueCollection)
+                    return "[kvc]";
+                if (v is FsList)
+                    return "[list]";
+                if(v is IFsFunction)
+                    return "[function]";
+                return v.ToString();
+            });
+            foreach (var trace in traces)
+            {
+                Console.WriteLine($"{trace.Path} {trace.Info.ToString()} '{trace.Info.Snippet}' {formatValue(trace.Info.Result)}");
+            }
+            Assert.That(result, Is.InstanceOf<int>());
+            Assert.That(traces.Count, Is.GreaterThanOrEqualTo(3));
+
+            Assert.That(traces.Any(t => t.Path=="eval" && t.Info.Snippet == "3" && Equals(t.Info.Result, 3)));
+            Assert.That(traces.Any(t => t.Path=="x" && t.Info.Snippet == "math.abs(-2)" && Equals(t.Info.Result, 2)));
+            Assert.That(traces.Any(t => t.Path=="eval" && t.Path == "eval" && t.Info.Snippet == "3+x" && Equals(t.Info.Result, 5)));
+        }
+        
+        [Test]
+        public void LoadPackage_TraceDetailedPackageEvaluation_2()
+        {
+            var traces = new List<(string Path, Engine.TraceInfo Info)>();
+            var resolver = new TestPackageResolver(new
+            { 
+                h=new {f="math.abs(-2)"},
+                eval = "3+h.f"
+            });
+
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) => { traces.Add((path, info)); });
+
+            var formatValue = new Func<object, string>((v) =>
+            {
+                if (v is KeyValueCollection)
+                    return "[kvc]";
+                if (v is FsList)
+                    return "[list]";
+                if(v is IFsFunction)
+                    return "[function]";
+                return v.ToString();
+            });
+            foreach (var trace in traces)
+            {
+                Console.WriteLine($"{trace.Path} {trace.Info.ToString()} '{trace.Info.Snippet}' {formatValue(trace.Info.Result)}");
+            }
+            Assert.That(result, Is.InstanceOf<int>());
+            Assert.That(traces.Count, Is.GreaterThanOrEqualTo(3));
+
+            Assert.That(traces.Any(t => t.Path=="eval" && t.Info.Snippet == "3" && Equals(t.Info.Result, 3)));
+            Assert.That(traces.Any(t => t.Path=="h/f" && t.Info.Snippet == "math.abs(-2)" && Equals(t.Info.Result, 2)));
+            Assert.That(traces.Any(t => t.Path=="eval"  && t.Info.Snippet == "3+h.f" && Equals(t.Info.Result, 5)));
+        }
+
+        [Test]
+        public void LoadPackage_TraceIncludesLineInfoForSyntaxErrors()
+        {
+            var traces = new List<(string Path, Engine.TraceInfo Info)>();
+            var resolver = new TestPackageResolver(new
+            {
+                eval = "1+\n{"
+            });
+
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) =>
+            {
+                traces.Add((path, info));
+            });
+
+            Assert.That(result, Is.InstanceOf<FsError>());
+            Assert.That(traces, Is.Not.Empty);
+            Assert.That(traces.All(t => t.Path == "eval"));
+            var info = traces[0].Info;
+            Assert.That(info.Result, Is.InstanceOf<FsError>());
+            Assert.That(info.StartLine, Is.EqualTo(1));
+            Assert.That(info.EndLine, Is.EqualTo(2));
+            Assert.That(info.Snippet, Does.Contain("1+"));
         }
 
         [OneTimeSetUp]

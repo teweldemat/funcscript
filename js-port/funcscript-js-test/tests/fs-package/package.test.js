@@ -112,6 +112,111 @@ describe('Packages', () => {
     const y = kvc.get('y');
     expect(typeOf(y)).to.equal(FSDataType.Integer);
     expect(valueOf(y)).to.equal(2);
-    expect(() => kvc.get('x')).to.throw(/Failed to parse expression/i);
+    const x = kvc.get('x');
+    expect(typeOf(x)).to.equal(FSDataType.Error);
+  });
+
+  it('traces eval expression during package load', () => {
+    const traces = [];
+    const resolver = createMockResolver({
+      children: {
+        x: { expression: '1+{' }, // intentionally malformed
+        y: { expression: '2' },
+        eval: { expression: 'y+1' }
+      }
+    });
+
+    const typed = loadPackage(resolver, undefined, (path, info) => {
+      traces.push({ path, info });
+    });
+
+    expect(typeOf(typed)).to.equal(FSDataType.Integer);
+    expect(valueOf(typed)).to.equal(3);
+    expect(traces.length).to.be.greaterThan(0);
+    expect(traces.some((t) => t.path === 'eval')).to.be.true;
+    expect(traces.some((t) => t.path === 'eval' && t.info?.result === 3)).to.be.true;
+  });
+
+  it('traces lazy member evaluation and syntax errors', () => {
+    const traces = [];
+    const resolver = createMockResolver({
+      children: {
+        x: { expression: '1+{' }, // intentionally malformed
+        y: { expression: '1+1' }
+      }
+    });
+
+    const typed = loadPackage(resolver, undefined, (path, info) => {
+      traces.push({ path, info });
+    });
+
+    expect(typeOf(typed)).to.equal(FSDataType.KeyValueCollection);
+    expect(traces.length).to.equal(0);
+
+    const kvc = valueOf(typed);
+    const y = kvc.get('y');
+    expect(typeOf(y)).to.equal(FSDataType.Integer);
+    expect(valueOf(y)).to.equal(2);
+    expect(traces.length).to.be.greaterThan(0);
+    expect(traces.every((t) => t.path === 'y')).to.be.true;
+    expect(traces.some((t) => t.info?.result === 2)).to.be.true;
+
+    traces.length = 0;
+    const x = kvc.get('x');
+    expect(typeOf(x)).to.equal(FSDataType.Error);
+    expect(traces.length).to.be.greaterThan(0);
+    expect(traces.every((t) => t.path === 'x')).to.be.true;
+    expect(traces[0].info?.result?.__fsKind).to.equal('FsError');
+  });
+
+  it('traces syntax errors with line info', () => {
+    const traces = [];
+    const resolver = createMockResolver({
+      children: {
+        eval: { expression: '1+\n{' }
+      }
+    });
+
+    const typed = loadPackage(resolver, undefined, (path, info) => {
+      traces.push({ path, info });
+    });
+
+    expect(typeOf(typed)).to.equal(FSDataType.Error);
+    expect(traces.length).to.be.greaterThan(0);
+    const trace = traces.find((t) => t.path === 'eval');
+    expect(trace).to.exist;
+    expect(trace.info.startLine).to.be.greaterThan(0);
+    expect(trace.info.endLine).to.be.at.least(trace.info.startLine);
+    expect(trace.info.snippet).to.include('{');
+  });
+
+  it('traces detailed package evaluation results and snippets', () => {
+    const traces = [];
+    const resolver = createMockResolver({
+      children: {
+        x: { expression: 'math.abs(-2)' },
+        eval: { expression: '3+x' }
+      }
+    });
+
+    const typed = loadPackage(resolver, undefined, (path, info) => {
+      traces.push({ path, info });
+    });
+
+    expect(typeOf(typed)).to.equal(FSDataType.Integer);
+    expect(valueOf(typed)).to.equal(5);
+    expect(traces.length).to.be.at.least(2);
+
+    const xTrace = traces.find((t) => t.path === 'x');
+    expect(xTrace).to.exist;
+    expect(xTrace.info.snippet).to.equal('math.abs(-2)');
+    expect(xTrace.info.result).to.equal(2);
+    expect(xTrace.info.startLine).to.be.greaterThan(0);
+
+    const evalTrace = traces.find((t) => t.path === 'eval');
+    expect(evalTrace).to.exist;
+    expect(evalTrace.info.snippet).to.equal('3+x');
+    expect(evalTrace.info.result).to.equal(5);
+    expect(evalTrace.info.startLine).to.be.greaterThan(0);
   });
 });

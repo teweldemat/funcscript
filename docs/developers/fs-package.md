@@ -1,6 +1,6 @@
 # FuncScript Packages
 
-FuncScript packages compose a FuncScript program from separate expressions that are organized hierarchically (for example, files and folders in a repository).  A package is a tree of expressions—folders, helper bindings, and executable leaves—and the resolver simply serves that tree to the runtime.  `loadPackage(resolver, provider?)` walks that tree, generates a FuncScript program, and evaluates it with the same runtime used by `evaluate` and `test`.
+FuncScript packages compose a FuncScript program from separate expressions that are organized hierarchically (for example, files and folders in a repository).  A package is a tree of expressions—folders, helper bindings, and executable leaves—and the resolver simply serves that tree to the runtime.  `loadPackage(resolver, provider?, traceHook?)` walks that tree, generates a FuncScript program, and evaluates it with the same runtime used by `evaluate` and `test`. Omit the optional parameters to use the default data provider and skip tracing.
 
 ## Resolver Contract
 
@@ -32,6 +32,16 @@ Folders are turned into FuncScript blocks that declare each child as a binding. 
 
 Every binding defined inside a folder is available to FuncScript and to embedded JavaScript blocks thanks to the runtime’s provider plumbing.
 
+### Evaluation flow and lazy members
+
+`loadPackage` evaluates in three passes:
+
+1. If the resolver exposes a root expression (`getExpression([])`), the loader evaluates it immediately and returns the result.
+2. If the resolver exposes an `eval` child, the loader builds a lazy key-value collection for the resolver tree, evaluates the `eval` expression within that context, and returns its value.
+3. Otherwise the loader returns a lazy key-value collection that resolves children on demand. This means unused malformed nodes (for example, `x: '1+{'`) do not fail the load; errors surface when the member is accessed. In JS the lazy access returns a typed `FsError`; in .NET it returns an `FsError` instance.
+
+Nested packages (`package('name')`) are loaded using the same rules, so laziness and tracing (below) apply throughout the dependency graph.
+
 ## Expression Languages
 
 The descriptor returned by `getExpression` can specify the language used to author the expression:
@@ -54,6 +64,23 @@ If the resolver implements `package(name)`, `loadPackage` injects a FuncScript h
 ```
 
 Inside a JavaScript block, use the same helper (`return package('stickman').helpers.doubler(21);`). The loader validates the requested name, throws for missing packages, and recursively calls `loadPackage` with the nested resolver.
+
+## Tracing
+
+Both runtimes accept an optional trace hook on `loadPackage`:
+
+ - **JS**: `loadPackage(resolver, provider?, (path, traceInfo) => { ... })`
+ - **.NET**: `PackageLoader.LoadPackage(resolver, provider?, (path, info) => { ... })`
+
+The hook receives the package path being evaluated (for example, `eval`, `helpers/doubler`, or `x`), plus a trace payload with start/end line/column data, a snippet, and the evaluation result. Hooks fire for successful evaluations and for failures (syntax errors and exceptions are wrapped as `FsError`/`FsError` instances and delivered through the hook). Lazy member evaluations also invoke the hook when accessed, so you can observe deferred errors without breaking package load.
+
+Example (JS):
+
+```javascript
+const traces = [];
+const typed = loadPackage(resolver, undefined, (path, info) => traces.push({ path, info }));
+console.log(traces.map(t => `${t.path}: ${t.info.snippet}`));
+```
 
 ## Example
 

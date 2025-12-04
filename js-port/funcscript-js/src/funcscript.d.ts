@@ -285,9 +285,11 @@ export declare function evaluateTemplate(
   provider?: FsDataProvider
 ): string;
 
+export type PackageTraceHook = (path: string, info: TraceInfo) => void;
 export declare function loadPackage(
   resolver: PackageResolver,
-  provider?: FsDataProvider
+  provider?: FsDataProvider,
+  traceHook?: PackageTraceHook
 ): TypedValue;
 
 export declare function assertTyped(value: FuncScriptInput): TypedValue;

@@ -94,44 +94,57 @@ namespace FuncScript.Package
             }
             catch (SyntaxError syntaxError)
             {
-                var ret= new FsError(FsError.ERROR_SYNTAX_ERROR, syntaxError.Message);
-                if (trace == null)
-                    return ret;
-                var pathString = FormatPath(path);
-
-                trace(pathString, new Engine.TraceInfo
-                (
-                    StartIndex: 0,
-                    StartLine: 0,
-                    StartColumn: 0,
-                    EndIndex:expression.Length - 1,
-                    EndLine: -1,
-                    EndColumn: -1,
-                    Snippet:expression.Substring(0,Math.Min(100,expression.Length)),
-                    Result:ret 
-                ));
+                var ret = new FsError(FsError.ERROR_SYNTAX_ERROR, syntaxError.Message);
+                if (trace != null)
+                {
+                    var pathString = FormatPath(path);
+                    var info = BuildExceptionTraceInfo(expression, 0, expression?.Length ?? 0, ret);
+                    trace(pathString, info);
+                }
                 return ret;
             }
             catch (Exception ex)
             {
-                var ret= new FsError(FsError.ERROR_UNKNOWN_ERROR, ex.Message);
-                if (trace == null)
-                    return ret;
-                var pathString = FormatPath(path);
-
-                trace(pathString, new Engine.TraceInfo
-                (
-                    StartIndex: 0,
-                    StartLine: 0,
-                    StartColumn: 0,
-                    EndIndex:expression.Length - 1,
-                    EndLine: -1,
-                    EndColumn: -1,
-                    Snippet:expression.Substring(0,Math.Min(100,expression.Length)),
-                    Result:ret 
-                ));
+                var ret = new FsError(FsError.ERROR_UNKNOWN_ERROR, ex.Message);
+                if (trace != null)
+                {
+                    var pathString = FormatPath(path);
+                    var locationLen = ex is Error.EvaluationException evalEx ? evalEx.Len : expression?.Length ?? 0;
+                    var locationPos = ex is Error.EvaluationException evaluationException ? evaluationException.Pos : 0;
+                    var info = BuildExceptionTraceInfo(expression, locationPos, locationLen, ret);
+                    trace(pathString, info);
+                }
                 return ret;
             }
+        }
+
+        private static Engine.TraceInfo BuildExceptionTraceInfo(string expression, int position, int length, object result)
+        {
+            var source = expression ?? string.Empty;
+            var safeStart = Math.Max(0, Math.Min(position, source.Length));
+            var safeLength = Math.Max(0, Math.Min(length, Math.Max(0, source.Length - safeStart)));
+            if (safeLength == 0 && source.Length > safeStart)
+                safeLength = 1;
+
+            var lineStarts = Engine.BuildLineStarts(source);
+            var start = Engine.GetLineAndColumn(lineStarts, source, safeStart);
+            var endPos = safeLength > 0 ? safeStart + safeLength - 1 : safeStart;
+            endPos = Math.Max(0, Math.Min(endPos, source.Length));
+            var end = Engine.GetLineAndColumn(lineStarts, source, endPos);
+            var snippet = ExtractSnippet(source, safeStart, safeLength);
+
+            return new Engine.TraceInfo(safeStart, start.line, start.column, safeLength, end.line, end.column, snippet, result);
+        }
+
+        private static string ExtractSnippet(string expression, int position, int length)
+        {
+            const int maxLength = 200;
+            if (string.IsNullOrEmpty(expression))
+                return null;
+
+            position = Math.Max(0, Math.Min(position, expression.Length));
+            length = length <= 0 ? Math.Min(maxLength, expression.Length - position) : Math.Min(length, expression.Length - position);
+            return expression.Substring(position, Math.Max(0, length));
         }
 
         private static string BuildNodeExpression(

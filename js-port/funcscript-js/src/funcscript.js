@@ -391,7 +391,7 @@ function evaluateTemplate(template, provider = new DefaultFsDataProvider()) {
 }
 
 const loadPackage = createPackageLoader({
-  evaluateExpression: evaluate,
+  evaluateExpression,
   DefaultFsDataProvider,
   MapDataProvider,
   normalize

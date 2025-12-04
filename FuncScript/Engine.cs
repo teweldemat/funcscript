@@ -714,7 +714,21 @@ namespace FuncScript
             return Evaluate(expression, providers, null, ParseMode.Standard);
         }
 
-        public record TraceInfo(int StartIndex,int StartLine, int StartColumn,int EndIndex, int EndLine, int EndColumn, string Snippet, object Result);
+        public record TraceInfo(
+            int StartIndex,
+            int StartLine,
+            int StartColumn,
+            int EndIndex,
+            int EndLine,
+            int EndColumn,
+            string Snippet,
+            object Result)
+        {
+            public override string ToString()
+            {
+                return $"{StartLine}:{StartColumn}-{EndLine}:{EndColumn}";
+            }
+        }
 
         public static object Trace(string expression, Action<object> hook = null)
         {

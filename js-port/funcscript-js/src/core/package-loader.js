@@ -2,6 +2,7 @@
 
 const { KvcProvider } = require('./data-provider');
 const { KeyValueCollection } = require('../model/key-value-collection');
+const { FsError } = require('../model/fs-error');
 
 function isFunction(fn) {
   return typeof fn === 'function';
@@ -72,6 +73,60 @@ function indent(level) {
   return '  '.repeat(level);
 }
 
+function buildLineStarts(expression) {
+  const text = expression == null ? '' : String(expression);
+  const starts = [0];
+  for (let i = 0; i < text.length; i += 1) {
+    if (text[i] === '\n') {
+      starts.push(i + 1);
+    }
+  }
+  return starts;
+}
+
+function getLineAndColumn(lineStarts, position) {
+  const lines = Array.isArray(lineStarts) ? lineStarts : [0];
+  const clamped = Math.max(0, position);
+  let low = 0;
+  let high = lines.length - 1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if (lines[mid] <= clamped) {
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  const lineIndex = Math.max(0, low - 1);
+  const lineStart = lines[lineIndex] ?? 0;
+  return { line: lineIndex + 1, column: clamped - lineStart + 1 };
+}
+
+function extractSnippet(expression, position, length) {
+  const text = expression == null ? '' : String(expression);
+  if (!text) {
+    return null;
+  }
+  const start = Math.max(0, Math.min(position, text.length));
+  const len = Math.max(0, Math.min(length > 0 ? length : text.length - start, text.length - start));
+  const snippet = text.slice(start, start + len || 1);
+  return snippet.length > 200 ? `${snippet.slice(0, 200)}…` : snippet;
+}
+
+function parseErrorPosition(message) {
+  if (!message) {
+    return 0;
+  }
+  const match = message.match(/pos\s+(\d+)/i) || message.match(/position\s+(\d+)/i);
+  if (match && match[1]) {
+    const n = Number(match[1]);
+    if (!Number.isNaN(n) && n >= 0) {
+      return n;
+    }
+  }
+  return 0;
+}
+
 function normalizeExpressionDescriptor(descriptor) {
   if (!descriptor && descriptor !== '') {
     return null;
@@ -125,7 +180,7 @@ function ensureResolver(resolver) {
   }
 }
 
-function createPackageLoader({ evaluateExpression, DefaultFsDataProvider, MapDataProvider, normalize }) {
+  function createPackageLoader({ evaluateExpression, DefaultFsDataProvider, MapDataProvider, normalize }) {
   if (!isFunction(evaluateExpression)) {
     throw new Error('evaluateExpression function is required to create package loader');
   }
@@ -137,6 +192,57 @@ function createPackageLoader({ evaluateExpression, DefaultFsDataProvider, MapDat
   }
   if (!isFunction(normalize)) {
     throw new Error('normalize function is required to create package loader');
+  }
+
+  function evaluateWithTrace(expression, provider, traceHook, pathSegments) {
+    const source = expression == null ? '' : String(expression);
+    const pathString = formatPath(pathSegments);
+    const traceState = traceHook
+      ? {
+          hook: (result, info) => traceHook(pathString, info),
+          logToConsole: false
+        }
+      : null;
+
+    try {
+      return evaluateExpression(source, provider, traceState);
+    } catch (error) {
+      const rawPosition = parseErrorPosition(error?.message);
+      const sourceLength = source.length;
+      const maxStart = sourceLength > 0 ? sourceLength - 1 : 0;
+      const startIndex = Math.max(0, Math.min(rawPosition, maxStart));
+      let spanLength =
+        typeof error?.length === 'number' && error.length > 0
+          ? Math.min(error.length, Math.max(0, sourceLength - startIndex))
+          : Math.max(0, sourceLength - startIndex);
+      if (spanLength === 0 && sourceLength > 0) {
+        spanLength = 1;
+      }
+
+      const endPos =
+        spanLength > 0
+          ? Math.min(sourceLength > 0 ? sourceLength - 1 : 0, startIndex + spanLength - 1)
+          : startIndex;
+      const lineStarts = buildLineStarts(source);
+      const start = getLineAndColumn(lineStarts, startIndex);
+      const end = getLineAndColumn(lineStarts, endPos);
+      const typedError = normalize(new FsError(FsError.ERROR_DEFAULT, error?.message || 'Failed to evaluate package expression'));
+      const info = {
+        startIndex,
+        startLine: start.line,
+        startColumn: start.column,
+        endIndex: spanLength,
+        endLine: end.line,
+        endColumn: end.column,
+        snippet: extractSnippet(source, startIndex, spanLength),
+        result: typedError[1]
+      };
+
+      if (traceHook) {
+        traceHook(pathString, info);
+      }
+      return typedError;
+    }
   }
 
   function buildNodeExpression(resolver, path, depth, selectPath) {
@@ -205,7 +311,7 @@ function createPackageLoader({ evaluateExpression, DefaultFsDataProvider, MapDat
     return `{\n${body}\n${indentCurrent}}`;
   }
 
-  function createProviderWithPackage(resolver, provider, loadPackageFn) {
+  function createProviderWithPackage(resolver, provider, loadPackageFn, traceHook) {
     const resolverAccessor = isFunction(resolver?.package) ? resolver.package.bind(resolver) : null;
     if (!resolverAccessor) {
       return provider;
@@ -223,19 +329,20 @@ function createPackageLoader({ evaluateExpression, DefaultFsDataProvider, MapDat
       if (!nestedResolver) {
         throw new Error(`Package '${name}' could not be resolved`);
       }
-      return loadPackageFn(nestedResolver, provider);
+      return loadPackageFn(nestedResolver, provider, traceHook);
     });
 
     return new MapDataProvider({ package: packageValue }, provider);
   }
 
   class LazyPackageCollection extends KeyValueCollection {
-    constructor(resolver, helperProvider, path) {
+    constructor(resolver, helperProvider, path, traceHook) {
       super(helperProvider);
       this._resolver = resolver;
       this._path = clonePath(path);
       this._cache = new Map();
       this._evaluationProvider = null;
+      this._traceHook = traceHook || null;
     }
 
     setEvaluationProvider(provider) {
@@ -281,8 +388,25 @@ function createPackageLoader({ evaluateExpression, DefaultFsDataProvider, MapDat
         return null;
       }
 
+      // If the child is a folder, return a lazy collection so nested members are traced with full paths.
+      if (!expressionDescriptor && childEntries.length > 0) {
+        const nestedParent = this._evaluationContext();
+        const nested = new LazyPackageCollection(
+          this._resolver,
+          nestedParent || this.parent || null,
+          childPath,
+          this._traceHook
+        );
+        if (nestedParent) {
+          nested.setEvaluationProvider(nestedParent);
+        }
+        const typedNested = normalize(nested);
+        this._cache.set(lower, typedNested);
+        return typedNested;
+      }
+
       const expression = buildNodeExpression(this._resolver, childPath, 0, null);
-      const value = evaluateExpression(expression, this._evaluationContext());
+      const value = evaluateWithTrace(expression, this._evaluationContext(), this._traceHook, childPath);
       this._cache.set(lower, value);
       return value;
     }
@@ -305,27 +429,27 @@ function createPackageLoader({ evaluateExpression, DefaultFsDataProvider, MapDat
     }
   }
 
-  function loadPackage(resolver, provider) {
+  function loadPackage(resolver, provider, traceHook) {
     ensureResolver(resolver);
     const baseProvider = provider || new DefaultFsDataProvider();
-    const helperProvider = createProviderWithPackage(resolver, baseProvider, loadPackage);
+    const helperProvider = createProviderWithPackage(resolver, baseProvider, loadPackage, traceHook);
 
     const rootExpressionDescriptor = normalizeExpressionDescriptor(resolver.getExpression([]));
     if (rootExpressionDescriptor) {
       const expression = wrapExpressionByLanguage(rootExpressionDescriptor);
-      return evaluateExpression(expression, helperProvider);
+      return evaluateWithTrace(expression, helperProvider, traceHook, []);
     }
 
     const evalExpressionDescriptor = normalizeExpressionDescriptor(resolver.getExpression(['eval']));
     if (evalExpressionDescriptor) {
-      const lazyValues = new LazyPackageCollection(resolver, helperProvider, []);
+      const lazyValues = new LazyPackageCollection(resolver, helperProvider, [], traceHook);
       const packageProvider = new KvcProvider(lazyValues, helperProvider);
       lazyValues.setEvaluationProvider(packageProvider);
       const expression = wrapExpressionByLanguage(evalExpressionDescriptor);
-      return evaluateExpression(expression, packageProvider);
+      return evaluateWithTrace(expression, packageProvider, traceHook, ['eval']);
     }
 
-    const lazyValues = new LazyPackageCollection(resolver, helperProvider, []);
+    const lazyValues = new LazyPackageCollection(resolver, helperProvider, [], traceHook);
     const packageProvider = new KvcProvider(lazyValues, helperProvider);
     lazyValues.setEvaluationProvider(packageProvider);
     return normalize(lazyValues);
@@ -345,10 +469,10 @@ function createPackageLoader({ evaluateExpression, DefaultFsDataProvider, MapDat
     return buildNodeExpression(resolver, [], 0, normalized);
   }
 
-  function createPackageProvider(resolver, provider) {
+  function createPackageProvider(resolver, provider, traceHook) {
     ensureResolver(resolver);
     const baseProvider = provider || new DefaultFsDataProvider();
-    return createProviderWithPackage(resolver, baseProvider, loadPackage);
+    return createProviderWithPackage(resolver, baseProvider, loadPackage, traceHook);
   }
 
   loadPackage.buildExpression = buildExpressionForPath;

@@ -101,6 +101,11 @@ describe('KvcTests', () => {
     expect(typeOf(result)).to.equal(FSDataType.KeyValueCollection);
     expect(toPlain(result)).to.deep.equal({ y: { b: 7 } });
   });
+  it('replaces list values with right-most key-value when adding', () => {
+    const result = evaluate('{x:[1,2]}+{x:[3]}', provider);
+    expect(typeOf(result)).to.equal(FSDataType.KeyValueCollection);
+    expect(toPlain(result)).to.deep.equal({ x: [3] });
+  });
 
   it('KeyWord mixup still returns values', () => {
     const result = evaluate('{ null1:5; y:null1;}', provider);

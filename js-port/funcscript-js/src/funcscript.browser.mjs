@@ -197,7 +197,7 @@ function trace(expression, providerOrHook, hookMaybe) {
 }
 
 const loadPackage = createPackageLoader({
-  evaluateExpression: evaluate,
+  evaluateExpression,
   DefaultFsDataProvider,
   MapDataProvider,
   normalize
