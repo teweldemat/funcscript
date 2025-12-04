@@ -430,8 +430,8 @@ function parseMemberAccessOperator(context, siblings, oper, source, index) {
   if (context.Provider && typeof context.Provider.get === 'function') {
     functionTyped = context.Provider.get(oper);
   }
-  const fnLiteral = new LiteralBlock(functionTyped);
-  const nameLiteral = new LiteralBlock(iden.Iden);
+  const fnLiteral = new LiteralBlock(functionTyped, index, afterOperator - index);
+  const nameLiteral = new LiteralBlock(iden.Iden, iden.StartIndex, iden.Length);
   const { position: sourceStart } = getCodeLocation(source);
   const expression = new FunctionCallExpression(
     fnLiteral,

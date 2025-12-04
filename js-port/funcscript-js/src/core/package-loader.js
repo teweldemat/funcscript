@@ -197,7 +197,8 @@ function ensureResolver(resolver) {
   function evaluateWithTrace(expression, provider, traceHook, pathSegments) {
     const source = expression == null ? '' : String(expression);
     const pathString = formatPath(pathSegments);
-    const traceState = traceHook
+    const stepInto = Boolean(traceHook && traceHook.__fsStepInto);
+    const traceState = traceHook && stepInto
       ? {
           hook: (result, info) => traceHook(pathString, info),
           logToConsole: false
@@ -205,7 +206,24 @@ function ensureResolver(resolver) {
       : null;
 
     try {
-      return evaluateExpression(source, provider, traceState);
+      const value = evaluateExpression(source, provider, traceState);
+      if (traceHook && !stepInto) {
+        const lineStarts = buildLineStarts(source);
+        const endPos = source.length > 0 ? source.length - 1 : 0;
+        const start = getLineAndColumn(lineStarts, 0);
+        const end = getLineAndColumn(lineStarts, endPos);
+        traceHook(pathString, {
+          startIndex: 0,
+          startLine: start.line,
+          startColumn: start.column,
+          endIndex: source.length,
+          endLine: end.line,
+          endColumn: end.column,
+          snippet: extractSnippet(source, 0, source.length || 1),
+          result: Array.isArray(value) && value.length === 2 ? value[1] : value
+        });
+      }
+      return value;
     } catch (error) {
       const rawPosition = parseErrorPosition(error?.message);
       const sourceLength = source.length;
@@ -390,16 +408,21 @@ function ensureResolver(resolver) {
 
       // If the child is a folder, return a lazy collection so nested members are traced with full paths.
       if (!expressionDescriptor && childEntries.length > 0) {
-        const nestedParent = this._evaluationContext();
-        const nested = new LazyPackageCollection(
-          this._resolver,
-          nestedParent || this.parent || null,
-          childPath,
-          this._traceHook
-        );
-        if (nestedParent) {
-          nested.setEvaluationProvider(nestedParent);
+        const hasEvalChild = childEntries.some((entry) => {
+          const name = extractChildName(entry);
+          return name && String(name).toLowerCase() === 'eval';
+        });
+        if (hasEvalChild) {
+          const expression = buildNodeExpression(this._resolver, childPath, 0, null);
+          const value = evaluateWithTrace(expression, this._evaluationContext(), this._traceHook, childPath);
+          this._cache.set(lower, value);
+          return value;
         }
+
+        const parentProvider = this._evaluationContext() || this.parent || null;
+        const nested = new LazyPackageCollection(this._resolver, this.parent || null, childPath, this._traceHook);
+        const nestedProvider = new KvcProvider(nested, parentProvider);
+        nested.setEvaluationProvider(nestedProvider);
         const typedNested = normalize(nested);
         this._cache.set(lower, typedNested);
         return typedNested;

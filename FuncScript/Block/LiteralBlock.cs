@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+﻿ using System.Reflection;
 using System.Text;
 using FuncScript.Core;
 using FuncScript.Model;
@@ -13,10 +13,6 @@ namespace FuncScript.Block
             Value = val;
         }
 
-        public override bool UsesDepthCounter => false;
-
-        
-
         public override string AsExpString()
         {
             var sb = new StringBuilder();
@@ -26,9 +22,20 @@ namespace FuncScript.Block
 
         public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {
-            if (Value is ExpressionFunction expFunc)
-                return new ExpressionFunction.ExpressionFunctionCaller(provider, expFunc,depth);
-            return Value;
+            depth.Enter();
+            object result = null;
+            try
+            {
+                if (Value is ExpressionFunction expFunc)
+                    result = new ExpressionFunction.ExpressionFunctionCaller(provider, expFunc,depth);
+                else
+                    result = Value;
+                return result;
+            }
+            finally
+            {
+                depth.Exit(result, this);
+            }
         }
 
         public override IEnumerable<ExpressionBlock> GetChilds() => Array.Empty<ExpressionBlock>();

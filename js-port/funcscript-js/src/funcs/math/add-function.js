@@ -3,7 +3,6 @@ const { assertTyped, typeOf, valueOf, makeValue, convertToCommonNumericType } = 
 const { FSDataType } = require('../../core/fstypes');
 const { FsList, ArrayFsList } = require('../../model/fs-list');
 const { KeyValueCollection } = require('../../model/key-value-collection');
-const { FsError } = require('../../model/fs-error');
 
 function isNumericType(t) {
   return t === FSDataType.Integer || t === FSDataType.Float || t === FSDataType.BigInteger;
@@ -65,10 +64,7 @@ class AddFunction extends BaseFunction {
       const currentValue = valueOf(typed);
 
       if (currentType === FSDataType.Error) {
-        if (currentValue && currentValue.errorType === FsError.ERROR_EVALUATION_DEPTH_OVERFLOW) {
-          return makeValue(FSDataType.Error, currentValue);
-        }
-        throwFromFsError(currentValue);
+        return makeValue(FSDataType.Error, currentValue);
       }
 
       if (currentType === FSDataType.Null) {
@@ -147,13 +143,3 @@ class AddFunction extends BaseFunction {
 module.exports = {
   AddFunction
 };
-function throwFromFsError(fsError) {
-  if (!fsError) {
-    throw new Error('Unsupported operand types for +');
-  }
-  const snippet = fsError.errorData && typeof fsError.errorData.expression === 'string' ? fsError.errorData.expression : null;
-  const trimmed = snippet ? snippet.trim() : null;
-  const suffix = trimmed ? ` (Evaluation error at '${trimmed}')` : '';
-  const base = fsError.errorMessage || fsError.toString() || 'Evaluation error';
-  throw new Error(`${base}${suffix}`);
-}

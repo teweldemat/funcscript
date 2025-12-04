@@ -219,4 +219,40 @@ describe('Packages', () => {
     expect(evalTrace.info.result).to.equal(5);
     expect(evalTrace.info.startLine).to.be.greaterThan(0);
   });
+
+  it('traces nested helper evaluation with snippets and results', () => {
+    const traces = [];
+    const resolver = createMockResolver({
+      children: {
+        h: {
+          children: {
+            f: { expression: 'math.abs(-2)' }
+          }
+        },
+        eval: { expression: '3+h.f' }
+      }
+    });
+
+    const typed = loadPackage(resolver, undefined, (path, info) => {
+      traces.push({ path, info });
+    });
+
+    expect(typeOf(typed)).to.equal(FSDataType.Integer);
+    expect(valueOf(typed)).to.equal(5);
+    expect(traces.length).to.be.at.least(2);
+
+    const helperTrace = traces.find(
+      (t) => typeof t.path === 'string' && t.path.toLowerCase().startsWith('h')
+    );
+    expect(helperTrace).to.exist;
+    expect(helperTrace.info.snippet).to.equal('math.abs(-2)');
+    expect(helperTrace.info.result).to.equal(2);
+    expect(helperTrace.info.startLine).to.be.greaterThan(0);
+
+    const evalTrace = traces.find((t) => t.path === 'eval');
+    expect(evalTrace).to.exist;
+    expect(evalTrace.info.snippet).to.equal('3+h.f');
+    expect(evalTrace.info.result).to.equal(5);
+    expect(evalTrace.info.startLine).to.be.greaterThan(0);
+  });
 });

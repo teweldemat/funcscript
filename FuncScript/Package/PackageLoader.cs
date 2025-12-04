@@ -299,7 +299,7 @@ namespace FuncScript.Package
                 return "<root>";
             }
 
-            return string.Join('/', path);
+            return string.Join('/', path).Trim();
         }
 
         private static string Indent(int depth)
@@ -376,6 +376,15 @@ namespace FuncScript.Package
                 if (expressionDescriptor == null && !childEntries.Any())
                 {
                     return null;
+                }
+
+                if (expressionDescriptor == null && childEntries.Any())
+                {
+                    var nested = new LazyPackageCollection(_resolver, _helperProvider, childPath, _trace);
+                    nested.SetEvaluationProvider(EvaluationProvider);
+                    var normalizedValue = Engine.NormalizeDataType(nested);
+                    _cache[normalized] = normalizedValue;
+                    return normalizedValue;
                 }
 
                 var expression = BuildNodeExpression(_resolver, childPath, 0, null);

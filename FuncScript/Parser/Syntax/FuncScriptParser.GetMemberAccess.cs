@@ -52,6 +52,10 @@ namespace FuncScript.Core
             var currentIndex = afterIdentifier;
 
             var function = context.Provider.Get(oper);
+            var functionLiteral = new LiteralBlock(function)
+            {
+                CodeLocation = new CodeLocation(index, afterOperator - index)
+            };
             var memberLiteral = new LiteralBlock(iden.Iden)
             {
                 CodeLocation = new CodeLocation(iden.StartIndex, iden.Length)
@@ -59,7 +63,7 @@ namespace FuncScript.Core
 
             var expression = new FunctionCallExpression
             (
-                new LiteralBlock(function),
+                functionLiteral,
                 new ListExpression(new ExpressionBlock[] { source, memberLiteral }))
             {
                 CodeLocation = new CodeLocation(source.CodeLocation.Position, currentIndex - source.CodeLocation.Position)

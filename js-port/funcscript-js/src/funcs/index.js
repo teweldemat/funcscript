@@ -58,7 +58,10 @@ const {
   RandomFunction,
   CubeRootFunction,
   DegreesToRadiansFunction,
-  RadiansToDegreesFunction
+  RadiansToDegreesFunction,
+  IsNormalFunction,
+  IsNaNFunction,
+  IsInfinityFunction
 } = require('./math/advanced-functions');
 
 const { MapListFunction } = require('./list/map-list-function');
@@ -178,6 +181,9 @@ module.exports = function buildBuiltinMap() {
     { fn: new CubeRootFunction(), collections: { math: ['cbrt'] } },
     { fn: new DegreesToRadiansFunction(), collections: { math: ['degtorad', 'deg2rad'] } },
     { fn: new RadiansToDegreesFunction(), collections: { math: ['radtodeg', 'rad2deg'] } },
+    { fn: new IsNormalFunction(), collections: { float: ['isnormal'] } },
+    { fn: new IsNaNFunction(), collections: { float: ['isnan'] } },
+    { fn: new IsInfinityFunction(), collections: { float: ['isinfinity'] } },
     { value: Math.PI, names: [], collections: { math: ['pi'] } },
     { value: Math.E, names: [], collections: { math: ['e'] } },
     { fn: new MapListFunction(), names: ['map'] },

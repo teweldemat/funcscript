@@ -11,6 +11,7 @@ const NumericKind = {
 
 const FNV_OFFSET_BASIS = 2166136261;
 const FNV_PRIME = 16777619;
+const MIN_NORMAL = 2.2250738585072014e-308;
 
 function numericKindFromType(typed) {
   const t = typeOf(typed);
@@ -566,6 +567,94 @@ class RandomFunction extends BaseFunction {
   }
 }
 
+class IsNormalFunction extends BaseFunction {
+  constructor() {
+    super();
+    this.symbol = 'isnormal';
+    this.callType = CallType.Prefix;
+  }
+
+  get maxParameters() {
+    return 1;
+  }
+
+  evaluate(provider, parameters) {
+    if (parameters.count !== 1) {
+      return makeError(
+        FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+        `${this.symbol}: Expected 1 parameter, received ${parameters.count}`
+      );
+    }
+
+    const result = ensureNumeric(this.symbol, parameters.getParameter(provider, 0), 'value');
+    if (!result.ok) {
+      return result.error;
+    }
+
+    const value = result.number;
+    const isNormal = Number.isFinite(value) && value !== 0 && Math.abs(value) >= MIN_NORMAL;
+    return makeValue(FSDataType.Boolean, isNormal);
+  }
+}
+
+class IsNaNFunction extends BaseFunction {
+  constructor() {
+    super();
+    this.symbol = 'isnan';
+    this.callType = CallType.Prefix;
+  }
+
+  get maxParameters() {
+    return 1;
+  }
+
+  evaluate(provider, parameters) {
+    if (parameters.count !== 1) {
+      return makeError(
+        FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+        `${this.symbol}: Expected 1 parameter, received ${parameters.count}`
+      );
+    }
+
+    const result = ensureNumeric(this.symbol, parameters.getParameter(provider, 0), 'value');
+    if (!result.ok) {
+      return result.error;
+    }
+
+    return makeValue(FSDataType.Boolean, Number.isNaN(result.number));
+  }
+}
+
+class IsInfinityFunction extends BaseFunction {
+  constructor() {
+    super();
+    this.symbol = 'isinfinity';
+    this.callType = CallType.Prefix;
+  }
+
+  get maxParameters() {
+    return 1;
+  }
+
+  evaluate(provider, parameters) {
+    if (parameters.count !== 1) {
+      return makeError(
+        FsError.ERROR_PARAMETER_COUNT_MISMATCH,
+        `${this.symbol}: Expected 1 parameter, received ${parameters.count}`
+      );
+    }
+
+    const result = ensureNumeric(this.symbol, parameters.getParameter(provider, 0), 'value');
+    if (!result.ok) {
+      return result.error;
+    }
+
+    const value = result.number;
+    const isInfinity = !Number.isFinite(value) && !Number.isNaN(value);
+    return makeValue(FSDataType.Boolean, isInfinity);
+  }
+}
+
 class CubeRootFunction extends BaseFunction {
   constructor() {
     super();
@@ -644,6 +733,9 @@ module.exports = {
   MaxFunction,
   ClampFunction,
   RandomFunction,
+  IsNormalFunction,
+  IsNaNFunction,
+  IsInfinityFunction,
   CubeRootFunction,
   DegreesToRadiansFunction,
   RadiansToDegreesFunction

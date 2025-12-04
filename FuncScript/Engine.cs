@@ -914,7 +914,7 @@ namespace FuncScript
                 length = Math.Min(length, expression.Length - start);
 
             var snippet = length > 0 ? expression.Substring(start, length) : expression;
-            return Truncate(snippet, maxLength);
+            return Truncate(snippet?.Trim(), maxLength);
         }
 
         private static string Truncate(string text, int maxLength)

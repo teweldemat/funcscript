@@ -133,19 +133,10 @@ namespace FuncScript.Test
 
             var result = PackageLoader.LoadPackage(resolver, trace: (path, info) => { traces.Add((path, info)); });
 
-            var formatValue = new Func<object, string>((v) =>
-            {
-                if (v is KeyValueCollection)
-                    return "[kvc]";
-                if (v is FsList)
-                    return "[list]";
-                if(v is IFsFunction)
-                    return "[function]";
-                return v.ToString();
-            });
+            
             foreach (var trace in traces)
             {
-                Console.WriteLine($"{trace.Path} {trace.Info.ToString()} '{trace.Info.Snippet}' {formatValue(trace.Info.Result)}");
+                Console.WriteLine($"{trace.Path} {trace.Info.ToString()} '{trace.Info.Snippet}' {FormatTraceValue(trace.Info.Result)}");
             }
             Assert.That(result, Is.InstanceOf<int>());
             Assert.That(traces.Count, Is.GreaterThanOrEqualTo(3));
@@ -161,25 +152,19 @@ namespace FuncScript.Test
             var traces = new List<(string Path, Engine.TraceInfo Info)>();
             var resolver = new TestPackageResolver(new
             { 
-                h=new {f="math.abs(-2)"},
+                h=new
+                {
+                    f="math.abs(-2)"
+                },
                 eval = "3+h.f"
             });
 
             var result = PackageLoader.LoadPackage(resolver, trace: (path, info) => { traces.Add((path, info)); });
 
-            var formatValue = new Func<object, string>((v) =>
-            {
-                if (v is KeyValueCollection)
-                    return "[kvc]";
-                if (v is FsList)
-                    return "[list]";
-                if(v is IFsFunction)
-                    return "[function]";
-                return v.ToString();
-            });
+            
             foreach (var trace in traces)
             {
-                Console.WriteLine($"{trace.Path} {trace.Info.ToString()} '{trace.Info.Snippet}' {formatValue(trace.Info.Result)}");
+                Console.WriteLine($"{trace.Path} {trace.Info.ToString()} '{trace.Info.Snippet}' {FormatTraceValue(trace.Info.Result)}");
             }
             Assert.That(result, Is.InstanceOf<int>());
             Assert.That(traces.Count, Is.GreaterThanOrEqualTo(3));
@@ -188,6 +173,126 @@ namespace FuncScript.Test
             Assert.That(traces.Any(t => t.Path=="h/f" && t.Info.Snippet == "math.abs(-2)" && Equals(t.Info.Result, 2)));
             Assert.That(traces.Any(t => t.Path=="eval"  && t.Info.Snippet == "3+h.f" && Equals(t.Info.Result, 5)));
         }
+        [Test]
+        public void LoadPackage_TraceDetailedPackageEvaluation_3()
+        {
+            var traces = new List<(string Path, Engine.TraceInfo Info)>();
+            var resolver = new TestPackageResolver(new
+            { 
+                h=new
+                {
+                    f="x=>math.abs(x)"
+                },
+                eval = "3+h.f(-4)"
+            });
+
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) => { traces.Add((path, info)); });
+
+            
+            foreach (var trace in traces)
+            {
+                Console.WriteLine($"{trace.Path} {trace.Info.ToString()} '{trace.Info.Snippet}' {FormatTraceValue(trace.Info.Result)}");
+            }
+            Assert.That(result, Is.InstanceOf<int>());
+            Assert.That(traces.Count, Is.GreaterThanOrEqualTo(3));
+
+            Assert.That(traces.Any(t => t.Path=="eval" && t.Info.Snippet == "3" && Equals(t.Info.Result, 3)));
+            Assert.That(traces.Any(t => t.Path=="h/f" && t.Info.Snippet == "math.abs(x)" && Equals(t.Info.Result, 4)));
+            Assert.That(traces.Any(t => t.Path=="eval"  && t.Info.Snippet == "3+h.f(-4)" && Equals(t.Info.Result, 7)));
+        }
+
+        static string FormatTraceValue(object v)
+        {
+            if (v is KeyValueCollection)
+                return "[kvc]";
+            if (v is FsList)
+                return "[list]";
+            if(v is IFsFunction)
+                return "[function]";
+            if (v == null)
+                return "[null]";
+            return v.ToString();
+        }
+        [Test]
+        public void LoadPackage_TraceDetailedPackageEvaluation_4()
+        {
+            var traces = new List<(string Path, Engine.TraceInfo Info)>();
+            var resolver = new TestPackageResolver(new
+            { 
+                h=new
+                {
+                    f="error('err')",
+                    g="5"
+                },
+                eval = "h.g+h.f"
+            });
+
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) => { traces.Add((path, info)); });
+
+
+            foreach (var trace in traces)
+            {
+                Console.WriteLine($"{trace.Path} {trace.Info.ToString()} '{trace.Info.Snippet}' {FormatTraceValue(trace.Info.Result)}");
+            }
+            Assert.That(result, Is.InstanceOf<FsError>());
+
+            var theTrace = traces.FirstOrDefault(t => t.Path == "eval" && t.Info.Snippet == "h.g+h.f");
+            Assert.NotNull(theTrace);
+            var errRes = theTrace.Info.Result as FsError;
+            Assert.NotNull(errRes);
+            Assert.That(errRes.ErrorMessage, Is.EqualTo( "err"));
+            
+            theTrace = traces.FirstOrDefault(t => t.Path == "h/f" && t.Info.Snippet == "error('err')");
+            Assert.NotNull(theTrace);
+            errRes = theTrace.Info.Result as FsError;
+            Assert.NotNull(errRes);
+            Assert.That(errRes.ErrorMessage, Is.EqualTo( "err"));
+            
+            theTrace = traces.FirstOrDefault(t => t.Path == "h/g" && t.Info.Snippet == "5");
+            Assert.NotNull(theTrace);
+            Assert.That(theTrace.Info.Result, Is.EqualTo(5));
+        }
+        
+        [Test]
+        public void LoadPackage_TraceDetailedPackageEvaluation_5()
+        {
+            var traces = new List<(string Path, Engine.TraceInfo Info)>();
+            var resolver = new TestPackageResolver(new
+            { 
+                h=new
+                {
+                    f_js="return z(5)",
+                    g="5"
+                },
+                eval = "h.g+h.f"
+            });
+
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) => { traces.Add((path, info)); });
+
+
+            foreach (var trace in traces)
+            {
+                Console.WriteLine($"{trace.Path} {trace.Info.ToString()} '{trace.Info.Snippet}' {FormatTraceValue(trace.Info.Result)}");
+            }
+            Assert.That(result, Is.InstanceOf<FsError>());
+
+            var theTrace = traces.FirstOrDefault(t => t.Path == "eval" && t.Info.Snippet == "h.g+h.f");
+            Assert.NotNull(theTrace);
+            var errRes = theTrace.Info.Result as FsError;
+            Assert.NotNull(errRes);
+            Assert.That(errRes.ErrorMessage.Contains("z"));
+            
+            theTrace = traces.FirstOrDefault(t => t.Path == "h/f" && t.Info.Snippet.Contains("return z(5)"));
+            Assert.NotNull(theTrace);
+            errRes = theTrace.Info.Result as FsError;
+            Assert.NotNull(errRes);
+            Assert.That(errRes.ErrorMessage.Contains("z"));
+            
+            theTrace = traces.FirstOrDefault(t => t.Path == "h/g" && t.Info.Snippet == "5");
+            Assert.NotNull(theTrace);
+            Assert.That(theTrace.Info.Result, Is.EqualTo(5));
+        }
+        
 
         [Test]
         public void LoadPackage_TraceIncludesLineInfoForSyntaxErrors()

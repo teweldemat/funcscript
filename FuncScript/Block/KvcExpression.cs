@@ -11,7 +11,6 @@ namespace FuncScript.Block
 {
     public class KvcExpression : ExpressionBlock
     {
-        public override bool UsesDepthCounter => false;
 
         public class KvcExpressionCollection : KeyValueCollection
         {
@@ -149,14 +148,24 @@ namespace FuncScript.Block
 
         public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {
-
-            var collection = new KvcExpressionCollection(provider, this,depth);
-            if (evalExpresion != null)
+            depth.Enter();
+            object result = null;
+            try
             {
-                return evalExpresion.Evaluate(collection, depth);
-            }
+                var collection = new KvcExpressionCollection(provider, this,depth);
+                if (evalExpresion != null)
+                {
+                    result = evalExpresion.Evaluate(collection, depth);
+                    return result;
+                }
 
-            return collection;
+                result = collection;
+                return result;
+            }
+            finally
+            {
+                depth.Exit(result, this);
+            }
         }
 
         public override string ToString()
