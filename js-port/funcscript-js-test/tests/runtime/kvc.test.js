@@ -96,6 +96,11 @@ describe('KvcTests', () => {
     expect(typeOf(result)).to.equal(FSDataType.KeyValueCollection);
     expect(toPlain(result)).to.deep.equal({ a: 5, b: 6 });
   });
+  it('merges nested key-value collections with +', () => {
+    const result = evaluate('{y:{b:6;};}+{y:{b:7};}', provider);
+    expect(typeOf(result)).to.equal(FSDataType.KeyValueCollection);
+    expect(toPlain(result)).to.deep.equal({ y: { b: 7 } });
+  });
 
   it('KeyWord mixup still returns values', () => {
     const result = evaluate('{ null1:5; y:null1;}', provider);

@@ -1,5 +1,5 @@
 const { FsDataProvider } = require('../core/data-provider');
-const { assertTyped, typeOf, valueOf } = require('../core/value');
+const { assertTyped, typeOf, valueOf, makeValue } = require('../core/value');
 const { FSDataType } = require('../core/fstypes');
 
 class KeyValueCollection extends FsDataProvider {
@@ -47,7 +47,7 @@ class KeyValueCollection extends FsDataProvider {
           const incomingType = typeOf(incomingTyped);
           if (existingType === FSDataType.KeyValueCollection && incomingType === FSDataType.KeyValueCollection) {
             const mergedValue = KeyValueCollection.merge(valueOf(existing), valueOf(incomingTyped));
-            merged[index][1] = assertTyped(mergedValue);
+            merged[index][1] = makeValue(FSDataType.KeyValueCollection, mergedValue);
           } else {
             merged[index][1] = incomingTyped;
           }

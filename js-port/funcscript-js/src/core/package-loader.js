@@ -1,5 +1,8 @@
 'use strict';
 
+const { KvcProvider } = require('./data-provider');
+const { KeyValueCollection } = require('../model/key-value-collection');
+
 function isFunction(fn) {
   return typeof fn === 'function';
 }
@@ -226,12 +229,106 @@ function createPackageLoader({ evaluateExpression, DefaultFsDataProvider, MapDat
     return new MapDataProvider({ package: packageValue }, provider);
   }
 
+  class LazyPackageCollection extends KeyValueCollection {
+    constructor(resolver, helperProvider, path) {
+      super(helperProvider);
+      this._resolver = resolver;
+      this._path = clonePath(path);
+      this._cache = new Map();
+      this._evaluationProvider = null;
+    }
+
+    setEvaluationProvider(provider) {
+      this._evaluationProvider = provider;
+    }
+
+    _evaluationContext() {
+      return this._evaluationProvider || this.parent || null;
+    }
+
+    _resolveChildName(name) {
+      if (!name) {
+        return null;
+      }
+      const lower = String(name).toLowerCase();
+      const children = iterableToArray(this._resolver.listChildren(this._path));
+      for (const entry of children) {
+        const childName = extractChildName(entry);
+        if (!childName) {
+          continue;
+        }
+        if (childName.toLowerCase() === lower) {
+          return childName;
+        }
+      }
+      return null;
+    }
+
+    get(name) {
+      const actualName = this._resolveChildName(name);
+      if (!actualName) {
+        return null;
+      }
+      const lower = String(actualName).toLowerCase();
+      if (this._cache.has(lower)) {
+        return this._cache.get(lower);
+      }
+
+      const childPath = this._path.concat([String(actualName)]);
+      const expressionDescriptor = normalizeExpressionDescriptor(this._resolver.getExpression(childPath));
+      const childEntries = iterableToArray(this._resolver.listChildren(childPath));
+      if (!expressionDescriptor && childEntries.length === 0) {
+        return null;
+      }
+
+      const expression = buildNodeExpression(this._resolver, childPath, 0, null);
+      const value = evaluateExpression(expression, this._evaluationContext());
+      this._cache.set(lower, value);
+      return value;
+    }
+
+    isDefined(name) {
+      return !!this._resolveChildName(name);
+    }
+
+    getAll() {
+      const children = iterableToArray(this._resolver.listChildren(this._path));
+      const result = [];
+      for (const entry of children) {
+        const name = extractChildName(entry);
+        if (!name) {
+          continue;
+        }
+        result.push([name, this.get(name)]);
+      }
+      return result;
+    }
+  }
+
   function loadPackage(resolver, provider) {
     ensureResolver(resolver);
     const baseProvider = provider || new DefaultFsDataProvider();
-    const expression = buildNodeExpression(resolver, [], 0);
-    const evaluationProvider = createProviderWithPackage(resolver, baseProvider, loadPackage);
-    return evaluateExpression(expression, evaluationProvider);
+    const helperProvider = createProviderWithPackage(resolver, baseProvider, loadPackage);
+
+    const rootExpressionDescriptor = normalizeExpressionDescriptor(resolver.getExpression([]));
+    if (rootExpressionDescriptor) {
+      const expression = wrapExpressionByLanguage(rootExpressionDescriptor);
+      return evaluateExpression(expression, helperProvider);
+    }
+
+    const evalExpressionDescriptor = normalizeExpressionDescriptor(resolver.getExpression(['eval']));
+    if (evalExpressionDescriptor) {
+      const lazyValues = new LazyPackageCollection(resolver, helperProvider, []);
+      const packageProvider = new KvcProvider(lazyValues, helperProvider);
+      lazyValues.setEvaluationProvider(packageProvider);
+      const expression = wrapExpressionByLanguage(evalExpressionDescriptor);
+      return evaluateExpression(expression, packageProvider);
+    }
+
+    const lazyValues = new LazyPackageCollection(resolver, helperProvider, []);
+    const packageProvider = new KvcProvider(lazyValues, helperProvider);
+    lazyValues.setEvaluationProvider(packageProvider);
+    return normalize(lazyValues);
   }
 
   function buildExpressionForPath(resolver, targetPath) {

@@ -487,6 +487,25 @@ return Map(z,(x)=>x*x);
             Assert.AreEqual(expected, res);
         }
         [Test]
+        public void KvcAdditionPrefersRightMostNestedValues()
+        {
+            var exp = "{y:{b:6;};}+{y:{b:7};}";
+            var res = FuncScriptRuntime.Evaluate(exp);
+            var expected = new ObjectKvc(new { y = new { b = 7 } });
+
+            Assert.AreEqual(FuncScriptRuntime.FormatToJson(expected), FuncScriptRuntime.FormatToJson(res));
+        }
+
+        [Test]
+        public void KvcAdditionReplacesListsWithRightMostValue()
+        {
+            var exp = "{x:[1,2]}+{x:[3]}";
+            var res = FuncScriptRuntime.Evaluate(exp);
+            var expected = FuncScriptRuntime.Evaluate("{x:[3]}");
+
+            Assert.That(FuncScriptRuntime.FormatToJson(res), Is.EqualTo(FuncScriptRuntime.FormatToJson(expected)));
+        }
+        [Test]
         public void TestDelegate()
         {
             var vars = new

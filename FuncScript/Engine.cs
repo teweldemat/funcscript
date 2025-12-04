@@ -714,7 +714,7 @@ namespace FuncScript
             return Evaluate(expression, providers, null, ParseMode.Standard);
         }
 
-        public record TraceInfo(int startIndex,int StartLine, int StartColumn,int endIndex, int EndLine, int EndColumn, string Snippet, object Result);
+        public record TraceInfo(int StartIndex,int StartLine, int StartColumn,int EndIndex, int EndLine, int EndColumn, string Snippet, object Result);
 
         public static object Trace(string expression, Action<object> hook = null)
         {
@@ -851,7 +851,7 @@ namespace FuncScript
             return new TraceInfo(location?.Position??-1,  start.line, start.column, location?.Length??-1, end.line, end.column, snippet, result);
         }
 
-        private static (int line, int column) GetLineAndColumn(List<int> lineStarts, string expression, int position)
+        public static (int line, int column) GetLineAndColumn(List<int> lineStarts, string expression, int position)
         {
             if (string.IsNullOrEmpty(expression))
                 return (1, 1);
@@ -867,7 +867,7 @@ namespace FuncScript
             return (lineIndex + 1, column);
         }
 
-        private static List<int> BuildLineStarts(string expression)
+        public static List<int> BuildLineStarts(string expression)
         {
             var starts = new List<int>();
             if (expression == null)

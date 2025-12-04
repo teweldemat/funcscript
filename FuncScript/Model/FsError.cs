@@ -10,6 +10,8 @@ public class FsError
     public const string ERROR_TYPE_INVALID_PARAMETER = "TYPE_INVALID_PARAMETER";
 
     public const string ERROR_EVALUATION_DEPTH_OVERFLOW = "EVALUATION_DEPTH_OVERFLOW";
+    public const string ERROR_SYNTAX_ERROR = "SYNTAX_ERROR";
+    public const string ERROR_UNKNOWN_ERROR = "UNKNOWN_ERROR";
     
     public string ErrorType { get; set; }
     public string ErrorMessage { get; set; }

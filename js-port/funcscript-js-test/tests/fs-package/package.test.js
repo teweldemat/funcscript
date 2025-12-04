@@ -82,4 +82,36 @@ describe('Packages', () => {
     expect(typeOf(typed)).to.equal(FSDataType.Integer);
     expect(valueOf(typed)).to.equal(42);
   });
+
+  it('ignores syntax errors in siblings when resolving eval expression', () => {
+    const resolver = createMockResolver({
+      children: {
+        x: { expression: '1+{' }, // intentionally malformed
+        y: { expression: '2' },
+        eval: { expression: 'y' }
+      }
+    });
+
+    const typed = loadPackage(resolver);
+    expect(typeOf(typed)).to.equal(FSDataType.Integer);
+    expect(valueOf(typed)).to.equal(2);
+  });
+
+  it('returns key-value collection and delays syntax errors until access', () => {
+    const resolver = createMockResolver({
+      children: {
+        x: { expression: '1+{' }, // intentionally malformed
+        y: { expression: '2' }
+      }
+    });
+
+    const typed = loadPackage(resolver);
+    expect(typeOf(typed)).to.equal(FSDataType.KeyValueCollection);
+
+    const kvc = valueOf(typed);
+    const y = kvc.get('y');
+    expect(typeOf(y)).to.equal(FSDataType.Integer);
+    expect(valueOf(y)).to.equal(2);
+    expect(() => kvc.get('x')).to.throw(/Failed to parse expression/i);
+  });
 });

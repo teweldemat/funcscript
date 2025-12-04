@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using FuncScript;
 using FuncScript.Binding.JavaScript;
+using FuncScript.Error;
 using FuncScript.Package;
 using FuncScript.Model;
 using NUnit.Framework;
@@ -41,6 +42,82 @@ namespace FuncScript.Test
 
             var result = PackageLoader.LoadPackage(resolver);
             Assert.That(result, Is.EqualTo(5));
+        }
+
+        [Test]
+        public void LoadPackage_ReturnsLazyKvcAndDefersErrorsUntilAccess()
+        {
+            var resolver = new TestPackageResolver(new
+            {
+                x = "1+{", // intentionally malformed
+                y = "2"
+            });
+
+            var result = PackageLoader.LoadPackage(resolver);
+            Assert.That(result, Is.InstanceOf<KeyValueCollection>());
+
+            var kvc = (KeyValueCollection)result;
+            Assert.That(kvc.Get("y"), Is.EqualTo(2));
+            var err=kvc.Get("x");
+            Assert.That(err,Is.TypeOf<FsError>());
+            var fserror=(FsError)err;
+            Assert.That(fserror.ErrorType,Is.EqualTo(FsError.ERROR_SYNTAX_ERROR));
+        }
+
+        [Test]
+        public void LoadPackage_TraceInvokedForEvalExpression()
+        {
+            var traces = new List<(string Path, Engine.TraceInfo Info)>();
+            var resolver = new TestPackageResolver(new
+            {
+                x = "1+{", // intentionally malformed
+                y = "2",
+                eval = "y+1"
+            });
+
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) =>
+            {
+                traces.Add((path, info));
+            });
+
+            Assert.That(result, Is.EqualTo(3));
+            Assert.That(traces, Is.Not.Empty);
+            Assert.That(traces.All(t => t.Path == "eval"));
+            Assert.That(traces.Any(t => Equals(t.Info.Result, 3)));
+        }
+
+        [Test]
+        public void LoadPackage_TraceInvokedForLazyMemberEvaluation()
+        {
+            var traces = new List<(string Path, Engine.TraceInfo Info)>();
+            var resolver = new TestPackageResolver(new
+            {
+                x = "1+{", // intentionally malformed
+                y = "1+1"
+            });
+
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) =>
+            {
+                traces.Add((path, info));
+            });
+
+            Assert.That(result, Is.InstanceOf<KeyValueCollection>());
+            Assert.That(traces, Is.Empty);
+
+            var kvc = (KeyValueCollection)result;
+            var yVal = kvc.Get("y");
+
+            Assert.That(yVal, Is.EqualTo(2));
+            Assert.That(traces, Is.Not.Empty);
+            Assert.That(traces.All(t => t.Path == "y"));
+            Assert.That(traces.Any(t => Equals(t.Info.Result, 2)));
+
+            traces.Clear();
+            var err=kvc.Get("x");
+            Assert.That(err,Is.TypeOf<FsError>());
+            var fserror=(FsError)err;
+            Assert.That(fserror.ErrorType,Is.EqualTo(FsError.ERROR_SYNTAX_ERROR));
+            Assert.That(traces, Is.Not.Empty);
         }
 
         [OneTimeSetUp]
