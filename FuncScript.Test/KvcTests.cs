@@ -505,6 +505,35 @@ return Map(z,(x)=>x*x);
 
             Assert.That(FuncScriptRuntime.FormatToJson(res), Is.EqualTo(FuncScriptRuntime.FormatToJson(expected)));
         }
+
+        [Test]
+        public void KvcAdditionMergesDeeplyNestedCollections()
+        {
+            var exp = "{a:{x:1,y:{z:2}},b:3}+{a:{x:10,y:{w:4}},c:5}";
+            var res = FuncScriptRuntime.Evaluate(exp);
+            var expected = new ObjectKvc(new
+            {
+                a = new
+                {
+                    x = 10,
+                    y = new { z = 2, w = 4 }
+                },
+                b = 3,
+                c = 5
+            });
+
+            Assert.That(FuncScriptRuntime.FormatToJson(res), Is.EqualTo(FuncScriptRuntime.FormatToJson(expected)));
+        }
+
+        [Test]
+        public void KvcAdditionPrefersRightScalarOverLeftCollection()
+        {
+            var exp = "{a:{x:1,y:2}}+{a:5}";
+            var res = FuncScriptRuntime.Evaluate(exp);
+            Assert.That(res, Is.InstanceOf<KeyValueCollection>());
+            var kvc = (KeyValueCollection)res;
+            Assert.That(kvc.Get("a"), Is.EqualTo(5));
+        }
         [Test]
         public void TestDelegate()
         {

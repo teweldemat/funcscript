@@ -1,20 +1,36 @@
 import { describe, it, expect } from 'vitest';
-import * as funcscript from '../src/funcscript';
-import { ArrayParameterList } from '../src/funcs/helpers';
+import * as FuncScriptModule from '@tewelde/funcscript';
 
-const { valueOf, FSDataType, makeValue } = funcscript;
+const FuncScript: any = (FuncScriptModule as any).Engine ? FuncScriptModule : (FuncScriptModule as any).default;
+const { Engine, valueOf, typeOf, FSDataType, makeValue, ParameterList } = FuncScript;
 
-function callBool(fn, raw) {
+class ArrayParameterList extends ParameterList {
+  values: any[];
+  constructor(values: any[]) {
+    super();
+    this.values = values;
+  }
+
+  get count() {
+    return this.values.length;
+  }
+
+  getParameter(_: any, index: number) {
+    return this.values[index];
+  }
+}
+
+function callBool(fn: any, raw: number) {
   const callable = valueOf(fn);
   const params = new ArrayParameterList([makeValue(FSDataType.Float, raw)]);
-  const result = callable.evaluate(new funcscript.Engine.DefaultFsDataProvider(), params);
-  expect(funcscript.typeOf(result)).toBe(FSDataType.Boolean);
+  const result = callable.evaluate(new Engine.DefaultFsDataProvider(), params);
+  expect(typeOf(result)).toBe(FSDataType.Boolean);
   return valueOf(result);
 }
 
 describe('float classification functions', () => {
   it('registers under the float collection', () => {
-    const provider = new funcscript.Engine.DefaultFsDataProvider();
+    const provider = new Engine.DefaultFsDataProvider();
     const floatCollection = valueOf(provider.get('float'));
 
     expect(floatCollection).toBeTruthy();
@@ -24,7 +40,7 @@ describe('float classification functions', () => {
   });
 
   it('detects normal and non-normal', () => {
-    const provider = new funcscript.Engine.DefaultFsDataProvider();
+    const provider = new Engine.DefaultFsDataProvider();
     const floatCollection = valueOf(provider.get('float'));
     const isNormal = floatCollection.get('isnormal');
 
@@ -34,7 +50,7 @@ describe('float classification functions', () => {
   });
 
   it('detects infinity', () => {
-    const provider = new funcscript.Engine.DefaultFsDataProvider();
+    const provider = new Engine.DefaultFsDataProvider();
     const floatCollection = valueOf(provider.get('float'));
     const isInfinity = floatCollection.get('isinfinity');
 
@@ -44,7 +60,7 @@ describe('float classification functions', () => {
   });
 
   it('detects NaN', () => {
-    const provider = new funcscript.Engine.DefaultFsDataProvider();
+    const provider = new Engine.DefaultFsDataProvider();
     const floatCollection = valueOf(provider.get('float'));
     const isNaN = floatCollection.get('isnan');
 

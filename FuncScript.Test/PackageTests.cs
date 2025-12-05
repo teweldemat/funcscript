@@ -81,10 +81,16 @@ namespace FuncScript.Test
                 traces.Add((path, info));
             });
 
+            foreach (var trace in traces)
+            {
+                Console.WriteLine($"{trace.Path}: {trace.Info.ToString()} {trace.Info.Snippet}");
+            }
             Assert.That(result, Is.EqualTo(3));
             Assert.That(traces, Is.Not.Empty);
-            Assert.That(traces.All(t => t.Path == "eval"));
-            Assert.That(traces.Any(t => Equals(t.Info.Result, 3)));
+            var theTrace = traces.FirstOrDefault(t => t.Info.Snippet.Equals("y+1"));
+            Assert.NotNull(theTrace);
+            Assert.That(theTrace.Path,Is.EqualTo("eval"));
+            Assert.That(theTrace.Info.Result,Is.EqualTo(3));
         }
         [Test]
         public void SiblingKeyOnlyReference()

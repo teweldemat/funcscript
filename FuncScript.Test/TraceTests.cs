@@ -160,7 +160,7 @@ namespace FuncScript.Test
                 Assert.That(trace, Is.Not.Null);
                 infos.Add((Engine.TraceInfo)infoObj);
             });
-            Assert.That(infos.Count,Is.EqualTo(3));
+            Assert.That(infos.Count,Is.EqualTo(4));
             
         }
         [Test]
@@ -178,7 +178,8 @@ namespace FuncScript.Test
             //function call dot function wit parameter  [math, round]
             //reference block 'math'
             //reference block 'round'
-            Assert.That(infos.Count,Is.EqualTo(5));
+            //full expressio
+            Assert.That(infos.Count,Is.EqualTo(6));
             
         }
         
@@ -219,8 +220,11 @@ namespace FuncScript.Test
             });
             //literal 2
             //function call +, [2,f(3)]
-            //
-            Assert.That(infos.Count,Is.EqualTo(3));
+            //literal 3
+            //reference f
+            //reference +
+            //full expression
+            Assert.That(infos.Count,Is.EqualTo(6));
         }
     }
 }

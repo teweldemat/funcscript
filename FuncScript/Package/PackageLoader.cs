@@ -380,15 +380,18 @@ namespace FuncScript.Package
 
                 if (expressionDescriptor == null && childEntries.Any())
                 {
-                    var nested = new LazyPackageCollection(_resolver, _helperProvider, childPath, _trace);
-                    nested.SetEvaluationProvider(EvaluationProvider);
+                    var parentProvider = EvaluationProvider ?? _helperProvider;
+                    var nested = new LazyPackageCollection(_resolver, parentProvider, childPath, _trace);
+                    var nestedProvider = new KvcProvider(nested, parentProvider);
+                    nested.SetEvaluationProvider(nestedProvider);
                     var normalizedValue = Engine.NormalizeDataType(nested);
                     _cache[normalized] = normalizedValue;
                     return normalizedValue;
                 }
 
                 var expression = BuildNodeExpression(_resolver, childPath, 0, null);
-                var value = EvaluateWithTrace(EvaluationProvider, expression, _trace, childPath);
+                var scopeProvider = new KvcProvider(this, EvaluationProvider);
+                var value = EvaluateWithTrace(scopeProvider, expression, _trace, childPath);
                 _cache[normalized] = value;
                 return value;
             }

@@ -406,7 +406,6 @@ function ensureResolver(resolver) {
         return null;
       }
 
-      // If the child is a folder, return a lazy collection so nested members are traced with full paths.
       if (!expressionDescriptor && childEntries.length > 0) {
         const hasEvalChild = childEntries.some((entry) => {
           const name = extractChildName(entry);
@@ -414,13 +413,14 @@ function ensureResolver(resolver) {
         });
         if (hasEvalChild) {
           const expression = buildNodeExpression(this._resolver, childPath, 0, null);
-          const value = evaluateWithTrace(expression, this._evaluationContext(), this._traceHook, childPath);
+          const scopeProvider = new KvcProvider(this, this._evaluationContext() || this.parent || null);
+          const value = evaluateWithTrace(expression, scopeProvider, this._traceHook, childPath);
           this._cache.set(lower, value);
           return value;
         }
 
         const parentProvider = this._evaluationContext() || this.parent || null;
-        const nested = new LazyPackageCollection(this._resolver, this.parent || null, childPath, this._traceHook);
+        const nested = new LazyPackageCollection(this._resolver, parentProvider, childPath, this._traceHook);
         const nestedProvider = new KvcProvider(nested, parentProvider);
         nested.setEvaluationProvider(nestedProvider);
         const typedNested = normalize(nested);

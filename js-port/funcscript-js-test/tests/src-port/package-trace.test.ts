@@ -1,20 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import { loadPackage, valueOf, FsError, BaseFunction, KeyValueCollection } from '../src/funcscript';
+import * as FuncScriptModule from '@tewelde/funcscript';
+
+const FuncScript: any = (FuncScriptModule as any).Engine ? FuncScriptModule : (FuncScriptModule as any).default;
+const { loadPackage, valueOf, FsError, BaseFunction, KeyValueCollection } = FuncScript;
 
 class ObjectResolver {
-  constructor(tree) {
+  root: any;
+  constructor(tree: any) {
     this.root = this.#buildNode(tree || {});
   }
 
-  listChildren(path = []) {
+  listChildren(path: any[] = []) {
     const node = this.#resolve(path);
     if (!node || !node.children) {
       return [];
     }
-    return Array.from(node.children.values()).map((entry) => ({ name: entry.name }));
+    return Array.from(node.children.values()).map((entry: any) => ({ name: entry.name }));
   }
 
-  getExpression(path = []) {
+  getExpression(path: any[] = []) {
     const node = this.#resolve(path);
     if (node && node.expr !== null && node.expr !== undefined) {
       return {
@@ -29,7 +33,7 @@ class ObjectResolver {
     return null;
   }
 
-  #resolve(path = []) {
+  #resolve(path: any[] = []) {
     let current = this.root;
     for (const segment of path || []) {
       if (!current?.children) {
@@ -44,7 +48,7 @@ class ObjectResolver {
     return current;
   }
 
-  #buildNode(value, languageHint = 'funcscript') {
+  #buildNode(value: any, languageHint = 'funcscript') {
     if (typeof value === 'string') {
       return { name: null, expr: value, language: languageHint, children: null };
     }
@@ -53,7 +57,7 @@ class ObjectResolver {
       return { name: null, expr: String(value ?? ''), language: languageHint, children: null };
     }
 
-    const children = new Map();
+    const children = new Map<string, any>();
     for (const [rawName, childVal] of Object.entries(value)) {
       const { name, language } = normalizeName(rawName);
       const node = this.#buildNode(childVal, language || languageHint);
@@ -64,7 +68,7 @@ class ObjectResolver {
   }
 }
 
-function normalizeName(rawName) {
+function normalizeName(rawName: string) {
   if (!rawName) {
     return { name: rawName || '', language: 'funcscript' };
   }
@@ -83,11 +87,11 @@ describe('package loader traces', () => {
       eval: '{theOne,theTwo}'
     });
 
-    const traces = [];
-    const result = loadPackage(resolver, undefined, (path, info) => traces.push({ path, info }));
+    const traces: any[] = [];
+    const result = loadPackage(resolver, undefined, (path: string, info: any) => traces.push({ path, info }));
     const raw = valueOf(result);
 
-    expect(raw).toBeInstanceOf(KeyValueCollection);
+    expect((raw as any)?.__fsKind).toBe('KeyValueCollection');
     expect(valueOf(raw.get('theOne'))).toBe(1);
     expect(valueOf(raw.get('theTwo'))).toBe(2);
   });
@@ -101,24 +105,24 @@ describe('package loader traces', () => {
       eval: 'h.g+h.f'
     });
 
-    const traces = [];
-    const traceHook = (path, info) => traces.push({ path, info });
+    const traces: any[] = [];
+    const traceHook: any = (path: string, info: any) => traces.push({ path, info });
     traceHook.__fsStepInto = true;
 
     const result = loadPackage(resolver, undefined, traceHook);
     const rawResult = valueOf(result);
 
-    expect(rawResult).toBeInstanceOf(FsError);
+    expect((rawResult as any)?.__fsKind).toBe('FsError');
     expect(rawResult.errorMessage).toBe('err');
 
     const evalTrace = traces.find((t) => t.path === 'eval' && t.info.snippet === 'h.g+h.f');
     expect(evalTrace).toBeTruthy();
-    expect(evalTrace.info.result).toBeInstanceOf(FsError);
+    expect((evalTrace.info.result as any)?.__fsKind).toBe('FsError');
     expect(evalTrace.info.result.errorMessage).toBe('err');
 
     const hFTrace = traces.find((t) => t.path === 'h/f' && t.info.snippet === "error('err')");
     expect(hFTrace).toBeTruthy();
-    expect(hFTrace.info.result).toBeInstanceOf(FsError);
+    expect((hFTrace.info.result as any)?.__fsKind).toBe('FsError');
     expect(hFTrace.info.result.errorMessage).toBe('err');
 
     const hGTrace = traces.find((t) => t.path === 'h/g' && t.info.snippet === '5');
@@ -135,26 +139,26 @@ describe('package loader traces', () => {
       eval: 'h.g+h.f'
     });
 
-    const traces = [];
-    const traceHook = (path, info) => traces.push({ path, info });
+    const traces: any[] = [];
+    const traceHook: any = (path: string, info: any) => traces.push({ path, info });
     traceHook.__fsStepInto = true;
 
     const result = loadPackage(resolver, undefined, traceHook);
     const rawResult = valueOf(result);
 
-    expect(rawResult).toBeInstanceOf(FsError);
+    expect((rawResult as any)?.__fsKind).toBe('FsError');
     expect(rawResult.errorMessage.toLowerCase()).toContain('z');
 
     const evalTrace = traces.find((t) => t.path === 'eval' && t.info.snippet === 'h.g+h.f');
     expect(evalTrace).toBeTruthy();
-    expect(evalTrace.info.result).toBeInstanceOf(FsError);
+    expect((evalTrace.info.result as any)?.__fsKind).toBe('FsError');
     expect(evalTrace.info.result.errorMessage.toLowerCase()).toContain('z');
 
     const hFTrace = traces.find(
       (t) => t.path === 'h/f' && t.info.snippet && t.info.snippet.includes('return z(5)')
     );
     expect(hFTrace).toBeTruthy();
-    expect(hFTrace.info.result).toBeInstanceOf(FsError);
+    expect((hFTrace.info.result as any)?.__fsKind).toBe('FsError');
     expect(hFTrace.info.result.errorMessage.toLowerCase()).toContain('z');
 
     const hGTrace = traces.find((t) => t.path === 'h/g' && t.info.snippet === '5');
@@ -170,26 +174,26 @@ describe('package loader traces', () => {
       eval: '2+h.f(1)'
     });
 
-    const traces = [];
-    const traceHook = (path, info) => traces.push({ path, info });
+    const traces: any[] = [];
+    const traceHook: any = (path: string, info: any) => traces.push({ path, info });
     traceHook.__fsStepInto = true;
 
     const result = loadPackage(resolver, undefined, traceHook);
     const rawResult = valueOf(result);
 
-    expect(rawResult).toBeInstanceOf(FsError);
+    expect((rawResult as any)?.__fsKind).toBe('FsError');
     expect(rawResult.errorMessage.toLowerCase()).toContain('boom');
 
     const evalTrace = traces.find((t) => t.path === 'eval' && t.info.snippet === 'h.f(1)');
     expect(evalTrace).toBeTruthy();
-    expect(evalTrace.info.result).toBeInstanceOf(FsError);
+    expect((evalTrace.info.result as any)?.__fsKind).toBe('FsError');
     expect(evalTrace.info.result.errorMessage.toLowerCase()).toContain('boom');
 
     const hFTrace = traces.find(
       (t) => t.path === 'h/f' && t.info.snippet && t.info.snippet.includes('return () =>')
     );
     expect(hFTrace).toBeTruthy();
-    expect(hFTrace.info.result).toBeInstanceOf(BaseFunction);
-    expect(hFTrace.info.result).not.toBeInstanceOf(FsError);
+    expect(typeof (hFTrace.info.result as any)?.evaluate).toBe('function');
+    expect((hFTrace.info.result as any)?.__fsKind).not.toBe('FsError');
   });
 });

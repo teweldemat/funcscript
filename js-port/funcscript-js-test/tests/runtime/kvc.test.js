@@ -107,6 +107,22 @@ describe('KvcTests', () => {
     expect(toPlain(result)).to.deep.equal({ x: [3] });
   });
 
+  it('merges deeply nested collections when adding', () => {
+    const result = evaluate('{a:{x:1,y:{z:2}},b:3}+{a:{x:10,y:{w:4}},c:5}', provider);
+    expect(typeOf(result)).to.equal(FSDataType.KeyValueCollection);
+    expect(toPlain(result)).to.deep.equal({
+      a: { x: 10, y: { z: 2, w: 4 } },
+      b: 3,
+      c: 5
+    });
+  });
+
+  it('prefers right scalar over left collection when adding', () => {
+    const result = evaluate('{a:{x:1,y:2}}+{a:5}', provider);
+    expect(typeOf(result)).to.equal(FSDataType.KeyValueCollection);
+    expect(toPlain(result)).to.deep.equal({ a: 5 });
+  });
+
   it('KeyWord mixup still returns values', () => {
     const result = evaluate('{ null1:5; y:null1;}', provider);
     expect(toPlain(result)).to.deep.equal({ null1: 5, y: 5 });
