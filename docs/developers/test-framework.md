@@ -74,7 +74,9 @@ Example:
     ];
     test: (resData, caseData) => {
       sum: caseData.input reduce (acc, value) => acc + value ~ 0;
-      eval assert.equal(resData, sum * caseData.ambient.scale);
+      eval [assert.noerror(resData),
+        assert.equal(resData, sum * caseData.ambient.scale),
+      ]
     };
   };
 

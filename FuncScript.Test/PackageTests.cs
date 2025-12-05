@@ -86,6 +86,27 @@ namespace FuncScript.Test
             Assert.That(traces.All(t => t.Path == "eval"));
             Assert.That(traces.Any(t => Equals(t.Info.Result, 3)));
         }
+        [Test]
+        public void SiblingKeyOnlyReference()
+        {
+            var traces = new List<(string Path, Engine.TraceInfo Info)>();
+            var resolver = new TestPackageResolver(new
+            {
+                theOne = "1", 
+                theTwo = "2",
+                eval = "{theOne,theTwo}"
+            });
+
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) =>
+            {
+                traces.Add((path, info));
+            });
+
+            var kvc=result as KeyValueCollection;
+            Assert.NotNull(kvc);
+            Assert.That(kvc.Get("theOne"), Is.EqualTo(1));
+            Assert.That(kvc.Get("theTwo"), Is.EqualTo(2));
+        }
 
         [Test]
         public void LoadPackage_TraceInvokedForLazyMemberEvaluation()

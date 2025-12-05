@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  loadPackage,
-  valueOf,
-  FsError,
-  BaseFunction
-} from '../src/funcscript';
+import { loadPackage, valueOf, FsError, BaseFunction, KeyValueCollection } from '../src/funcscript';
 
 class ObjectResolver {
   constructor(tree) {
@@ -81,6 +76,22 @@ function normalizeName(rawName) {
 }
 
 describe('package loader traces', () => {
+  it('resolves sibling references when eval returns a collection', () => {
+    const resolver = new ObjectResolver({
+      theOne: '1',
+      theTwo: '2',
+      eval: '{theOne,theTwo}'
+    });
+
+    const traces = [];
+    const result = loadPackage(resolver, undefined, (path, info) => traces.push({ path, info }));
+    const raw = valueOf(result);
+
+    expect(raw).toBeInstanceOf(KeyValueCollection);
+    expect(valueOf(raw.get('theOne'))).toBe(1);
+    expect(valueOf(raw.get('theTwo'))).toBe(2);
+  });
+
   it('captures member-access traces with final error results', () => {
     const resolver = new ObjectResolver({
       h: {
