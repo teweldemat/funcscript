@@ -66,6 +66,12 @@ namespace FuncScript.Core
             if (hasExp)
                 i = GetInt(context,nodes, true, i, out expDigits);
 
+            var literalText = context.Expression.Substring(currentIndex, i - currentIndex);
+            var sanitizedText = literalText.IndexOf('_') >= 0
+                ? literalText.Replace("_", string.Empty)
+                : literalText;
+            var parseAsDouble = hasDecimal || (hasExp && expDigits != null && expDigits.StartsWith("-", StringComparison.Ordinal));
+
             if (!hasDecimal) //if no decimal we check if there is the 'l' suffix
             {
                 i2 = GetLiteralMatch(context.Expression, i, "l");
@@ -74,12 +80,8 @@ namespace FuncScript.Core
                 i = i2;
             }
 
-            if (hasDecimal) //if it has decimal we treat it as 
+            if (parseAsDouble) //if it has decimal or negative exponent we treat it as floating point
             {
-                var literalText = context.Expression.Substring(currentIndex, i - currentIndex);
-                var sanitizedText = literalText.IndexOf('_') >= 0
-                    ? literalText.Replace("_", string.Empty)
-                    : literalText;
                 if (!double.TryParse(sanitizedText, out var dval))
                 {
                     serros.Add(new SyntaxErrorData(currentIndex, i - currentIndex,

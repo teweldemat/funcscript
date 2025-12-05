@@ -87,6 +87,10 @@ describe('Basic', () => {
     expect(toPlain(result)).to.deep.equal({ a: 5, b: 6 });
   });
 
+  it('parses scientific notation with negative exponent', () => {
+    expect(toPlain(evalExpression('1e-6'))).to.be.closeTo(1e-6, 1e-12);
+  });
+
   it('logs formatted value when no message is provided', () => {
     const originalLog = console.log;
     const calls = [];

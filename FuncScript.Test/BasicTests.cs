@@ -283,6 +283,7 @@ namespace FuncScript.Test
         [TestCase("-12.3E-12")]
         [TestCase("12.3E-12")]
         [TestCase("12.E-12")]
+        [TestCase("1e-6")]
         public void TesDoubleParser(string exp)
         {
 

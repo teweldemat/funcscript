@@ -575,9 +575,11 @@ function getNumber(context, siblings, index, errors) {
     }
   }
 
-  if (hasDecimal) {
-    const text = context.Expression.substring(currentIndex, i);
-    const sanitizedText = text.includes('_') ? text.replace(/_/g, '') : text;
+  const text = context.Expression.substring(currentIndex, i);
+  const sanitizedText = text.includes('_') ? text.replace(/_/g, '') : text;
+  const parseAsFloat = hasDecimal || (hasExp && typeof expDigits === 'string' && expDigits.startsWith('-'));
+
+  if (parseAsFloat) {
     const parsed = Number(sanitizedText);
     if (!Number.isFinite(parsed)) {
       errors.push(new SyntaxErrorData(currentIndex, i - currentIndex, `${text} couldn't be parsed as floating point`));
