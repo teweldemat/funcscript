@@ -59,7 +59,7 @@ describe('Packages with ```javascript``` blocks', () => {
       children: {
         helpers: {
           children: {
-            doubler: {
+            Doubler: {
               expression: jsBlock`
                 return function (value) {
                   return value * 2;
@@ -70,7 +70,7 @@ describe('Packages with ```javascript``` blocks', () => {
         },
         consumer: {
           expression: jsBlock`
-            return helpers.doubler(21);
+            return helpers.Doubler(21);
           `
         },
         eval: { expression: jsBlock`return consumer;` }

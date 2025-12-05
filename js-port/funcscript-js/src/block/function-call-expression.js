@@ -1,7 +1,8 @@
 const { ExpressionBlock } = require('./expression-block');
 const { ParameterList } = require('../core/function-base');
-const { typeOf, valueOf, typedNull, assertTyped } = require('../core/value');
+const { typeOf, valueOf, typedNull, assertTyped, normalize } = require('../core/value');
 const { FSDataType } = require('../core/fstypes');
+const { FsError } = require('../model/fs-error');
 
 function resolveExpressionSource(provider) {
   let current = provider;
@@ -125,8 +126,17 @@ class FunctionCallExpression extends ExpressionBlock {
     if (fnType === FSDataType.Function) {
       const fn = valueOf(fnValue);
       const paramList = new FuncParameterList(this, provider);
-      const result = fn.evaluate(provider, paramList);
-      return assertTyped(result, 'Functions must return typed values');
+      try {
+        const result = fn.evaluate(provider, paramList);
+        return assertTyped(result, 'Functions must return typed values');
+      } catch (error) {
+        const message = formatEvaluationMessage(
+          error?.message || 'Runtime error',
+          expressionSource,
+          this
+        );
+        return normalize(new FsError(FsError.ERROR_DEFAULT, message));
+      }
     }
 
     if (fnType === FSDataType.List) {

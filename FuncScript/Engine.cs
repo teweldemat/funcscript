@@ -809,9 +809,13 @@ namespace FuncScript
         private static object EvaluateInternal(ExpressionBlock exp, string expression, KeyValueCollection provider, object vars, ExpressionBlock.DepthCounter depth)
         {
             depth ??= new ExpressionBlock.DepthCounter();
+            var needsDepthWrapper = exp == null || !exp.UsesDepthCounter;
+            if (needsDepthWrapper)
+                depth.Enter();
+            object ret = null;
             try
             {
-                var ret = exp.Evaluate(provider, depth);
+                ret = exp.Evaluate(provider, depth);
 
                 if (ret is Block.KvcExpression.KvcExpressionCollection kvc)
                 {
@@ -851,6 +855,11 @@ namespace FuncScript
                 }
 
                 throw new EvaluationException(finalMessage, ex.Pos, ex.Len, ex.InnerException);
+            }
+            finally
+            {
+                if (needsDepthWrapper)
+                    depth.Exit(ret, exp);
             }
         }
 

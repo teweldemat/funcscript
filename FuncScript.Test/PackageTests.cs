@@ -293,6 +293,40 @@ namespace FuncScript.Test
             Assert.That(theTrace.Info.Result, Is.EqualTo(5));
         }
         
+        [Test]
+        public void LoadPackage_TraceDetailedPackageEvaluation_6()
+        {
+            var traces = new List<(string Path, Engine.TraceInfo Info)>();
+            var resolver = new TestPackageResolver(new
+            { 
+                h = new
+                {
+                    f_js = @"return () => { throw new Error(""boom""); };"
+                },
+                eval = "2+h.f(1)"
+            });
+
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) => { traces.Add((path, info)); });
+
+
+            foreach (var trace in traces)
+            {
+                Console.WriteLine($"{trace.Path} {trace.Info.ToString()} '{trace.Info.Snippet}' {FormatTraceValue(trace.Info.Result)}");
+            }
+            Assert.That(result, Is.InstanceOf<FsError>());
+
+            var evalTrace = traces.FirstOrDefault(t => t.Path == "eval" && t.Info.Snippet == "h.f(1)");
+            Assert.NotNull(evalTrace);
+            var evalErr = evalTrace.Info.Result as FsError;
+            Assert.NotNull(evalErr);
+            Assert.That(evalErr.ErrorMessage.ToLowerInvariant().Contains("boom"));
+
+            var funcTrace = traces.FirstOrDefault(t => t.Path == "h/f" && t.Info.Snippet.Contains("return () =>"));
+            Assert.NotNull(funcTrace);
+            Assert.That(funcTrace.Info.Result, Is.InstanceOf<IFsFunction>());
+            Assert.That(funcTrace.Info.Result, Is.Not.InstanceOf<FsError>());
+        }
+        
 
         [Test]
         public void LoadPackage_TraceIncludesLineInfoForSyntaxErrors()

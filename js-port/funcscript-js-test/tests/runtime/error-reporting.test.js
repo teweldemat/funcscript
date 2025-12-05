@@ -33,23 +33,33 @@ describe('ErrorReporting', () => {
   });
 
   it('reports type mismatch inside expression', () => {
-    expect(() => evaluate('10+len(5)', builtinProvider())).to.throw(/Length function/i);
+    const result = evaluate('10+len(5)', builtinProvider());
+    expect(typeOf(result)).to.equal(FSDataType.Error);
+    expect(valueOf(result).errorMessage).to.match(/length function/i);
   });
 
   it('reports null member access', () => {
-    expect(() => evaluate('10+x.l', builtinProvider())).to.throw(/x\.l/);
+    const result = evaluate('10+x.l', builtinProvider());
+    expect(typeOf(result)).to.equal(FSDataType.Error);
+    expect(valueOf(result).errorData.expression).to.equal('x.l');
   });
 
   it('includes failing member access in error message', () => {
-    expect(() => evaluate('1+x.l', builtinProvider())).to.throw(/x\.l/);
+    const result = evaluate('1+x.l', builtinProvider());
+    expect(typeOf(result)).to.equal(FSDataType.Error);
+    expect(valueOf(result).errorData.expression).to.equal('x.l');
   });
 
   it('reports member access on list', () => {
-    expect(() => evaluate('10+[5,6].l', builtinProvider())).to.throw(/\[5,6\]\.l/);
+    const result = evaluate('10+[5,6].l', builtinProvider());
+    expect(typeOf(result)).to.equal(FSDataType.Error);
+    expect(valueOf(result).errorData.expression).to.equal('[5,6].l');
   });
 
   it('reports function call errors with original expression', () => {
-    expect(() => evaluate('1+z(a)', builtinProvider())).to.throw(/z\(a\)/);
+    const result = evaluate('1+z(a)', builtinProvider());
+    expect(typeOf(result)).to.equal(FSDataType.Error);
+    expect(valueOf(result).errorMessage).to.match(/z\(a\)/);
   });
 
   it("spells out evaluation location for standalone call", () => {
@@ -82,10 +92,12 @@ describe('ErrorReporting', () => {
 
   it('propagates lambda invocation errors', () => {
     const magicMessage = 'lambda boom';
-    expect(() => evaluateWithVars('10+f(3)', {
+    const result = evaluateWithVars('10+f(3)', {
       f: () => {
         throw new Error(magicMessage);
       }
-    })).to.throw(magicMessage);
+    });
+    expect(typeOf(result)).to.equal(FSDataType.Error);
+    expect(valueOf(result).errorMessage).to.contain(magicMessage);
   });
 });

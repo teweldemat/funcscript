@@ -4,6 +4,17 @@ const { FsError } = require('../model/fs-error');
 const { convertTypedValueToJs, convertJsValueToFuncScript } = require('../core/fs-to-js');
 
 function createScopeProxy(provider) {
+  const hasGlobal = (prop) => {
+    if (typeof prop !== 'string') {
+      return false;
+    }
+    try {
+      return Reflect.has(globalThis, prop);
+    } catch {
+      return false;
+    }
+  };
+
   return new Proxy(
     {},
     {
@@ -15,6 +26,9 @@ function createScopeProxy(provider) {
           return true;
         }
         if (typeof prop !== 'string') {
+          return false;
+        }
+        if (hasGlobal(prop)) {
           return false;
         }
         return typeof provider?.isDefined === 'function' ? provider.isDefined(prop) : false;
@@ -38,6 +52,9 @@ function createScopeProxy(provider) {
         if (typeof prop !== 'string') {
           return undefined;
         }
+        if (hasGlobal(prop)) {
+          return undefined;
+        }
         if (typeof provider?.isDefined === 'function' && provider.isDefined(prop)) {
           const value = provider.get(prop);
           if (value === null || value === undefined) {
@@ -59,6 +76,9 @@ function createScopeProxy(provider) {
           return Reflect.get(target, prop);
         }
         if (typeof prop !== 'string') {
+          return undefined;
+        }
+        if (hasGlobal(prop)) {
           return undefined;
         }
         if (!provider || typeof provider.get !== 'function') {
