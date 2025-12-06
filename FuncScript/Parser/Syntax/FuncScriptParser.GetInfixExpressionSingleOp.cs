@@ -75,10 +75,15 @@ namespace FuncScript.Core
                 var endPos = lastOperandLocation.Position + lastOperandLocation.Length;
 
                 var function = context.Provider.Get(symbol);
+                var parameterList = new ListExpression(operands.ToArray())
+                {
+                    CodeLocation = new CodeLocation(startPos, endPos - startPos)
+                };
+
                 var combined = new FunctionCallExpression
                 (
                    new LiteralBlock(function),
-                     new ListExpression(operands.ToArray()))
+                     parameterList)
                 {
                     CodeLocation = new CodeLocation(startPos, endPos - startPos)
                 };

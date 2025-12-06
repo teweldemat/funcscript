@@ -196,7 +196,8 @@ export interface TraceInfo {
   result: unknown;
 }
 
-export type TraceHook = (result: unknown, info: TraceInfo) => void;
+export type TraceHook = (result: unknown, info: TraceInfo, entryState?: unknown) => void;
+export type TraceEntryHook = (info: TraceInfo | null) => unknown;
 
 export interface TestCaseResultError {
   type: 'evaluation' | 'assertion';
@@ -271,13 +272,15 @@ export declare function evaluate(
 
 export declare function trace(
   expression: string,
-  hook?: TraceHook
+  hook?: TraceHook,
+  entryHook?: TraceEntryHook
 ): TypedValue;
 
 export declare function trace(
   expression: string,
   provider: FsDataProvider,
-  hook?: TraceHook
+  hook?: TraceHook,
+  entryHook?: TraceEntryHook
 ): TypedValue;
 
 export declare function evaluateTemplate(
@@ -285,11 +288,13 @@ export declare function evaluateTemplate(
   provider?: FsDataProvider
 ): string;
 
-export type PackageTraceHook = (path: string, info: TraceInfo) => void;
+export type PackageTraceHook = (path: string, info: TraceInfo, entryState?: unknown) => void;
+export type PackageTraceEntryHook = (path: string, info: TraceInfo | null) => unknown;
 export declare function loadPackage(
   resolver: PackageResolver,
   provider?: FsDataProvider,
-  traceHook?: PackageTraceHook
+  traceHook?: PackageTraceHook,
+  entryHook?: PackageTraceEntryHook
 ): TypedValue;
 
 export declare function assertTyped(value: FuncScriptInput): TypedValue;

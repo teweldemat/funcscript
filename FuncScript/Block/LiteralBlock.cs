@@ -22,7 +22,7 @@ namespace FuncScript.Block
 
         public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {
-            depth.Enter();
+            var entryState = depth.Enter(this);
             object result = null;
             try
             {
@@ -34,7 +34,7 @@ namespace FuncScript.Block
             }
             finally
             {
-                depth.Exit(result, this);
+                depth.Exit(entryState, result, this);
             }
         }
 

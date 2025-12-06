@@ -762,9 +762,22 @@ function runSelfTest() {
   console.log('Self-test passed.');
 }
 
+function normalizeArgs(rawArgs) {
+  if (!Array.isArray(rawArgs)) {
+    return [];
+  }
+  if (rawArgs.length >= 2 && typeof rawArgs[0] === 'string' && typeof rawArgs[1] === 'string') {
+    // If invoked with a full process.argv, drop the first two entries.
+    if (rawArgs[0].includes('node') || rawArgs[0].endsWith('node')) {
+      return rawArgs.slice(2);
+    }
+  }
+  return rawArgs.slice();
+}
+
 function runCli(rawArgs) {
   try {
-    const options = parseArgs(rawArgs);
+    const options = parseArgs(normalizeArgs(rawArgs ?? process.argv));
     switch (options.mode) {
       case 'help':
         printHelp();
@@ -801,6 +814,9 @@ function runCli(rawArgs) {
       case 'eval':
       default: {
         const expression = ensureExpression(options.expression, 'expression');
+        if (process.env.FS_CLI_DEBUG) {
+          console.error('[fs-cli] options:', options);
+        }
         printEvaluation(expression, options);
         break;
       }

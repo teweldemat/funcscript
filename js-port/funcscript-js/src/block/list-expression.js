@@ -4,9 +4,9 @@ const { assertTyped, makeValue } = require('../core/value');
 const { FSDataType } = require('../core/fstypes');
 
 class ListExpression extends ExpressionBlock {
-  constructor() {
-    super();
-    this.ValueExpressions = [];
+  constructor(valueExpressions = [], position = 0, length = 0) {
+    super(position, length);
+    this.ValueExpressions = valueExpressions || [];
   }
 
   evaluateInternal(provider) {

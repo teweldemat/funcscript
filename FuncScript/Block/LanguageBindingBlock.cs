@@ -36,24 +36,25 @@ namespace FuncScript.Block
             _compileError = compilation.Error;
         }
 
-        public override bool UsesDepthCounter => false;
-
         public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {
-
-            if (!string.IsNullOrEmpty(_compileError))
-            {
-                var message = string.IsNullOrWhiteSpace(_languageIdentifier)
-                    ? _compileError
-                    : $"[{_languageIdentifier}] {_compileError}";
-                return AttachCodeLocation(this, new FsError(FsError.ERROR_DEFAULT, message));
-            }
-
+            var entryState = depth.Enter(this);
+            object result = null;
             try
             {
-                var result = _binding.Evaluate(_compiledCode, provider);
+
+                if (!string.IsNullOrEmpty(_compileError))
+                {
+                    var message = string.IsNullOrWhiteSpace(_languageIdentifier)
+                        ? _compileError
+                        : $"[{_languageIdentifier}] {_compileError}";
+                    result = AttachCodeLocation(this, new FsError(FsError.ERROR_DEFAULT, message));
+                    return result;
+                }
+
+                result = _binding.Evaluate(_compiledCode, provider);
                 if (result is FsError bindingError)
-                    return AttachCodeLocation(this, bindingError);
+                    result = AttachCodeLocation(this, bindingError);
                 return result;
             }
             catch (EvaluationException)
@@ -65,7 +66,12 @@ namespace FuncScript.Block
                 var message = string.IsNullOrWhiteSpace(ex.Message)
                     ? $"Language binding '{_languageIdentifier}' evaluation failed."
                     : ex.Message;
-                return AttachCodeLocation(this, new FsError(FsError.ERROR_DEFAULT, message));
+                result = AttachCodeLocation(this, new FsError(FsError.ERROR_DEFAULT, message));
+                return result;
+            }
+            finally
+            {
+                depth.Exit(entryState, result, this);
             }
         }
 

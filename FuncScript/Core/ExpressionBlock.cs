@@ -18,25 +18,32 @@ namespace FuncScript.Core
 
         public class DepthCounter
         {
-            private readonly Action<object, ExpressionBlock> _hook;
+            private readonly Func<ExpressionBlock, object> _entryHook;
+            private readonly Action<object, object, ExpressionBlock> _exitHook;
+            private readonly object[] _entries = new object[MaxEvaluationDepth + 1];
             public int Count = 0;
 
-            public DepthCounter(Action<object, ExpressionBlock> hook = null)
+            public DepthCounter(Func<ExpressionBlock, object> entryHook = null, Action<object, object, ExpressionBlock> exitHook = null)
             {
-                _hook = hook;
+                _entryHook = entryHook;
+                _exitHook = exitHook;
             }
 
-            public void Enter()
+            public object Enter(ExpressionBlock block)
             {
                 if (Count > MaxEvaluationDepth)
                     throw new Error.EvaluationTooDeepTimeException();
+                var entryState = _entryHook?.Invoke(block);
+                _entries[Count] = entryState;
                 Count++;
+                return entryState;
             }
 
-            public void Exit(object result, ExpressionBlock block)
+            public void Exit(object entryState, object result, ExpressionBlock block)
             {
                 Count--;
-                _hook?.Invoke(result, block);
+                _entries[Count] = null;
+                _exitHook?.Invoke(result, entryState, block);
             }
         }
         public CodeLocation CodeLocation
@@ -44,10 +51,6 @@ namespace FuncScript.Core
             get => _codeLocation;
             set => _codeLocation = value ?? s_defaultLocation;
         }
-
-        // Indicates whether the expression implementation handles DepthCounter entry/exit itself.
-        // Containers (like list enumerators) can use this to avoid double-counting traces.
-        public virtual bool UsesDepthCounter => true;
 
         protected static FsError AttachCodeLocation(ExpressionBlock source, FsError error)
         {

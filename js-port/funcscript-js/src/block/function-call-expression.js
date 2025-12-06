@@ -3,6 +3,7 @@ const { ParameterList } = require('../core/function-base');
 const { typeOf, valueOf, typedNull, assertTyped, normalize } = require('../core/value');
 const { FSDataType } = require('../core/fstypes');
 const { FsError } = require('../model/fs-error');
+const { ArrayParameterList } = require('../funcs/helpers');
 
 function resolveExpressionSource(provider) {
   let current = provider;
@@ -55,12 +56,15 @@ function annotateFsError(fsError, expressionSource, expressionBlock) {
   if (!fsError || !expressionSource || !expressionBlock) {
     return;
   }
+  const data = fsError.errorData && typeof fsError.errorData === 'object' ? fsError.errorData : {};
+  if (data.expression) {
+    return;
+  }
   const snippet = sliceExpression(expressionSource, expressionBlock);
   if (!snippet) {
     return;
   }
   const cleaned = normalizeSnippet(snippet);
-  const data = fsError.errorData && typeof fsError.errorData === 'object' ? fsError.errorData : {};
   fsError.errorData = {
     ...data,
     expression: cleaned || snippet
@@ -85,11 +89,13 @@ class FuncParameterList extends ParameterList {
   }
 
   get count() {
-    return this.parentExpression.Parameters.length;
+    const valueExpressions = this.parentExpression.Parameters?.ValueExpressions;
+    return Array.isArray(valueExpressions) ? valueExpressions.length : 0;
   }
 
   getParameter(provider, index) {
-    const exp = this.parentExpression.Parameters[index];
+    const expressions = this.parentExpression.Parameters?.ValueExpressions;
+    const exp = Array.isArray(expressions) ? expressions[index] : null;
     if (!exp) {
       return typedNull();
     }
@@ -103,13 +109,40 @@ class FuncParameterList extends ParameterList {
   }
 }
 
+class LazyParameterList extends ParameterList {
+  constructor(expressions, provider, expressionSource) {
+    super();
+    this.expressions = Array.isArray(expressions) ? expressions : [];
+    this.provider = provider;
+    this.expressionSource = expressionSource;
+  }
+
+  get count() {
+    return this.expressions.length;
+  }
+
+  getParameter(provider, index) {
+    const expr = this.expressions[index];
+    if (!expr) {
+      return typedNull();
+    }
+    const result = expr.evaluate(this.provider);
+    const typed = assertTyped(result, 'Function parameter must be typed');
+    if (typeOf(typed) === FSDataType.Error) {
+      const fsError = valueOf(typed);
+      annotateFsError(fsError, this.expressionSource, expr);
+    }
+    return typed;
+  }
+}
+
 class FunctionCallExpression extends ExpressionBlock {
-  constructor(fnExpression, parameterExpressions, position = 0, length = 0) {
+  constructor(fnExpression, parameterExpression, position = 0, length = 0) {
     super(position, length);
     this.functionExpression = fnExpression;
-    this.parameters = parameterExpressions || [];
+    this.parameterExpression = parameterExpression;
     this.Function = this.functionExpression;
-    this.Parameters = this.parameters;
+    this.Parameters = this.parameterExpression;
   }
 
   evaluateInternal(provider) {
@@ -123,12 +156,18 @@ class FunctionCallExpression extends ExpressionBlock {
       return fnValue;
     }
 
+    const parameterExpressions = this.parameterExpression?.ValueExpressions ?? [];
+
     if (fnType === FSDataType.Function) {
       const fn = valueOf(fnValue);
-      const paramList = new FuncParameterList(this, provider);
+      const paramList = new LazyParameterList(parameterExpressions, provider, expressionSource);
       try {
         const result = fn.evaluate(provider, paramList);
-        return assertTyped(result, 'Functions must return typed values');
+        const typedResult = assertTyped(result, 'Functions must return typed values');
+        if (typeOf(typedResult) === FSDataType.Error) {
+          annotateFsError(valueOf(typedResult), expressionSource, this);
+        }
+        return typedResult;
       } catch (error) {
         const message = formatEvaluationMessage(
           error?.message || 'Runtime error',
@@ -141,11 +180,11 @@ class FunctionCallExpression extends ExpressionBlock {
 
     if (fnType === FSDataType.List) {
       const list = valueOf(fnValue);
-      if (this.parameters.length === 0) {
+      const firstParam = parameterExpressions[0];
+      if (!firstParam) {
         return typedNull();
       }
-      const index = this.parameters[0].evaluate(provider);
-      const typedIndex = assertTyped(index, 'List index must be typed');
+      const typedIndex = assertTyped(firstParam.evaluate(provider), 'List index must be typed');
       if (typeOf(typedIndex) !== FSDataType.Integer) {
         return typedNull();
       }
@@ -158,10 +197,11 @@ class FunctionCallExpression extends ExpressionBlock {
 
     if (fnType === FSDataType.KeyValueCollection) {
       const collection = valueOf(fnValue);
-      if (this.parameters.length === 0) {
+      const firstParam = parameterExpressions[0];
+      if (!firstParam) {
         return typedNull();
       }
-      const keyVal = assertTyped(this.parameters[0].evaluate(provider), 'Key reference must be typed');
+      const keyVal = assertTyped(firstParam.evaluate(provider), 'Key reference must be typed');
       if (typeOf(keyVal) !== FSDataType.String) {
         return typedNull();
       }
@@ -172,23 +212,27 @@ class FunctionCallExpression extends ExpressionBlock {
       return assertTyped(result, 'Key-value entries must be typed');
     }
 
-    throw new Error(
-      formatEvaluationMessage(
-        'Function call target is not a function, list, or key-value collection',
-        expressionSource,
-        this
-      )
+    const message = formatEvaluationMessage(
+      'Function call target is not a function, list, or key-value collection',
+      expressionSource,
+      this
     );
+    return normalize(new FsError(FsError.ERROR_DEFAULT, message));
   }
 
   getChilds() {
-    return [this.functionExpression, ...this.parameters];
+    return [this.functionExpression, this.parameterExpression].filter(Boolean);
   }
 
   asExpressionString(provider) {
     const fnStr = this.functionExpression.asExpressionString(provider);
-    const paramStr = this.parameters.map((p) => p.asExpressionString(provider)).join(',');
-    return `${fnStr}(${paramStr})`;
+    if (this.parameterExpression && Array.isArray(this.parameterExpression.ValueExpressions)) {
+      const paramStr = this.parameterExpression.ValueExpressions.map((p) =>
+        p.asExpressionString(provider)
+      ).join(',');
+      return `${fnStr}(${paramStr})`;
+    }
+    return `${fnStr}()`;
   }
 }
 

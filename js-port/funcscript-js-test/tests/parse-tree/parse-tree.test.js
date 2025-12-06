@@ -10,6 +10,7 @@ const { ParseNodeType } = require('@tewelde/funcscript/parser');
 const { FunctionCallExpression } = require('../../../funcscript-js/src/block/function-call-expression');
 const { LiteralBlock } = require('../../../funcscript-js/src/block/literal-block');
 const { ReferenceBlock } = require('../../../funcscript-js/src/block/reference-block');
+const { ListExpression } = require('../../../funcscript-js/src/block/list-expression');
 const {
   assertRootNode,
   assertTreeSpanConsistency,
@@ -126,11 +127,14 @@ describe('ParseTreeTests', () => {
     expect(block.Function.CodeLocation.Position).to.equal(1);
     expect(block.Function.CodeLocation.Length).to.equal(1);
 
-    const leftExp = block.Parameters[0];
+    expect(block.Parameters).to.be.an.instanceOf(ListExpression);
+    expect(block.Parameters.ValueExpressions).to.have.lengthOf(2);
+
+    const leftExp = block.Parameters.ValueExpressions[0];
     expect(leftExp.CodeLocation.Position).to.equal(0);
     expect(leftExp.CodeLocation.Length).to.equal(1);
 
-    const rightExp = block.Parameters[1];
+    const rightExp = block.Parameters.ValueExpressions[1];
     expect(rightExp.CodeLocation.Position).to.equal(2);
     expect(rightExp.CodeLocation.Length).to.equal(1);
   });
@@ -438,15 +442,18 @@ describe('ParseTreeTests', () => {
 
     expect(block.CodeLocation.Position).to.equal(0);
     expect(block.CodeLocation.Length).to.equal(expression.length);
-    expect(block.Parameters).to.have.lengthOf(2);
+    expect(block.Parameters.ValueExpressions).to.have.lengthOf(2);
 
     expect(block.Function.CodeLocation.Position).to.equal(1 + part1.length + 1);
     expect(block.Function.CodeLocation.Length).to.equal(part2.length);
 
-    expect(block.Parameters[0].CodeLocation.Position).to.equal(0);
-    expect(block.Parameters[0].CodeLocation.Length).to.equal(1 + part1.length);
-    expect(block.Parameters[1].CodeLocation.Position).to.equal(1 + part1.length + 1 + part2.length + 1);
-    expect(block.Parameters[1].CodeLocation.Length).to.equal(part3.length);
+    expect(block.Parameters.CodeLocation.Position).to.equal(0);
+    expect(block.Parameters.CodeLocation.Length).to.equal(expression.length);
+
+    expect(block.Parameters.ValueExpressions[0].CodeLocation.Position).to.equal(0);
+    expect(block.Parameters.ValueExpressions[0].CodeLocation.Length).to.equal(1 + part1.length);
+    expect(block.Parameters.ValueExpressions[1].CodeLocation.Position).to.equal(1 + part1.length + 1 + part2.length + 1);
+    expect(block.Parameters.ValueExpressions[1].CodeLocation.Length).to.equal(part3.length);
   });
 
   it('GeneralInfixFunctionLiteralCapturesIdentifierSpan', () => {
@@ -476,7 +483,7 @@ describe('ParseTreeTests', () => {
     );
 
     const call = block;
-    expect(call.Parameters).to.have.lengthOf(2);
+    expect(call.Parameters.ValueExpressions).to.have.lengthOf(2);
   });
 
   it('WhiteSpace1', () => {

@@ -79,10 +79,15 @@ namespace FuncScript.Core
                     functionLiteral.CodeLocation = new CodeLocation(operatorNode.Pos, operatorNode.Length);
                 }
 
+                var parameterList = new ListExpression(operands.ToArray())
+                {
+                    CodeLocation = new CodeLocation(startPos, endPos - startPos)
+                };
+
                 var combined = new FunctionCallExpression
                 (
                     functionLiteral,
-                    new ListExpression( operands.ToArray()))
+                    parameterList)
                 {
                     CodeLocation = new CodeLocation(startPos, endPos - startPos)
                 };

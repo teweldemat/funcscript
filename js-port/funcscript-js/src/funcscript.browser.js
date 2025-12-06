@@ -151,20 +151,24 @@ function evaluate(expression, provider = new DefaultFsDataProvider()) {
   return evaluateExpression(expression, provider);
 }
 
-function trace(expression, providerOrHook, hookMaybe) {
+function trace(expression, providerOrHook, hookMaybe, entryHookMaybe) {
   let provider = new DefaultFsDataProvider();
   let hook = null;
+  let entryHook = null;
 
   if (typeof providerOrHook === 'function') {
     hook = providerOrHook;
+    entryHook = typeof hookMaybe === 'function' ? hookMaybe : null;
   } else if (providerOrHook) {
     provider = providerOrHook;
     hook = typeof hookMaybe === 'function' ? hookMaybe : null;
+    entryHook = typeof entryHookMaybe === 'function' ? entryHookMaybe : null;
   }
 
   const traceState = {
     expression: expression == null ? '' : String(expression),
     hook,
+    entryHook,
     logToConsole: !hook
   };
 

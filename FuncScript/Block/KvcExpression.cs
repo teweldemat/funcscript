@@ -97,19 +97,7 @@ namespace FuncScript.Block
                     return cached;
 
                 var block = expression.ValueExpression;
-                var needsDepthWrapper = block == null || !block.UsesDepthCounter;
-                object value = null;
-                if (needsDepthWrapper)
-                    _depth.Enter();
-                try
-                {
-                    value = block?.Evaluate(this, _depth);
-                }
-                finally
-                {
-                    if (needsDepthWrapper)
-                        _depth.Exit(value, block);
-                }
+                var value = block?.Evaluate(this, _depth);
 
                 if (!string.IsNullOrEmpty(cacheKey))
                     _evaluatedValues[cacheKey] = value;
@@ -148,7 +136,7 @@ namespace FuncScript.Block
 
         public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {
-            depth.Enter();
+            var entryState = depth.Enter(this);
             object result = null;
             try
             {
@@ -164,7 +152,7 @@ namespace FuncScript.Block
             }
             finally
             {
-                depth.Exit(result, this);
+                depth.Exit(entryState, result, this);
             }
         }
 

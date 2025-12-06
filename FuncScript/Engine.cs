@@ -327,44 +327,43 @@ namespace FuncScript
             }
             if (val is FsList fsList)
             {
-                var snapshot = SnapshotList(fsList);
                 if (adaptiveLineBreak)
                 {
                     var inline = new StringBuilder();
-                    AppendList(indent, inline, snapshot, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: false, adaptiveLineBreak: false);
+                    AppendList(indent, inline, fsList, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: false, adaptiveLineBreak: false);
                     if (inline.Length <= BREAK_LINE_THRUSHOLD)
                     {
                         sb.Append(inline);
                         return;
                     }
 
-                    AppendList(indent, sb, snapshot, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: true, adaptiveLineBreak: adaptiveLineBreak);
+                    AppendList(indent, sb, fsList, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: true, adaptiveLineBreak: adaptiveLineBreak);
                 }
                 else
                 {
-                    AppendList(indent, sb, snapshot, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: false, adaptiveLineBreak: adaptiveLineBreak);
+                    AppendList(indent, sb, fsList, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: false, adaptiveLineBreak: adaptiveLineBreak);
                 }
 
                 return;
             }
             if (val is KeyValueCollection kv)
             {
-                var pairs = kv.GetAll() ?? Array.Empty<KeyValuePair<string, object>>();
+                var keys = kv.GetAllKeys();
                 if (adaptiveLineBreak)
                 {
                     var inline = new StringBuilder();
-                    AppendKeyValuePairs(indent, inline, pairs, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: false, adaptiveLineBreak: false);
+                    AppendKeyValuePairs(indent, inline,kv, keys, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: false, adaptiveLineBreak: false);
                     if (inline.Length <= BREAK_LINE_THRUSHOLD)
                     {
                         sb.Append(inline);
                         return;
                     }
 
-                    AppendKeyValuePairs(indent, sb, pairs, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: true, adaptiveLineBreak: adaptiveLineBreak);
+                    AppendKeyValuePairs(indent, sb,kv, keys, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: true, adaptiveLineBreak: adaptiveLineBreak);
                 }
                 else
                 {
-                    AppendKeyValuePairs(indent, sb, pairs, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: false, adaptiveLineBreak: adaptiveLineBreak);
+                    AppendKeyValuePairs(indent, sb, kv, keys, format, asFuncScriptLiteral, asJsonLiteral, useLineBreak: false, adaptiveLineBreak: adaptiveLineBreak);
                 }
 
                 return;
@@ -493,19 +492,7 @@ namespace FuncScript
                 sb.Append("\"");
         }
 
-        private static object[] SnapshotList(FsList list)
-        {
-            var length = list?.Length ?? 0;
-            if (length == 0)
-                return Array.Empty<object>();
-
-            var snapshot = new object[length];
-            for (var i = 0; i < length; i++)
-                snapshot[i] = list[i];
-            return snapshot;
-        }
-
-        private static void AppendList(string indent, StringBuilder sb, object[] items, string format, bool asFuncScriptLiteral, bool asJsonLiteral, bool useLineBreak, bool adaptiveLineBreak)
+        private static void AppendList(string indent, StringBuilder sb, FsList items, string format, bool asFuncScriptLiteral, bool asJsonLiteral, bool useLineBreak, bool adaptiveLineBreak)
         {
             sb.Append("[");
             if (items.Length > 0)
@@ -534,17 +521,17 @@ namespace FuncScript
                 sb.Append(" ]");
         }
 
-        private static void AppendKeyValuePairs(string indent, StringBuilder sb, IList<KeyValuePair<string, object>> pairs, string format, bool asFuncScriptLiteral, bool asJsonLiteral, bool useLineBreak, bool adaptiveLineBreak)
+        private static void AppendKeyValuePairs(string indent, StringBuilder sb,KeyValueCollection kvc,  IList<string> keys, string format, bool asFuncScriptLiteral, bool asJsonLiteral, bool useLineBreak, bool adaptiveLineBreak)
         {
             if (useLineBreak)
                 sb.Append("{\n");
             else
                 sb.Append("{ ");
 
-            if (pairs.Count > 0)
+            if (keys.Count > 0)
             {
                 var nextIndent = $"{indent}{TAB}";
-                for (var i = 0; i < pairs.Count; i++)
+                for (var i = 0; i < keys.Count; i++)
                 {
                     if (i > 0)
                     {
@@ -555,11 +542,11 @@ namespace FuncScript
                     }
 
                     if (useLineBreak)
-                        sb.Append($"{nextIndent}\"{pairs[i].Key}\":");
+                        sb.Append($"{nextIndent}\"{keys[i]}\":");
                     else
-                        sb.Append($"\"{pairs[i].Key}\":");
+                        sb.Append($"\"{keys[i]}\":");
 
-                    Format(nextIndent, sb, pairs[i].Value, format, asFuncScriptLiteral, asJsonLiteral, adaptiveLineBreak);
+                    Format(nextIndent, sb, kvc.Get(keys[i]), format, asFuncScriptLiteral, asJsonLiteral, adaptiveLineBreak);
                 }
             }
 
@@ -730,9 +717,9 @@ namespace FuncScript
             }
         }
 
-        public static object Trace(string expression, Action<object> hook = null)
+        public static object Trace(string expression, Action<object> hook = null, Func<TraceInfo, object> entryTrace = null)
         {
-            return Trace(expression, (result, info) =>
+            return Trace(expression, (result, info, entryState) =>
             {
                 if (info == null)
                     return;
@@ -742,23 +729,30 @@ namespace FuncScript
                     Console.WriteLine($" {info.Snippet}");
 
                 hook?.Invoke(info.Result);
-            });
+            }, entryTrace);
         }
 
-        public static object Trace(string expression, Action<object, TraceInfo> hook)
+        public static object Trace(string expression, Action<object, TraceInfo, object> hook, Func<TraceInfo, object> entryTrace = null)
         {
-            return Trace(expression, new DefaultFsDataProvider(), hook);
+            return Trace(expression, new DefaultFsDataProvider(), hook, entryTrace);
         }
-        public static object Trace(string expression,KeyValueCollection provider,  Action<object, TraceInfo> hook)
+        public static object Trace(string expression,KeyValueCollection provider,  Action<object, TraceInfo, object> hook, Func<TraceInfo, object> entryTrace = null)
         {
             var lineStarts = BuildLineStarts(expression);
-            var depth = new ExpressionBlock.DepthCounter((result, block) =>
+            var depth = new ExpressionBlock.DepthCounter(block =>
+            {
+                if (entryTrace == null || block == null)
+                    return null;
+
+                var info = BuildTraceInfo(expression, lineStarts, block, null);
+                return entryTrace(info);
+            }, (result, entryState, block) =>
             {
                 if (block == null)
                     return;
 
                 var info = BuildTraceInfo(expression, lineStarts, block, result);
-                hook?.Invoke(result, info);
+                hook?.Invoke(result, info, entryState);
             });
 
             return EvaluateInternal(expression,provider, null, ParseMode.Standard, depth);
@@ -808,21 +802,14 @@ namespace FuncScript
         }
         private static object EvaluateInternal(ExpressionBlock exp, string expression, KeyValueCollection provider, object vars, ExpressionBlock.DepthCounter depth)
         {
+            if (exp == null)
+                throw new System.ArgumentNullException(nameof(exp));
+
             depth ??= new ExpressionBlock.DepthCounter();
-            var needsDepthWrapper = exp == null || !exp.UsesDepthCounter;
-            if (needsDepthWrapper)
-                depth.Enter();
             object ret = null;
             try
             {
-                ret = exp.Evaluate(provider, depth);
-
-                if (ret is Block.KvcExpression.KvcExpressionCollection kvc)
-                {
-                    kvc.GetAll();
-                }
-
-                return ret;
+                return exp.Evaluate(provider, depth);
             }
             catch (EvaluationTooDeepTimeException)
             {
@@ -858,8 +845,6 @@ namespace FuncScript
             }
             finally
             {
-                if (needsDepthWrapper)
-                    depth.Exit(ret, exp);
             }
         }
 
@@ -983,7 +968,6 @@ namespace FuncScript
 
         public static object Apply(object target, object input)
         {
-
             if (target == null)
                 return new FsError(FsError.ERROR_TYPE_MISMATCH, "null target not supported");
 

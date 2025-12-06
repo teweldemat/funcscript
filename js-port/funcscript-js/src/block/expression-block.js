@@ -121,7 +121,7 @@ function buildTraceInfo(traceState, block, typedResult) {
     endLine: end.line,
     endColumn: end.column,
     snippet: extractSnippet(traceState.expression, block, location),
-    result: valueOf(typedResult)
+    result: typedResult == null ? null : valueOf(typedResult)
   };
 }
 
@@ -173,6 +173,15 @@ class ExpressionBlock {
       if (currentEvaluationDepth > MAX_EVALUATION_DEPTH) {
         return createDepthOverflowValue();
       }
+      const entryInfo =
+        traceState && typeof traceState.entryHook === 'function'
+          ? buildTraceInfo(traceState, this, null)
+          : null;
+      const entryState =
+        traceState && typeof traceState.entryHook === 'function'
+          ? traceState.entryHook(entryInfo)
+          : null;
+
       const result = this.evaluateInternal(provider);
       const typedResult = assertTyped(result, 'Expression blocks must return typed values');
 
@@ -180,7 +189,7 @@ class ExpressionBlock {
         const info = buildTraceInfo(traceState, this, typedResult);
         logTraceInfo(traceState, info);
         if (typeof traceState.hook === 'function') {
-          traceState.hook(info.result, info);
+          traceState.hook(info.result, info, entryState);
         }
       }
 

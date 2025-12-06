@@ -29,21 +29,10 @@ namespace FuncScript.Block
                 {
                     if (index < 0 || index >= expression.ValueExpressions.Length)
                         return null;
-                    object result = null;
+                object result = null;
                     var block = expression.ValueExpressions[index];
-                    var needsDepthWrapper = block == null || !block.UsesDepthCounter;
-                    if (needsDepthWrapper)
-                        _depth.Enter();
-                    try
-                    {
-                        result = block?.Evaluate(provider, _depth);
-                        return result;
-                    }
-                    finally
-                    {
-                        if (needsDepthWrapper)
-                            _depth.Exit(result, block);
-                    }
+                    result = block?.Evaluate(provider, _depth);
+                    return result;
                 }
             }
 
@@ -97,12 +86,19 @@ namespace FuncScript.Block
             this.ValueExpressions = exps;
         }
 
-        public override bool UsesDepthCounter => false;
-        
         public override object Evaluate(KeyValueCollection provider,DepthCounter depth)
         {
-            var ret=new ExpressionFsList(provider, this,depth);
-            return ret;
+            var entryState = depth.Enter(this);
+            object result = null;
+            try
+            {
+                result = new ExpressionFsList(provider, this,depth);
+                return result;
+            }
+            finally
+            {
+                depth.Exit(entryState, result, this);
+            }
         }
         /*{
             var lst = ValueExpressions.Select(x => x.Evaluate(provider)).ToArray();

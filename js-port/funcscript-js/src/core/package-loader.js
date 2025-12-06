@@ -194,34 +194,55 @@ function ensureResolver(resolver) {
     throw new Error('normalize function is required to create package loader');
   }
 
-  function evaluateWithTrace(expression, provider, traceHook, pathSegments) {
+  function evaluateWithTrace(expression, provider, traceHook, entryHook, pathSegments) {
     const source = expression == null ? '' : String(expression);
     const pathString = formatPath(pathSegments);
-    const stepInto = Boolean(traceHook && traceHook.__fsStepInto);
-    const traceState = traceHook && stepInto
+    const resolvedTraceHook = typeof traceHook === 'function' ? traceHook : null;
+    const resolvedEntryHook = typeof entryHook === 'function' ? entryHook : null;
+    const stepInto = Boolean(
+      (resolvedTraceHook && resolvedTraceHook.__fsStepInto) ||
+      (resolvedEntryHook && resolvedEntryHook.__fsStepInto)
+    );
+
+    const traceState = stepInto
       ? {
-          hook: (result, info) => traceHook(pathString, info),
+          entryHook: resolvedEntryHook
+            ? (info) => resolvedEntryHook(pathString, info)
+            : null,
+          hook: resolvedTraceHook
+            ? (result, info, entryState) => resolvedTraceHook(pathString, info, entryState)
+            : null,
           logToConsole: false
         }
       : null;
 
+    const buildRootInfo = (resultValue) => {
+      const lineStarts = buildLineStarts(source);
+      const endPos = source.length > 0 ? source.length - 1 : 0;
+      const start = getLineAndColumn(lineStarts, 0);
+      const end = getLineAndColumn(lineStarts, endPos);
+      return {
+        startIndex: 0,
+        startLine: start.line,
+        startColumn: start.column,
+        endIndex: source.length,
+        endLine: end.line,
+        endColumn: end.column,
+        snippet: extractSnippet(source, 0, source.length || 1),
+        result: resultValue
+      };
+    };
+
+    let entryState = null;
+    if (!stepInto && resolvedEntryHook) {
+      entryState = resolvedEntryHook(pathString, buildRootInfo(null));
+    }
+
     try {
       const value = evaluateExpression(source, provider, traceState);
-      if (traceHook && !stepInto) {
-        const lineStarts = buildLineStarts(source);
-        const endPos = source.length > 0 ? source.length - 1 : 0;
-        const start = getLineAndColumn(lineStarts, 0);
-        const end = getLineAndColumn(lineStarts, endPos);
-        traceHook(pathString, {
-          startIndex: 0,
-          startLine: start.line,
-          startColumn: start.column,
-          endIndex: source.length,
-          endLine: end.line,
-          endColumn: end.column,
-          snippet: extractSnippet(source, 0, source.length || 1),
-          result: Array.isArray(value) && value.length === 2 ? value[1] : value
-        });
+      if (resolvedTraceHook && !stepInto) {
+        const rawResult = Array.isArray(value) && value.length === 2 ? value[1] : value;
+        resolvedTraceHook(pathString, buildRootInfo(rawResult), entryState);
       }
       return value;
     } catch (error) {
@@ -232,7 +253,7 @@ function ensureResolver(resolver) {
       let spanLength =
         typeof error?.length === 'number' && error.length > 0
           ? Math.min(error.length, Math.max(0, sourceLength - startIndex))
-          : Math.max(0, sourceLength - startIndex);
+        : Math.max(0, sourceLength - startIndex);
       if (spanLength === 0 && sourceLength > 0) {
         spanLength = 1;
       }
@@ -256,8 +277,8 @@ function ensureResolver(resolver) {
         result: typedError[1]
       };
 
-      if (traceHook) {
-        traceHook(pathString, info);
+      if (resolvedTraceHook) {
+        resolvedTraceHook(pathString, info, entryState);
       }
       return typedError;
     }
@@ -329,7 +350,7 @@ function ensureResolver(resolver) {
     return `{\n${body}\n${indentCurrent}}`;
   }
 
-  function createProviderWithPackage(resolver, provider, loadPackageFn, traceHook) {
+  function createProviderWithPackage(resolver, provider, loadPackageFn, traceHook, entryHook) {
     const resolverAccessor = isFunction(resolver?.package) ? resolver.package.bind(resolver) : null;
     if (!resolverAccessor) {
       return provider;
@@ -347,20 +368,21 @@ function ensureResolver(resolver) {
       if (!nestedResolver) {
         throw new Error(`Package '${name}' could not be resolved`);
       }
-      return loadPackageFn(nestedResolver, provider, traceHook);
+      return loadPackageFn(nestedResolver, provider, traceHook, entryHook);
     });
 
     return new MapDataProvider({ package: packageValue }, provider);
   }
 
   class LazyPackageCollection extends KeyValueCollection {
-    constructor(resolver, helperProvider, path, traceHook) {
+    constructor(resolver, helperProvider, path, traceHook, entryHook) {
       super(helperProvider);
       this._resolver = resolver;
       this._path = clonePath(path);
       this._cache = new Map();
       this._evaluationProvider = null;
       this._traceHook = traceHook || null;
+      this._entryTraceHook = entryHook || null;
     }
 
     setEvaluationProvider(provider) {
@@ -414,13 +436,25 @@ function ensureResolver(resolver) {
         if (hasEvalChild) {
           const expression = buildNodeExpression(this._resolver, childPath, 0, null);
           const scopeProvider = new KvcProvider(this, this._evaluationContext() || this.parent || null);
-          const value = evaluateWithTrace(expression, scopeProvider, this._traceHook, childPath);
+          const value = evaluateWithTrace(
+            expression,
+            scopeProvider,
+            this._traceHook,
+            this._entryTraceHook,
+            childPath
+          );
           this._cache.set(lower, value);
           return value;
         }
 
         const parentProvider = this._evaluationContext() || this.parent || null;
-        const nested = new LazyPackageCollection(this._resolver, parentProvider, childPath, this._traceHook);
+        const nested = new LazyPackageCollection(
+          this._resolver,
+          parentProvider,
+          childPath,
+          this._traceHook,
+          this._entryTraceHook
+        );
         const nestedProvider = new KvcProvider(nested, parentProvider);
         nested.setEvaluationProvider(nestedProvider);
         const typedNested = normalize(nested);
@@ -429,7 +463,13 @@ function ensureResolver(resolver) {
       }
 
       const expression = buildNodeExpression(this._resolver, childPath, 0, null);
-      const value = evaluateWithTrace(expression, this._evaluationContext(), this._traceHook, childPath);
+      const value = evaluateWithTrace(
+        expression,
+        this._evaluationContext(),
+        this._traceHook,
+        this._entryTraceHook,
+        childPath
+      );
       this._cache.set(lower, value);
       return value;
     }
@@ -452,27 +492,33 @@ function ensureResolver(resolver) {
     }
   }
 
-  function loadPackage(resolver, provider, traceHook) {
+  function loadPackage(resolver, provider, traceHook, entryHook) {
     ensureResolver(resolver);
     const baseProvider = provider || new DefaultFsDataProvider();
-    const helperProvider = createProviderWithPackage(resolver, baseProvider, loadPackage, traceHook);
+    const helperProvider = createProviderWithPackage(
+      resolver,
+      baseProvider,
+      loadPackage,
+      traceHook,
+      entryHook
+    );
 
     const rootExpressionDescriptor = normalizeExpressionDescriptor(resolver.getExpression([]));
     if (rootExpressionDescriptor) {
       const expression = wrapExpressionByLanguage(rootExpressionDescriptor);
-      return evaluateWithTrace(expression, helperProvider, traceHook, []);
+      return evaluateWithTrace(expression, helperProvider, traceHook, entryHook, []);
     }
 
     const evalExpressionDescriptor = normalizeExpressionDescriptor(resolver.getExpression(['eval']));
     if (evalExpressionDescriptor) {
-      const lazyValues = new LazyPackageCollection(resolver, helperProvider, [], traceHook);
+      const lazyValues = new LazyPackageCollection(resolver, helperProvider, [], traceHook, entryHook);
       const packageProvider = new KvcProvider(lazyValues, helperProvider);
       lazyValues.setEvaluationProvider(packageProvider);
       const expression = wrapExpressionByLanguage(evalExpressionDescriptor);
-      return evaluateWithTrace(expression, packageProvider, traceHook, ['eval']);
+      return evaluateWithTrace(expression, packageProvider, traceHook, entryHook, ['eval']);
     }
 
-    const lazyValues = new LazyPackageCollection(resolver, helperProvider, [], traceHook);
+    const lazyValues = new LazyPackageCollection(resolver, helperProvider, [], traceHook, entryHook);
     const packageProvider = new KvcProvider(lazyValues, helperProvider);
     lazyValues.setEvaluationProvider(packageProvider);
     return normalize(lazyValues);
@@ -492,10 +538,10 @@ function ensureResolver(resolver) {
     return buildNodeExpression(resolver, [], 0, normalized);
   }
 
-  function createPackageProvider(resolver, provider, traceHook) {
+  function createPackageProvider(resolver, provider, traceHook, entryHook) {
     ensureResolver(resolver);
     const baseProvider = provider || new DefaultFsDataProvider();
-    return createProviderWithPackage(resolver, baseProvider, loadPackage, traceHook);
+    return createProviderWithPackage(resolver, baseProvider, loadPackage, traceHook, entryHook);
   }
 
   loadPackage.buildExpression = buildExpressionForPath;

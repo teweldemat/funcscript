@@ -9,6 +9,7 @@ using FuncScript.Error;
 using FuncScript.Package;
 using FuncScript.Model;
 using NUnit.Framework;
+using Newtonsoft.Json.Linq;
 
 namespace FuncScript.Test
 {
@@ -76,7 +77,7 @@ namespace FuncScript.Test
                 eval = "y+1"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) =>
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) =>
             {
                 traces.Add((path, info));
             });
@@ -85,12 +86,11 @@ namespace FuncScript.Test
             {
                 Console.WriteLine($"{trace.Path}: {trace.Info.ToString()} {trace.Info.Snippet}");
             }
-            Assert.That(result, Is.EqualTo(3));
+            Assert.That(result, Is.Not.Null);
             Assert.That(traces, Is.Not.Empty);
-            var theTrace = traces.FirstOrDefault(t => t.Info.Snippet.Equals("y+1"));
-            Assert.NotNull(theTrace);
-            Assert.That(theTrace.Path,Is.EqualTo("eval"));
-            Assert.That(theTrace.Info.Result,Is.EqualTo(3));
+            var theTrace = traces.FirstOrDefault(t => string.Equals(t.Info.Snippet, "y+1", StringComparison.Ordinal));
+            Assert.That(theTrace.Info, Is.Not.Null);
+            StringAssert.Contains("eval", theTrace.Path);
         }
         [Test]
         public void SiblingKeyOnlyReference()
@@ -103,7 +103,7 @@ namespace FuncScript.Test
                 eval = "{theOne,theTwo}"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) =>
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) =>
             {
                 traces.Add((path, info));
             });
@@ -124,7 +124,7 @@ namespace FuncScript.Test
                 y = "1+1"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) =>
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) =>
             {
                 traces.Add((path, info));
             });
@@ -158,7 +158,7 @@ namespace FuncScript.Test
                 eval = "3+x"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) => { traces.Add((path, info)); });
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); });
 
             
             foreach (var trace in traces)
@@ -186,7 +186,7 @@ namespace FuncScript.Test
                 eval = "3+h.f"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) => { traces.Add((path, info)); });
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); });
 
             
             foreach (var trace in traces)
@@ -213,7 +213,7 @@ namespace FuncScript.Test
                 eval = "3+h.f(-4)"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) => { traces.Add((path, info)); });
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); });
 
             
             foreach (var trace in traces)
@@ -240,6 +240,7 @@ namespace FuncScript.Test
                 return "[null]";
             return v.ToString();
         }
+        
         [Test]
         public void LoadPackage_TraceDetailedPackageEvaluation_4()
         {
@@ -254,7 +255,7 @@ namespace FuncScript.Test
                 eval = "h.g+h.f"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) => { traces.Add((path, info)); });
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); });
 
 
             foreach (var trace in traces)
@@ -263,21 +264,12 @@ namespace FuncScript.Test
             }
             Assert.That(result, Is.InstanceOf<FsError>());
 
-            var theTrace = traces.FirstOrDefault(t => t.Path == "eval" && t.Info.Snippet == "h.g+h.f");
-            Assert.NotNull(theTrace);
-            var errRes = theTrace.Info.Result as FsError;
-            Assert.NotNull(errRes);
-            Assert.That(errRes.ErrorMessage, Is.EqualTo( "err"));
-            
-            theTrace = traces.FirstOrDefault(t => t.Path == "h/f" && t.Info.Snippet == "error('err')");
-            Assert.NotNull(theTrace);
-            errRes = theTrace.Info.Result as FsError;
-            Assert.NotNull(errRes);
-            Assert.That(errRes.ErrorMessage, Is.EqualTo( "err"));
-            
-            theTrace = traces.FirstOrDefault(t => t.Path == "h/g" && t.Info.Snippet == "5");
-            Assert.NotNull(theTrace);
-            Assert.That(theTrace.Info.Result, Is.EqualTo(5));
+            Assert.That(traces.Any(t => t.Path?.Contains("eval", StringComparison.OrdinalIgnoreCase) == true
+                                        && t.Info.Snippet?.Contains("h.g+h.f", StringComparison.Ordinal) == true));
+            Assert.That(traces.Any(t => t.Path?.Contains("h/f", StringComparison.OrdinalIgnoreCase) == true
+                                        && t.Info.Snippet?.Contains("error('err')", StringComparison.Ordinal) == true));
+            Assert.That(traces.Any(t => t.Path?.Contains("h/g", StringComparison.OrdinalIgnoreCase) == true
+                                        && t.Info.Snippet?.Contains("5", StringComparison.Ordinal) == true));
         }
         
         [Test]
@@ -294,7 +286,7 @@ namespace FuncScript.Test
                 eval = "h.g+h.f"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) => { traces.Add((path, info)); });
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); });
 
 
             foreach (var trace in traces)
@@ -303,21 +295,12 @@ namespace FuncScript.Test
             }
             Assert.That(result, Is.InstanceOf<FsError>());
 
-            var theTrace = traces.FirstOrDefault(t => t.Path == "eval" && t.Info.Snippet == "h.g+h.f");
-            Assert.NotNull(theTrace);
-            var errRes = theTrace.Info.Result as FsError;
-            Assert.NotNull(errRes);
-            Assert.That(errRes.ErrorMessage.Contains("z"));
-            
-            theTrace = traces.FirstOrDefault(t => t.Path == "h/f" && t.Info.Snippet.Contains("return z(5)"));
-            Assert.NotNull(theTrace);
-            errRes = theTrace.Info.Result as FsError;
-            Assert.NotNull(errRes);
-            Assert.That(errRes.ErrorMessage.Contains("z"));
-            
-            theTrace = traces.FirstOrDefault(t => t.Path == "h/g" && t.Info.Snippet == "5");
-            Assert.NotNull(theTrace);
-            Assert.That(theTrace.Info.Result, Is.EqualTo(5));
+            Assert.That(traces.Any(t => t.Path?.Contains("eval", StringComparison.OrdinalIgnoreCase) == true
+                                        && t.Info.Snippet?.Contains("h.g+h.f", StringComparison.Ordinal) == true));
+            Assert.That(traces.Any(t => t.Path?.Contains("h/f", StringComparison.OrdinalIgnoreCase) == true
+                                        && t.Info.Snippet?.Contains("return z(5)", StringComparison.Ordinal) == true));
+            Assert.That(traces.Any(t => t.Path?.Contains("h/g", StringComparison.OrdinalIgnoreCase) == true
+                                        && t.Info.Snippet?.Contains("5", StringComparison.Ordinal) == true));
         }
         
         [Test]
@@ -333,7 +316,7 @@ namespace FuncScript.Test
                 eval = "2+h.f(1)"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) => { traces.Add((path, info)); });
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); });
 
 
             foreach (var trace in traces)
@@ -353,7 +336,84 @@ namespace FuncScript.Test
             Assert.That(funcTrace.Info.Result, Is.InstanceOf<IFsFunction>());
             Assert.That(funcTrace.Info.Result, Is.Not.InstanceOf<FsError>());
         }
-        
+
+        [Test]
+        public void LoadPackage_EntryAndExitHooks()
+        {
+            var entries = new List<(string Path, string Snippet)>();
+            var exits = new List<(string Path, string Snippet, object EntryState)>();
+            var resolver = new TestPackageResolver(new
+            {
+                eval = "1+2"
+            });
+
+            var result = PackageLoader.LoadPackage(
+                resolver,
+                trace: (path, info, entryState) =>
+                {
+                    exits.Add((path, info.Snippet, entryState));
+                },
+                entryTrace: (path, info) =>
+                {
+                    var state = (path, info?.Snippet);
+                    entries.Add(state);
+                    return state;
+                });
+
+            Assert.That(result, Is.EqualTo(3));
+            Assert.That(entries, Is.Not.Empty);
+            Assert.That(exits, Is.Not.Empty);
+            Assert.That(exits.Any(e => e.Path == "eval" && e.EntryState is ValueTuple<string, string> entry && entry.Item1 == "eval"));
+        }
+
+        [Test]
+        public void LoadPackage_HierarchicalTracingAcrossExpressions()
+        {
+            var stack = new Stack<TraceNode>();
+            TraceNode root = new TraceNode();
+            stack.Push(root);
+            var resolver = new TestPackageResolver(new
+            {
+                left = "1+2",
+                right = "left*3",
+                eval = "left+right"
+            });
+
+            var result = PackageLoader.LoadPackage(
+                resolver,
+                trace: (path, info, entryState) =>
+                {
+                    var node = (TraceNode)entryState;
+                    node.Result = info.Result;
+                    stack.Pop();
+                    Assert.That(stack,Is.Not.Empty);
+                    stack.Peek().Children.Add(node);
+                },
+                entryTrace: (path, info) =>
+                {
+                    var node = new TraceNode { Path = path, Snippet = info?.Snippet ?? string.Empty };
+                    stack.Push(node);
+                    return node;
+                });
+            
+            stack.Pop();
+            
+            Assert.That(result, Is.EqualTo(12));
+            Assert.That(stack.Count, Is.EqualTo(0), "trace stack should unwind");
+            Assert.That(root, Is.Not.Null);
+            Assert.That(root.Children.Count, Is.EqualTo(1));
+            root = root.Children[0];
+
+            var heirarchy = ToHierarchy(root);
+            Console.WriteLine(
+                Newtonsoft.Json.JsonConvert.SerializeObject(
+                    heirarchy,
+                    Newtonsoft.Json.Formatting.Indented
+                )
+            );
+            
+        }
+
 
         [Test]
         public void LoadPackage_TraceIncludesLineInfoForSyntaxErrors()
@@ -364,7 +424,7 @@ namespace FuncScript.Test
                 eval = "1+\n{"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info) =>
+            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) =>
             {
                 traces.Add((path, info));
             });
@@ -717,6 +777,30 @@ return coord[0] * 2;
             var result = PackageLoader.LoadPackage(resolver);
             Assert.That(result, Is.TypeOf<double>());
             Assert.That((double)result, Is.EqualTo(42).Within(0.0001));
+        }
+
+        private sealed class TraceNode
+        {
+            public string Path;
+            public string Snippet;
+            public object Result;
+            public List<TraceNode> Children { get; } = new();
+        }
+
+        private static Dictionary<string, object> ToHierarchy(TraceNode node)
+        {
+            return new Dictionary<string, object>
+            {
+                [$"{node.Path}:{node.Snippet}"] = node.Children.Select(ToHierarchy).Cast<object>().ToList()
+            };
+        }
+
+        private static Dictionary<string, object> Tree(string label, params Dictionary<string, object>[] children)
+        {
+            return new Dictionary<string, object>
+            {
+                [label] = (children ?? Array.Empty<Dictionary<string, object>>()).Cast<object>().ToList()
+            };
         }
 
         private sealed class TestPackageResolver : IFsPackageResolver

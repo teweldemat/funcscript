@@ -319,7 +319,8 @@ function getInfixExpressionSingleLevel(context, siblings, level, candidates, ind
     if (operatorNode) {
       setCodeLocation(fnLiteral, operatorNode.Pos, operatorNode.Length);
     }
-    const combined = new FunctionCallExpression(fnLiteral, operands.slice(), startPos, endPos - startPos);
+    const parameterList = new ListExpression(operands.slice(), startPos, endPos - startPos);
+    const combined = new FunctionCallExpression(fnLiteral, parameterList, startPos, endPos - startPos);
 
     currentExpression = combined;
   }
@@ -415,7 +416,12 @@ function getInfixExpressionSingleOp(context, siblings, level, candidates, index)
 
     const fnValue = context.Provider.get(symbol);
     const fnLiteral = new LiteralBlock(fnValue);
-    const combined = new FunctionCallExpression(fnLiteral, operands.slice(), startPos, endPos - startPos);
+    const lastOperatorNode = buffer.length > 0 ? buffer[buffer.length - 1] : null;
+    if (lastOperatorNode) {
+      setCodeLocation(fnLiteral, lastOperatorNode.Pos, lastOperatorNode.Length);
+    }
+    const parameterList = new ListExpression(operands.slice(), startPos, endPos - startPos);
+    const combined = new FunctionCallExpression(fnLiteral, parameterList, startPos, endPos - startPos);
 
     currentExpression = combined;
   }
@@ -519,7 +525,8 @@ function getInfixFunctionCall(context, siblings, index) {
   const expressionLength = Math.max(0, currentIndex - startPos);
   const nodeChildren = buffer.filter((n) => n.Pos >= startPos);
 
-  const call = new FunctionCallExpression(fnLiteral, operands.slice(), startPos, expressionLength);
+  const parameterList = new ListExpression(operands.slice(), startPos, expressionLength);
+  const call = new FunctionCallExpression(fnLiteral, parameterList, startPos, expressionLength);
 
   siblings.push(new ParseNode(ParseNodeType.GeneralInfixExpression, startPos, expressionLength, nodeChildren));
 
@@ -662,12 +669,8 @@ function parseParameters(context, siblings, funcExpression, index, openToken, cl
   siblings.push(node);
 
   const { position: functionStart } = getCodeLocation(funcExpression);
-  const call = new FunctionCallExpression(
-    funcExpression,
-    parameters.slice(),
-    functionStart,
-    currentIndex - functionStart
-  );
+  const parameterList = new ListExpression(parameters.slice(), startPos, currentIndex - startPos);
+  const call = new FunctionCallExpression(funcExpression, parameterList, functionStart, currentIndex - functionStart);
 
   return new ParseBlockResult(currentIndex, call);
 }
@@ -731,12 +734,8 @@ function parseMemberAccessOperator(context, siblings, oper, source, index) {
   const fnLiteral = new LiteralBlock(functionTyped, index, afterOperator - index);
   const nameLiteral = new LiteralBlock(makeValue(FSDataType.String, iden.Iden), iden.StartIndex, iden.Length);
   const { position: sourceStart } = getCodeLocation(source);
-  const expression = new FunctionCallExpression(
-    fnLiteral,
-    [source, nameLiteral],
-    sourceStart,
-    afterIdentifier - sourceStart
-  );
+  const parameterList = new ListExpression([source, nameLiteral], sourceStart, afterIdentifier - sourceStart);
+  const expression = new FunctionCallExpression(fnLiteral, parameterList, sourceStart, afterIdentifier - sourceStart);
 
   const parseNode = new ParseNode(ParseNodeType.MemberAccess, index, afterIdentifier - index);
   siblings.push(parseNode);
@@ -1321,12 +1320,12 @@ function getIfThenElseExpression(context, siblings, index) {
   }
   currentIndex = elseValue.NextIndex;
 
-  const call = new FunctionCallExpression(
-    functionBlock,
+  const parameterList = new ListExpression(
     [condition.ExpressionBlock, trueValue.ExpressionBlock, elseValue.ExpressionBlock],
     index,
     currentIndex - index
   );
+  const call = new FunctionCallExpression(functionBlock, parameterList, index, currentIndex - index);
 
   const parseNode = new ParseNode(ParseNodeType.IfExpression, index, currentIndex - index, childNodes);
   siblings.push(parseNode);
@@ -1388,9 +1387,10 @@ function getCaseExpression(context, siblings, index) {
     currentIndex = valueResult.NextIndex;
   }
 
+  const parameterList = new ListExpression(parameters.slice(), index, currentIndex - index);
   const call = new FunctionCallExpression(
     new LiteralBlock(context.Provider.get('case')),
-    parameters,
+    parameterList,
     index,
     currentIndex - index
   );
@@ -1452,9 +1452,10 @@ function getSwitchExpression(context, siblings, index) {
     currentIndex = branchValue.NextIndex;
   }
 
+  const parameterList = new ListExpression(parameters.slice(), index, currentIndex - index);
   const call = new FunctionCallExpression(
     new LiteralBlock(context.Provider.get('switch')),
-    parameters,
+    parameterList,
     index,
     currentIndex - index
   );
@@ -1648,9 +1649,10 @@ function getPrefixOperator(context, siblings, index) {
   }
 
   currentIndex = operandResult.NextIndex;
+  const parameterList = new ListExpression([operandResult.ExpressionBlock], index, currentIndex - index);
   const call = new FunctionCallExpression(
     new LiteralBlock(assertTyped(functionValue)),
-    [operandResult.ExpressionBlock],
+    parameterList,
     index,
     currentIndex - index
   );
@@ -1845,9 +1847,10 @@ function getStringTemplateWithDelimiter(context, siblings, delimiter, index) {
     expression = parts[0];
     parseNode = nodeParts.length > 0 ? nodeParts[0] : null;
   } else {
+    const parameterList = new ListExpression(parts.slice(), templateStart, currentIndex - templateStart);
     expression = new FunctionCallExpression(
       new LiteralBlock(context.Provider.get('_templatemerge')),
-      parts,
+      parameterList,
       templateStart,
       currentIndex - templateStart
     );
@@ -1937,9 +1940,10 @@ function getFSTemplate(context, siblings, index) {
     expression = parts[0];
     parseNode = nodeParts.length > 0 ? nodeParts[0] : null;
   } else {
+    const parameterList = new ListExpression(parts.slice(), index, currentIndex - index);
     expression = new FunctionCallExpression(
       new LiteralBlock(context.Provider.get('_templatemerge')),
-      parts,
+      parameterList,
       index,
       currentIndex - index
     );
@@ -1967,9 +1971,10 @@ function wrapTemplateExpression(context, expressionBlock) {
   const location = expressionBlock.CodeLocation || { Position: 0, Length: 0 };
   const position = location.Position ?? 0;
   const length = location.Length ?? 0;
+  const parameterList = new ListExpression([expressionBlock], position, length);
   return new FunctionCallExpression(
     new LiteralBlock(formatFunction),
-    [expressionBlock],
+    parameterList,
     position,
     length
   );

@@ -24,7 +24,7 @@ namespace FuncScript.Core
                     expressionFunction =parent,
                     parentSymbolProvider = provider
                 };
-                depth.Enter();
+                var entryState = depth.Enter(parent.Expression);
                 object result = null;
                 try
                 {
@@ -33,7 +33,7 @@ namespace FuncScript.Core
                 }
                 finally
                 {
-                    depth.Exit(result, parent.Expression);
+                    depth.Exit(entryState, result, parent.Expression);
                 }
             }
 

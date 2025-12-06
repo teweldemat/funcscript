@@ -14,41 +14,46 @@ namespace FuncScript.Package
 
     public static class PackageLoader
     {
-        public delegate void PackageLoaderTraceDelegate(string path,Engine.TraceInfo info);
-        public static object LoadPackage(IFsPackageResolver resolver, KeyValueCollection provider = null,PackageLoaderTraceDelegate trace=null)
+        public delegate void PackageLoaderTraceDelegate(string path,Engine.TraceInfo info, object entryState = null);
+        public delegate object PackageLoaderEntryTraceDelegate(string path, Engine.TraceInfo info);
+        public static object LoadPackage(
+            IFsPackageResolver resolver,
+            KeyValueCollection provider = null,
+            PackageLoaderTraceDelegate trace=null,
+            PackageLoaderEntryTraceDelegate entryTrace = null)
         {
             EnsureResolver(resolver);
             var baseProvider = provider ?? new DefaultFsDataProvider();
-            var helperProvider = CreateProviderWithPackage(resolver, baseProvider, LoadPackage, trace);
+            var helperProvider = CreateProviderWithPackage(resolver, baseProvider, LoadPackage, trace, entryTrace);
 
             var rootExpression = resolver.GetExpression(Array.Empty<string>());
             if (rootExpression != null)
             {
                 var expression = WrapExpressionByLanguage(rootExpression.Value);
-                return EvaluateWithTrace(helperProvider, expression, trace, Array.Empty<string>());
+                return EvaluateWithTrace(helperProvider, expression, trace, entryTrace, Array.Empty<string>());
             }
 
             var evalExpression = resolver.GetExpression(new[] { "eval" });
             if (evalExpression != null)
             {
-                var lazyPackageValues = new LazyPackageCollection(resolver, helperProvider, Array.Empty<string>(), trace);
+                var lazyPackageValues = new LazyPackageCollection(resolver, helperProvider, Array.Empty<string>(), trace, entryTrace);
                 var packageProvider = new KvcProvider(lazyPackageValues, helperProvider);
                 lazyPackageValues.SetEvaluationProvider(packageProvider);
                 var expression = WrapExpressionByLanguage(evalExpression.Value);
-                return EvaluateWithTrace(packageProvider, expression, trace, new[] { "eval" });
+                return EvaluateWithTrace(packageProvider, expression, trace, entryTrace, new[] { "eval" });
             }
 
-            var rootLazyPackageValues = new LazyPackageCollection(resolver, helperProvider, Array.Empty<string>(), trace);
+            var rootLazyPackageValues = new LazyPackageCollection(resolver, helperProvider, Array.Empty<string>(), trace, entryTrace);
             var rootPackageProvider = new KvcProvider(rootLazyPackageValues, helperProvider);
             rootLazyPackageValues.SetEvaluationProvider(rootPackageProvider);
             return rootLazyPackageValues;
         }
 
-        public static KeyValueCollection CreatePackageProvider(IFsPackageResolver resolver, KeyValueCollection provider = null)
+        public static KeyValueCollection CreatePackageProvider(IFsPackageResolver resolver, KeyValueCollection provider = null, PackageLoaderTraceDelegate trace = null, PackageLoaderEntryTraceDelegate entryTrace = null)
         {
             EnsureResolver(resolver);
             var baseProvider = provider ?? new DefaultFsDataProvider();
-            return CreateProviderWithPackage(resolver, baseProvider, LoadPackage, null);
+            return CreateProviderWithPackage(resolver, baseProvider, LoadPackage, trace, entryTrace);
         }
 
         public static string BuildExpression(IFsPackageResolver resolver, IReadOnlyList<string> targetPath)
@@ -80,17 +85,28 @@ namespace FuncScript.Package
             return path.ToArray();
         }
 
-        private static object EvaluateWithTrace(KeyValueCollection provider, string expression,
-            PackageLoaderTraceDelegate trace, IReadOnlyList<string> path)
+        private static object EvaluateWithTrace(
+            KeyValueCollection provider,
+            string expression,
+            PackageLoaderTraceDelegate trace,
+            PackageLoaderEntryTraceDelegate entryTrace,
+            IReadOnlyList<string> path)
         {
             try
             {
-                if (trace == null)
+                if (trace == null && entryTrace == null)
                 {
                     return Engine.Evaluate(provider, expression);
                 }
                 var pathString = FormatPath(path);
-                return Engine.Trace(expression, provider, (val, info) => trace(pathString, info));
+                Func<Engine.TraceInfo, object> entryWrapper = entryTrace != null
+                    ? info => entryTrace(pathString, info)
+                    : null;
+                return Engine.Trace(
+                    expression,
+                    provider,
+                    (val, info, entry) => trace?.Invoke(pathString, info, entry),
+                    entryWrapper);
             }
             catch (SyntaxError syntaxError)
             {
@@ -99,7 +115,7 @@ namespace FuncScript.Package
                 {
                     var pathString = FormatPath(path);
                     var info = BuildExceptionTraceInfo(expression, 0, expression?.Length ?? 0, ret);
-                    trace(pathString, info);
+                    trace(pathString, info, null);
                 }
                 return ret;
             }
@@ -112,7 +128,7 @@ namespace FuncScript.Package
                     var locationLen = ex is Error.EvaluationException evalEx ? evalEx.Len : expression?.Length ?? 0;
                     var locationPos = ex is Error.EvaluationException evaluationException ? evaluationException.Pos : 0;
                     var info = BuildExceptionTraceInfo(expression, locationPos, locationLen, ret);
-                    trace(pathString, info);
+                    trace(pathString, info, null);
                 }
                 return ret;
             }
@@ -258,8 +274,9 @@ namespace FuncScript.Package
         private static KeyValueCollection CreateProviderWithPackage(
             IFsPackageResolver resolver,
             KeyValueCollection provider,
-            Func<IFsPackageResolver, KeyValueCollection,PackageLoaderTraceDelegate, object> loadPackage,
-            PackageLoaderTraceDelegate trace)
+            Func<IFsPackageResolver, KeyValueCollection,PackageLoaderTraceDelegate, PackageLoaderEntryTraceDelegate, object> loadPackage,
+            PackageLoaderTraceDelegate trace,
+            PackageLoaderEntryTraceDelegate entryTrace)
         {
             var resolverAccessor = resolver.Package;
             if (resolverAccessor == null)
@@ -272,6 +289,7 @@ namespace FuncScript.Package
                 resolverAccessor,
                 baseProvider,
                 trace,
+                entryTrace,
                 loadPackage
             );
 
@@ -341,13 +359,20 @@ namespace FuncScript.Package
             private KeyValueCollection _evaluationProvider;
 
             private readonly PackageLoaderTraceDelegate _trace;
+            private readonly PackageLoaderEntryTraceDelegate _entryTrace;
 
-            public LazyPackageCollection(IFsPackageResolver resolver, KeyValueCollection helperProvider, IReadOnlyList<string> path, PackageLoaderTraceDelegate trace)
+            public LazyPackageCollection(
+                IFsPackageResolver resolver,
+                KeyValueCollection helperProvider,
+                IReadOnlyList<string> path,
+                PackageLoaderTraceDelegate trace,
+                PackageLoaderEntryTraceDelegate entryTrace)
             {
                 _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
                 _helperProvider = helperProvider ?? throw new ArgumentNullException(nameof(helperProvider));
                 _path = (path ?? Array.Empty<string>()).ToArray();
                 _trace = trace;
+                _entryTrace = entryTrace;
             }
 
             public void SetEvaluationProvider(KeyValueCollection provider)
@@ -381,7 +406,7 @@ namespace FuncScript.Package
                 if (expressionDescriptor == null && childEntries.Any())
                 {
                     var parentProvider = EvaluationProvider ?? _helperProvider;
-                    var nested = new LazyPackageCollection(_resolver, parentProvider, childPath, _trace);
+                    var nested = new LazyPackageCollection(_resolver, parentProvider, childPath, _trace, _entryTrace);
                     var nestedProvider = new KvcProvider(nested, parentProvider);
                     nested.SetEvaluationProvider(nestedProvider);
                     var normalizedValue = Engine.NormalizeDataType(nested);
@@ -391,7 +416,7 @@ namespace FuncScript.Package
 
                 var expression = BuildNodeExpression(_resolver, childPath, 0, null);
                 var scopeProvider = new KvcProvider(this, EvaluationProvider);
-                var value = EvaluateWithTrace(scopeProvider, expression, _trace, childPath);
+                var value = EvaluateWithTrace(scopeProvider, expression, _trace, _entryTrace, childPath);
                 _cache[normalized] = value;
                 return value;
             }
@@ -451,18 +476,21 @@ namespace FuncScript.Package
         {
             private readonly Func<string, IFsPackageResolver> _resolverAccessor;
             private readonly KeyValueCollection _provider;
-            private readonly Func<IFsPackageResolver, KeyValueCollection,PackageLoaderTraceDelegate, object> _loadPackage;
+            private readonly Func<IFsPackageResolver, KeyValueCollection,PackageLoaderTraceDelegate, PackageLoaderEntryTraceDelegate, object> _loadPackage;
             private readonly PackageLoaderTraceDelegate  _trace;
+            private readonly PackageLoaderEntryTraceDelegate _entryTrace;
             public PackageFunction(
                 Func<string, IFsPackageResolver> resolverAccessor,
                 KeyValueCollection provider,
                 PackageLoaderTraceDelegate  trace,
-                Func<IFsPackageResolver, KeyValueCollection,PackageLoaderTraceDelegate, object> loadPackage)
+                PackageLoaderEntryTraceDelegate entryTrace,
+                Func<IFsPackageResolver, KeyValueCollection,PackageLoaderTraceDelegate, PackageLoaderEntryTraceDelegate, object> loadPackage)
             {
                 _resolverAccessor = resolverAccessor ?? throw new ArgumentNullException(nameof(resolverAccessor));
                 _provider = provider ?? throw new ArgumentNullException(nameof(provider));
                 _loadPackage = loadPackage ?? throw new ArgumentNullException(nameof(loadPackage));
                 _trace=trace;
+                _entryTrace = entryTrace;
             }
 
             public int MaxParsCount => 1;
@@ -494,7 +522,7 @@ namespace FuncScript.Package
                     throw new Error.EvaluationTimeException($"Package '{packageName}' could not be resolved");
                 }
 
-                return _loadPackage(nestedResolver, _provider,_trace);
+                return _loadPackage(nestedResolver, _provider,_trace, _entryTrace);
             }
 
             public string ParName(int index) => index == 0 ? "name" : string.Empty;

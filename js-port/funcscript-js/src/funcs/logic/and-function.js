@@ -22,6 +22,9 @@ class AndFunction extends BaseFunction {
       if (paramType === helpers.FSDataType.Null) {
         continue;
       }
+      if (paramType === helpers.FSDataType.Error) {
+        return param;
+      }
       if (paramType !== helpers.FSDataType.Boolean) {
         return helpers.makeError(
           helpers.FsError.ERROR_TYPE_MISMATCH,

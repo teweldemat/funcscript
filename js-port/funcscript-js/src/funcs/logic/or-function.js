@@ -16,10 +16,15 @@ class OrFunction extends BaseFunction {
   evaluate(provider, parameters) {
     const count = parameters.count;
     let hasBooleanValue = false;
+    let firstError = null;
     for (let i = 0; i < count; i += 1) {
       const param = parameters.getParameter(provider, i);
       const paramType = helpers.typeOf(param);
       if (paramType === helpers.FSDataType.Null) {
+        continue;
+      }
+      if (paramType === helpers.FSDataType.Error) {
+        firstError = firstError || param;
         continue;
       }
       if (paramType !== helpers.FSDataType.Boolean) {
@@ -32,6 +37,9 @@ class OrFunction extends BaseFunction {
       if (helpers.valueOf(param)) {
         return helpers.makeValue(helpers.FSDataType.Boolean, true);
       }
+    }
+    if (firstError) {
+      return firstError;
     }
     if (!hasBooleanValue) {
       return helpers.typedNull();

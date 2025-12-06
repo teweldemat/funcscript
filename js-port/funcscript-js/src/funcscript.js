@@ -8,6 +8,8 @@ const { FsList, ArrayFsList } = require('./model/fs-list');
 const { KeyValueCollection, SimpleKeyValueCollection } = require('./model/key-value-collection');
 const { FsError } = require('./model/fs-error');
 const buildBuiltinMap = require('./funcs');
+const { ReferenceBlock } = require('./block/reference-block');
+const { FunctionCallExpression } = require('./block/function-call-expression');
 const {
   registerLanguageBinding,
   tryGetLanguageBinding,
@@ -218,7 +220,22 @@ function evaluateExpression(expression, provider, traceState) {
   }
 
   try {
-    return assertTyped(block.evaluate(provider), 'Engine.evaluate expects typed output');
+    const typedResult = assertTyped(block.evaluate(provider), 'Engine.evaluate expects typed output');
+    if (
+      typeOf(typedResult) === FSDataType.Error &&
+      block instanceof FunctionCallExpression &&
+      block.functionExpression instanceof ReferenceBlock
+    ) {
+      const err = valueOf(typedResult);
+      if (
+        err?.errorType === FsError.ERROR_DEFAULT &&
+        typeof err?.errorMessage === 'string' &&
+        err.errorMessage.includes('Function call target is not a function')
+      ) {
+        throw new Error(err?.errorMessage || 'Runtime error');
+      }
+    }
+    return typedResult;
   } catch (error) {
     if (error instanceof Error && error.message) {
       const position = parseOutcome?.parseNode?.Pos;
@@ -234,20 +251,24 @@ function evaluate(expression, provider = new DefaultFsDataProvider()) {
   return evaluateExpression(expression, provider);
 }
 
-function trace(expression, providerOrHook, hookMaybe) {
+function trace(expression, providerOrHook, hookMaybe, entryHookMaybe) {
   let provider = new DefaultFsDataProvider();
   let hook = null;
+  let entryHook = null;
 
   if (typeof providerOrHook === 'function') {
     hook = providerOrHook;
+    entryHook = typeof hookMaybe === 'function' ? hookMaybe : null;
   } else if (providerOrHook) {
     provider = providerOrHook;
     hook = typeof hookMaybe === 'function' ? hookMaybe : null;
+    entryHook = typeof entryHookMaybe === 'function' ? entryHookMaybe : null;
   }
 
   const traceState = {
     expression: expression == null ? '' : String(expression),
     hook,
+    entryHook,
     logToConsole: !hook
   };
 

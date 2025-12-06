@@ -115,10 +115,12 @@ describe('package loader traces', () => {
     expect((rawResult as any)?.__fsKind).toBe('FsError');
     expect(rawResult.errorMessage).toBe('err');
 
-    const evalTrace = traces.find((t) => t.path === 'eval' && t.info.snippet === 'h.g+h.f');
-    expect(evalTrace).toBeTruthy();
-    expect((evalTrace.info.result as any)?.__fsKind).toBe('FsError');
-    expect(evalTrace.info.result.errorMessage).toBe('err');
+    const evalTraces = traces.filter((t) => t.path === 'eval' && t.info.snippet === 'h.g+h.f');
+    expect(evalTraces.length).toBeGreaterThan(0);
+    expect(evalTraces.some((t) => (t.info.result as any)?.__fsKind === 'FsError')).toBe(true);
+    expect(
+      evalTraces.some((t) => (t.info.result as any)?.errorMessage && (t.info.result as any)?.errorMessage === 'err')
+    ).toBe(true);
 
     const hFTrace = traces.find((t) => t.path === 'h/f' && t.info.snippet === "error('err')");
     expect(hFTrace).toBeTruthy();
@@ -149,10 +151,16 @@ describe('package loader traces', () => {
     expect((rawResult as any)?.__fsKind).toBe('FsError');
     expect(rawResult.errorMessage.toLowerCase()).toContain('z');
 
-    const evalTrace = traces.find((t) => t.path === 'eval' && t.info.snippet === 'h.g+h.f');
-    expect(evalTrace).toBeTruthy();
-    expect((evalTrace.info.result as any)?.__fsKind).toBe('FsError');
-    expect(evalTrace.info.result.errorMessage.toLowerCase()).toContain('z');
+    const evalTraces = traces.filter((t) => t.path === 'eval' && t.info.snippet === 'h.g+h.f');
+    expect(evalTraces.length).toBeGreaterThan(0);
+    expect(evalTraces.some((t) => (t.info.result as any)?.__fsKind === 'FsError')).toBe(true);
+    expect(
+      evalTraces.some(
+        (t) =>
+          typeof (t.info.result as any)?.errorMessage === 'string' &&
+          (t.info.result as any).errorMessage.toLowerCase().includes('z')
+      )
+    ).toBe(true);
 
     const hFTrace = traces.find(
       (t) => t.path === 'h/f' && t.info.snippet && t.info.snippet.includes('return z(5)')
@@ -195,5 +203,37 @@ describe('package loader traces', () => {
     expect(hFTrace).toBeTruthy();
     expect(typeof (hFTrace.info.result as any)?.evaluate).toBe('function');
     expect((hFTrace.info.result as any)?.__fsKind).not.toBe('FsError');
+  });
+
+  it('supports entry and exit hooks when tracing packages', () => {
+    const resolver = new ObjectResolver({
+      eval: '1'
+    });
+
+    const entries: any[] = [];
+    const exits: any[] = [];
+    const entryHook = (path: string, info: any) => {
+      const state = { path, snippet: info?.snippet };
+      entries.push(state);
+      return state;
+    };
+    const traceHook: any = (path: string, info: any, entryState: any) => {
+      exits.push({ path, snippet: info?.snippet, entryState });
+    };
+    traceHook.__fsStepInto = true;
+
+    const result = loadPackage(resolver, undefined, traceHook, entryHook);
+    expect(valueOf(result)).toBe(1);
+    expect(entries.length).toBeGreaterThan(0);
+    expect(exits.length).toBeGreaterThan(0);
+    expect(
+      exits.some(
+        (x) =>
+          x.entryState &&
+          x.entryState.path === 'eval' &&
+          x.entryState.snippet &&
+          String(x.entryState.snippet).includes('1')
+      )
+    ).toBe(true);
   });
 });
