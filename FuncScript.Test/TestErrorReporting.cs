@@ -86,12 +86,12 @@ namespace FuncScript.Test
             }
         }
         [Test]
-        public void TestTypeMismatchError()
+        public void LengthOnScalarReturnsOne()
         {
             var error_exp = "len(5)";
             var exp = $"10+{error_exp}";
-            var fsError = AssertExpressionReturnsFsError(exp, error_exp);
-            Assert.That(fsError.ErrorType, Is.EqualTo(FsError.ERROR_TYPE_MISMATCH));
+            var result = FuncScriptRuntime.Evaluate(exp);
+            Assert.That(result, Is.EqualTo(11));
         }
         [Test]
         public void TestNullMemberAccessError()

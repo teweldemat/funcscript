@@ -32,10 +32,10 @@ describe('ErrorReporting', () => {
     expect(valueOf(result)).to.equal(10);
   });
 
-  it('reports type mismatch inside expression', () => {
+  it('treats non-list/non-string length as one inside expression', () => {
     const result = evaluate('10+len(5)', builtinProvider());
-    expect(typeOf(result)).to.equal(FSDataType.Error);
-    expect(valueOf(result).errorMessage).to.match(/length function/i);
+    expect(typeOf(result)).to.equal(FSDataType.Integer);
+    expect(valueOf(result)).to.equal(11);
   });
 
   it('reports null member access', () => {

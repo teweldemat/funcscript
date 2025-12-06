@@ -36,10 +36,7 @@ class LengthFunction extends BaseFunction {
       return helpers.makeValue(FSDataType.Integer, text.length);
     }
 
-    return helpers.makeError(
-      helpers.FsError.ERROR_TYPE_MISMATCH,
-      `${this.symbol} function: The parameter should be ${this.parName(0)}`
-    );
+    return helpers.makeValue(FSDataType.Integer, 1);
   }
 
   parName(index) {

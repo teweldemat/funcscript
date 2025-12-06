@@ -15,4 +15,10 @@ describe('length function', () => {
     const typed = Engine.evaluate('length("hello world")', provider);
     expect(valueOf(typed)).toBe(11);
   });
+
+  it('returns one for non-list, non-string values', () => {
+    const provider = new DefaultFsDataProvider();
+    const typed = Engine.evaluate('length(123)', provider);
+    expect(valueOf(typed)).toBe(1);
+  });
 });

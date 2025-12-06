@@ -190,6 +190,7 @@ namespace FuncScript.Test
         [TestCase("length([1,2,3])", 3)]
         [TestCase("length(\"hello\")", 5)]
         [TestCase("length(null)", 0)]
+        [TestCase("length(5)", 1)]
         public void LengthFunctionAcceptsListsAndStrings(string expression, int expected)
         {
             var provider = new DefaultFsDataProvider();

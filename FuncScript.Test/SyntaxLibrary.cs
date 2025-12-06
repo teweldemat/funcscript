@@ -360,6 +360,28 @@ namespace FuncScript.Test
             TestResult(expr, res, errorType: errorType);
         }
 
+        [Test]
+        public void BooleanOperatorsHandleFsErrorWithShortCircuiting()
+        {
+            Assert.That(BasicTests.AssertSingleResult(@"true or error(""the error"")"), Is.EqualTo(true));
+            Assert.That(BasicTests.AssertSingleResult(@"error(""the error"") or true"), Is.EqualTo(true));
+
+            var orError = BasicTests.AssertSingleResult(@"error(""the error"") or false");
+            Assert.That(orError, Is.TypeOf<FsError>());
+            Assert.That(((FsError)orError).ErrorType, Is.EqualTo(FsError.ERROR_DEFAULT));
+            Assert.That(((FsError)orError).ErrorMessage, Is.EqualTo("the error"));
+
+            Assert.That(BasicTests.AssertSingleResult(@"false and error(""the error"")"), Is.EqualTo(false));
+
+            var andErrorFirst = BasicTests.AssertSingleResult(@"error(""the error"") and true");
+            Assert.That(andErrorFirst, Is.TypeOf<FsError>());
+            Assert.That(((FsError)andErrorFirst).ErrorType, Is.EqualTo(FsError.ERROR_DEFAULT));
+            Assert.That(((FsError)andErrorFirst).ErrorMessage, Is.EqualTo("the error"));
+
+            var andErrorAfterTrue = BasicTests.AssertSingleResult(@"true and error(""the error"")");
+            Assert.That(andErrorAfterTrue, Is.TypeOf<FsError>());
+        }
+
         [TestCase("10 - 6.0", 4.0d)]
         [TestCase("10 - 6.0", 4.0d)]
         [TestCase("15 + 5l", 20L)]

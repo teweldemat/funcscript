@@ -17,6 +17,7 @@ namespace FuncScript.Functions.Logic
         {
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
+            FsError firstError = null;
             var hasBooleanValue = false;
             for (int i = 0; i < pars.Length; i++)
             {
@@ -24,6 +25,12 @@ namespace FuncScript.Functions.Logic
 
                 if (thePar == null)
                     continue;
+
+                if (thePar is FsError fsError)
+                {
+                    firstError ??= fsError;
+                    continue;
+                }
 
                 if (thePar is not bool b)
                     return new FsError(FsError.ERROR_TYPE_MISMATCH,
@@ -33,6 +40,9 @@ namespace FuncScript.Functions.Logic
                 if (b)
                     return true;
             }
+
+            if (firstError != null)
+                return firstError;
 
             if (!hasBooleanValue)
                 return null;

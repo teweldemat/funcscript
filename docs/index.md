@@ -112,7 +112,7 @@ back into JSON pipelines, APIs, or templating systems.
 
 ## Where to Next
 - Explore hands-on [Examples](examples.md) of FuncScript in action.
-- Consult the [Built-in Symbols](reference/built-in-symbols.md) and [Types](reference/types.md) reference for details.
+- Consult the [Built-in Names](reference/built-in-names.md) and [Types](reference/types.md) reference for details.
 - Dive into the full [Formal Syntax](funcscript-fromal-syntax.md) for the precise grammar.
 
 ## Hosted Demos

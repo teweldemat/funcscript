@@ -32,6 +32,9 @@ namespace FuncScript.Functions.Logic
                 if (thePar == null)
                     continue;
 
+                if (thePar is FsError fsError)
+                    return fsError;
+
                 if (thePar is not bool b)
                     return new FsError(FsError.ERROR_TYPE_MISMATCH,
                         $"{this.Symbol} doesn't apply to this type:{(thePar == null ? "null" : thePar.GetType())} ");

@@ -7,7 +7,7 @@ nav:
   - Language Overview: index.md
   - Examples: examples.md
   - Reference:
-      - Built-in Symbols: reference/built-in-symbols.md
+      - Built-in Names: reference/built-in-names.md
       - Types: reference/types.md
   - Syntax: syntax.md
   - Developers:

@@ -33,7 +33,7 @@ namespace FuncScript.Functions.List
                 null => 0,
                 FsList list => list.Length,
                 string s => s.Length,
-                _ => new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol} function doesn't apply to {par0.GetType()}")
+                _ => 1
             };
         }
 
