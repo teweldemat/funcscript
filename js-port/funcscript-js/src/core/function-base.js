@@ -49,6 +49,10 @@ class BaseFunction {
   get maxParameters() {
     return -1;
   }
+
+  toString() {
+    return this.symbol || '<function>';
+  }
 }
 
 module.exports = {

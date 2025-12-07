@@ -619,7 +619,52 @@ namespace FuncScript.Test
             }
             return null;
         }
+        [Test]
+        public void TraceEntryHookBuildsEvaluationTree_7()
+        {
+            var stack = new Stack<EvalNode>();
+            EvalNode root = new EvalNode();
 
+            Func<Engine.TraceInfo, object> entryHook = info =>
+            {
+                var node = new EvalNode { Snippet = info.Snippet };
+                stack.Push(node);
+                return node;
+            };
+            stack.Push(root);
+            FuncScriptRuntime.Trace("x.y", (result, info, entryState) =>
+            {
+                var node = (EvalNode)entryState;
+                node.Result = result;
+                stack.Pop();
+                stack.Peek().Children.Add(node);
+            }, entryHook);
+            stack.Pop();
+            Assert.That(stack.Count, Is.EqualTo(0), "stack should be empty after trace exits");
+            Assert.That(root, Is.Not.Null);
+            Assert.That(root.Children, Has.Count.EqualTo(1));
+            root = root.Children[0];
+            Assert.That(root.Snippet, Does.Contain("x.y"));
+
+            var actualHierarchy = ToHierarchy(root);
+            Console.WriteLine(
+                Newtonsoft.Json.JsonConvert.SerializeObject(
+                    actualHierarchy,
+                    Newtonsoft.Json.Formatting.Indented
+                )
+            );
+            var expectedHierarchy = Tree("x.y",
+                Tree("."),
+                Tree("x.y"),    
+                Tree("y"), //member access function first evaluates the member name
+                Tree("x")
+            );
+
+            Assert.That(
+                JToken.DeepEquals(JToken.FromObject(actualHierarchy), JToken.FromObject(expectedHierarchy)),
+                Is.True,
+                "Trace hierarchy does not match expected structure");
+        }
         private static Dictionary<string, object> ToHierarchy(EvalNode node)
         {
             return new Dictionary<string, object>

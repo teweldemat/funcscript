@@ -49,13 +49,13 @@ class SelectorExpression extends ExpressionBlock {
   evaluateInternal(provider) {
     const sourceTyped = assertTyped(this.Source.evaluate(provider));
     const sourceType = typeOf(sourceTyped);
-    const selectorProvider = new SelectorProvider(provider);
 
     if (sourceType === FSDataType.List) {
       const list = valueOf(sourceTyped);
       const results = [];
       for (let i = 0; i < list.length; i += 1) {
         const item = list.get(i) ?? typedNull();
+        const selectorProvider = new SelectorProvider(provider);
         selectorProvider.setSource(item);
         const result = assertTyped(this.Selector.evaluate(selectorProvider));
         results.push(result);
@@ -63,6 +63,7 @@ class SelectorExpression extends ExpressionBlock {
       return makeValue(FSDataType.List, new ArrayFsList(results));
     }
 
+    const selectorProvider = new SelectorProvider(provider);
     selectorProvider.setSource(sourceTyped);
     return assertTyped(this.Selector.evaluate(selectorProvider));
   }

@@ -411,6 +411,66 @@ function evaluateTemplate(template, provider = new DefaultFsDataProvider()) {
   return parts.join('');
 }
 
+function formatToJson(value) {
+  const toTyped = (input) => {
+    if (Array.isArray(input) && input.length === 2) {
+      return assertTyped(input);
+    }
+    return normalize(input);
+  };
+
+  const toPlain = (typed) => {
+    const dataType = typeOf(typed);
+    const raw = valueOf(typed);
+
+    switch (dataType) {
+      case FSDataType.Null:
+      case FSDataType.Boolean:
+      case FSDataType.Integer:
+      case FSDataType.Float:
+      case FSDataType.String:
+        return raw;
+      case FSDataType.BigInteger:
+        return raw?.toString();
+      case FSDataType.DateTime:
+        return raw instanceof Date ? raw.toISOString() : raw;
+      case FSDataType.ByteArray:
+        return typeof Buffer !== 'undefined' && Buffer.from ? Buffer.from(raw).toString('base64') : Array.from(raw || []);
+      case FSDataType.Error:
+        return {
+          errorType: raw?.errorType,
+          errorMessage: raw?.errorMessage,
+          errorData: raw?.errorData ?? null
+        };
+      case FSDataType.Function:
+        return '[function]';
+      case FSDataType.List: {
+        const items = [];
+        for (const item of raw) {
+          items.push(toPlain(toTyped(item)));
+        }
+        return items;
+      }
+      case FSDataType.KeyValueCollection: {
+        const obj = {};
+        const keys =
+          typeof raw.getAllKeys === 'function'
+            ? raw.getAllKeys()
+            : raw.getAll().map((pair) => pair[0]);
+        for (const key of keys) {
+          obj[key] = toPlain(toTyped(raw.get(key)));
+        }
+        return obj;
+      }
+      default:
+        throw new Error('Unsupported type for FormatToJson');
+    }
+  };
+
+  const typed = toTyped(value);
+  return JSON.stringify(toPlain(typed));
+}
+
 const loadPackage = createPackageLoader({
   evaluateExpression,
   DefaultFsDataProvider,
@@ -564,6 +624,7 @@ const Engine = {
   evaluate,
   trace,
   evaluateTemplate,
+  FormatToJson: formatToJson,
   loadPackage,
   test,
   testPackage,
@@ -603,6 +664,7 @@ module.exports = {
   evaluate,
   trace,
   evaluateTemplate,
+  FormatToJson: formatToJson,
   loadPackage,
   test,
   testPackage,

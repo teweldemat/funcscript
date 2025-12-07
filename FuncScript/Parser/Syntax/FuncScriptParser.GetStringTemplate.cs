@@ -156,7 +156,10 @@ namespace FuncScript.Core
             {
                 if (buffer.Length > 0)
                 {
-                    parts.Add(new LiteralBlock(buffer.ToString()));
+                    parts.Add(new LiteralBlock(buffer.ToString())
+                    {
+                        CodeLocation = new CodeLocation(literalStart, currentIndex - literalStart)
+                    });
                     nodeParts.Add(new ParseNode(ParseNodeType.LiteralString, literalStart,
                         currentIndex - literalStart));
                     buffer.Clear();
@@ -178,7 +181,10 @@ namespace FuncScript.Core
             ParseNode parseNode;
             if (parts.Count == 0)
             {
-                expression = new LiteralBlock("");
+                expression = new LiteralBlock("")
+                {
+                    CodeLocation = new CodeLocation(templateStart, currentIndex - templateStart)
+                };
                 parseNode = new ParseNode(ParseNodeType.LiteralString, templateStart, currentIndex - templateStart);
             }
             else if (parts.Count == 1 && !hasExpressions && parts[0] is LiteralBlock)
@@ -190,11 +196,15 @@ namespace FuncScript.Core
             {
                 expression = new FunctionCallExpression
                 (
-                    new LiteralBlock(context.Provider.Get(TemplateMergeMergeFunction.SYMBOL)),
+                    new LiteralBlock(context.Provider.Get(TemplateMergeMergeFunction.SYMBOL))
+                    {
+                        CodeLocation = new CodeLocation(templateStart, 0)
+                    },
                     new ListExpression(parts.ToArray())
                 );
                 parseNode = new ParseNode(ParseNodeType.StringTemplate, templateStart, currentIndex - templateStart, nodeParts);
             }
+            expression.CodeLocation = new CodeLocation(templateStart, currentIndex - templateStart);
 
             if (parseNode != null)
             {
@@ -213,7 +223,10 @@ namespace FuncScript.Core
                 return expressionBlock;
             return new FunctionCallExpression
             (
-                new LiteralBlock(formatFunction),
+                new LiteralBlock(formatFunction)
+                {
+                    CodeLocation = new CodeLocation(expressionBlock.CodeLocation.Position, 0)
+                },
                 new ListExpression(new[] { expressionBlock })
             );
         }

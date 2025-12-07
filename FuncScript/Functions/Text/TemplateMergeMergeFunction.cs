@@ -54,5 +54,10 @@ namespace FuncScript.Functions.Text
         {
             return $"Op {index + 1}";
         }
+
+        public override string ToString()
+        {
+            return Symbol;
+        }
     }
 }

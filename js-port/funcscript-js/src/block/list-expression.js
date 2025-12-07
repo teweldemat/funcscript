@@ -1,7 +1,31 @@
 const { ExpressionBlock } = require('./expression-block');
-const { ArrayFsList } = require('../model/fs-list');
+const { FsList } = require('../model/fs-list');
 const { assertTyped, makeValue } = require('../core/value');
 const { FSDataType } = require('../core/fstypes');
+
+class ExpressionFsList extends FsList {
+  constructor(provider, expressions) {
+    super();
+    this.__fsKind = 'FsList';
+    this.provider = provider;
+    this.expressions = Array.isArray(expressions) ? expressions : [];
+  }
+
+  get length() {
+    return this.expressions.length;
+  }
+
+  get(index) {
+    if (index < 0 || index >= this.expressions.length) {
+      return null;
+    }
+    const expr = this.expressions[index];
+    if (!expr) {
+      return null;
+    }
+    return assertTyped(expr.evaluate(this.provider));
+  }
+}
 
 class ListExpression extends ExpressionBlock {
   constructor(valueExpressions = [], position = 0, length = 0) {
@@ -10,8 +34,7 @@ class ListExpression extends ExpressionBlock {
   }
 
   evaluateInternal(provider) {
-    const values = this.ValueExpressions.map((expr) => assertTyped(expr.evaluate(provider)));
-    const list = new ArrayFsList(values);
+    const list = new ExpressionFsList(provider, this.ValueExpressions);
     return makeValue(FSDataType.List, list);
   }
 

@@ -288,6 +288,8 @@ export declare function evaluateTemplate(
   provider?: FsDataProvider
 ): string;
 
+export declare function FormatToJson(value: FuncScriptInput): string;
+
 export type PackageTraceHook = (path: string, info: TraceInfo, entryState?: unknown) => void;
 export type PackageTraceEntryHook = (path: string, info: TraceInfo | null) => unknown;
 export declare function loadPackage(
@@ -341,6 +343,7 @@ export declare function colorParseTree(
 export declare const Engine: {
   evaluate: typeof evaluate;
   evaluateTemplate: typeof evaluateTemplate;
+  FormatToJson: typeof FormatToJson;
   loadPackage: typeof loadPackage;
   test: typeof test;
   testPackage: typeof testPackage;

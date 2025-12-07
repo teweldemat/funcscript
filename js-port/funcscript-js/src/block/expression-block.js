@@ -85,11 +85,20 @@ function getLineAndColumn(lineStarts, position) {
 function extractSnippet(expression, block, location) {
   const expSource = typeof expression === 'string' ? expression : '';
   const start = Math.max(0, Math.min(location?.Position ?? 0, expSource.length));
-  const hasLength = typeof location?.Length === 'number' && location.Length > 0;
-  const length = hasLength ? Math.min(location.Length, expSource.length - start) : Math.min(MAX_SNIPPET_LENGTH, expSource.length - start);
-  let snippet = length > 0 ? expSource.slice(start, start + length) : expSource;
+  const rawLength = location?.Length;
+  const hasLength = typeof rawLength === 'number' && rawLength > 0;
+  const isZeroLength = typeof rawLength === 'number' && rawLength === 0;
+  const length = hasLength
+    ? Math.min(rawLength, expSource.length - start)
+    : isZeroLength
+      ? 0
+      : Math.min(MAX_SNIPPET_LENGTH, expSource.length - start);
+  let snippet = length > 0 ? expSource.slice(start, start + length) : '';
   if (!snippet && block && typeof block.asExpressionString === 'function') {
     snippet = block.asExpressionString();
+  }
+  if (!snippet) {
+    snippet = expSource;
   }
   if (snippet && snippet.length > MAX_SNIPPET_LENGTH) {
     return `${snippet.slice(0, MAX_SNIPPET_LENGTH)}…`;

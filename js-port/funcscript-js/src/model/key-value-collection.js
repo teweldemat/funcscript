@@ -9,11 +9,11 @@ class KeyValueCollection extends FsDataProvider {
   }
 
   get(key) {
-    throw new Error('KeyValueCollection.get not implemented');
+    return this.parent ? this.parent.get(key) : null;
   }
 
   isDefined(key) {
-    throw new Error('KeyValueCollection.isDefined not implemented');
+    return this.parent ? this.parent.isDefined(key) : false;
   }
 
   getAll() {
@@ -57,12 +57,8 @@ class KeyValueCollection extends FsDataProvider {
 
     pushEntries(col1.getAll());
     pushEntries(col2.getAll());
-
-    if (col1.parent !== col2.parent) {
-      throw new Error('Key-value collections from different contexts cannot be merged');
-    }
-
-    return new SimpleKeyValueCollection(col1.parent, merged);
+    const parent = col1.parent === col2.parent ? col1.parent : null;
+    return new SimpleKeyValueCollection(parent, merged);
   }
 }
 

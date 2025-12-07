@@ -58,6 +58,24 @@ class ExpressionFunction extends BaseFunction {
     }
     const parentChain = new KvcProvider(this.context, provider);
     const parameterProvider = new ParameterProvider(this, parentChain, parameterList);
+    const traceState = this.context && this.context.__fsTrace ? this.context.__fsTrace : null;
+    if (traceState) {
+      if (!parentChain.__fsTrace) {
+        parentChain.__fsTrace = traceState;
+      }
+      if (!parameterProvider.__fsTrace) {
+        parameterProvider.__fsTrace = traceState;
+      }
+    }
+    const expressionSource = this.context && this.context.__fsExpression ? this.context.__fsExpression : null;
+    if (expressionSource) {
+      if (!parentChain.__fsExpression) {
+        parentChain.__fsExpression = expressionSource;
+      }
+      if (!parameterProvider.__fsExpression) {
+        parameterProvider.__fsExpression = expressionSource;
+      }
+    }
     const result = this.expression.evaluate(parameterProvider);
     return assertTyped(result);
   }

@@ -61,10 +61,12 @@ namespace FuncScript.Core
                 CodeLocation = new CodeLocation(iden.StartIndex, iden.Length)
             };
 
-            var expression = new FunctionCallExpression
-            (
-                functionLiteral,
-                new ListExpression(new ExpressionBlock[] { source, memberLiteral }))
+            var parameters = new ListExpression(new ExpressionBlock[] { source, memberLiteral })
+            {
+                CodeLocation = new CodeLocation(source.CodeLocation.Position, currentIndex - source.CodeLocation.Position)
+            };
+
+            var expression = new FunctionCallExpression(functionLiteral, parameters)
             {
                 CodeLocation = new CodeLocation(source.CodeLocation.Position, currentIndex - source.CodeLocation.Position)
             };

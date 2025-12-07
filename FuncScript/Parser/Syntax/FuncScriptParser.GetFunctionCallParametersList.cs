@@ -76,11 +76,12 @@ namespace FuncScript.Core
             siblings.Add(parseNode);
 
             var functionStart = function.CodeLocation.Position;
-            var callExpression = new FunctionCallExpression
-            (
-                function,
-                new ListExpression(parameters.ToArray())
-                )
+            var parametersExpression = new ListExpression(parameters.ToArray())
+            {
+                CodeLocation = new CodeLocation(startPos, currentIndex - startPos)
+            };
+
+            var callExpression = new FunctionCallExpression(function, parametersExpression)
             {
                 CodeLocation = new CodeLocation(functionStart, currentIndex - functionStart)
             };

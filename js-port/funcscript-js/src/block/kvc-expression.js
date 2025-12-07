@@ -1,18 +1,17 @@
 const { ExpressionBlock, createDepthOverflowValue } = require('./expression-block');
-const { SimpleKeyValueCollection } = require('../model/key-value-collection');
+const { KeyValueCollection } = require('../model/key-value-collection');
 const { assertTyped, makeValue } = require('../core/value');
 const { FSDataType } = require('../core/fstypes');
-const { FsDataProvider } = require('../core/data-provider');
 
-class KvcExpressionProvider extends FsDataProvider {
-  constructor(parent, parentExpression) {
+class KvcExpressionCollection extends KeyValueCollection {
+  constructor(parent, expression) {
     super(parent);
-    this.parentExpression = parentExpression;
+    this.expression = expression;
     this.cache = new Map();
     this.evaluating = new Set();
   }
 
-  hasSelectorAncestor() {
+  _hasSelectorAncestor() {
     let current = this.parent;
     while (current) {
       if (current.__fsSelectorProvider) {
@@ -25,19 +24,19 @@ class KvcExpressionProvider extends FsDataProvider {
 
   get(name) {
     const lower = name.toLowerCase();
-    const entry = this.parentExpression._index.get(lower);
+    const entry = this.expression._index.get(lower);
     if (!entry) {
-      return super.get(name);
+      return this.parent ? this.parent.get(name) : null;
     }
     if (this.cache.has(lower)) {
       return this.cache.get(lower);
     }
     if (this.evaluating.has(lower)) {
-      const fallback = super.get(name);
+      const fallback = this.parent ? this.parent.get(name) : null;
       if (fallback !== null && fallback !== undefined) {
         return fallback;
       }
-      if (this.hasSelectorAncestor()) {
+      if (this._hasSelectorAncestor()) {
         return fallback;
       }
       const overflowValue = createDepthOverflowValue();
@@ -57,10 +56,22 @@ class KvcExpressionProvider extends FsDataProvider {
 
   isDefined(name) {
     const lower = name.toLowerCase();
-    if (this.parentExpression._index.has(lower)) {
+    if (this.expression._index.has(lower)) {
       return true;
     }
-    return super.isDefined(name);
+    return this.parent ? this.parent.isDefined(name) : false;
+  }
+
+  getAll() {
+    const pairs = [];
+    for (const kv of this.expression._keyValues) {
+      pairs.push([kv.Key, this.get(kv.KeyLower)]);
+    }
+    return pairs;
+  }
+
+  getAllKeys() {
+    return this.expression._keyValues.map((kv) => kv.Key);
   }
 }
 
@@ -92,12 +103,10 @@ class KvcExpression extends ExpressionBlock {
   }
 
   evaluateInternal(provider) {
-    const scope = new KvcExpressionProvider(provider, this);
+    const collection = new KvcExpressionCollection(provider, this);
     if (this.singleReturn) {
-      return assertTyped(this.singleReturn.evaluate(scope));
+      return assertTyped(this.singleReturn.evaluate(collection));
     }
-    const pairs = this._keyValues.map((kv) => [kv.Key, scope.get(kv.KeyLower)]);
-    const collection = new SimpleKeyValueCollection(null, pairs);
     return makeValue(FSDataType.KeyValueCollection, collection);
   }
 

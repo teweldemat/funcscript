@@ -902,12 +902,21 @@ namespace FuncScript
             var start = Math.Max(0, location?.Position ?? 0);
             start = Math.Min(start, expression.Length);
             var length = Math.Max(0, location?.Length ?? 0);
-            if (length <= 0)
-                length = Math.Min(maxLength, expression.Length - start);
-            else
+            if (length > 0)
                 length = Math.Min(length, expression.Length - start);
+            else
+                length = 0;
 
-            var snippet = length > 0 ? expression.Substring(start, length) : expression;
+            var snippet = length > 0 ? expression.Substring(start, length) : string.Empty;
+            if (string.IsNullOrEmpty(snippet) && block != null)
+            {
+                snippet = block.AsExpString();
+            }
+            if (string.IsNullOrEmpty(snippet))
+            {
+                var fallbackLength = Math.Min(maxLength, expression.Length - start);
+                snippet = fallbackLength > 0 ? expression.Substring(start, fallbackLength) : expression;
+            }
             return Truncate(snippet?.Trim(), maxLength);
         }
 

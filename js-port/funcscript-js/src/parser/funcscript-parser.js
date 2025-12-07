@@ -1783,7 +1783,7 @@ function getStringTemplateWithDelimiter(context, siblings, delimiter, index) {
     const afterExpressionStart = getLiteralMatch(context.Expression, currentIndex, '{');
     if (afterExpressionStart > currentIndex) {
       if (buffer.length > 0) {
-        const literal = new LiteralBlock(makeValue(FSDataType.String, buffer));
+        const literal = new LiteralBlock(makeValue(FSDataType.String, buffer), literalStart, currentIndex - literalStart);
         parts.push(literal);
         nodeParts.push(new ParseNode(ParseNodeType.LiteralString, literalStart, currentIndex - literalStart));
         buffer = '';
@@ -1823,7 +1823,7 @@ function getStringTemplateWithDelimiter(context, siblings, delimiter, index) {
 
   if (currentIndex > literalStart) {
     if (buffer.length > 0) {
-      const literal = new LiteralBlock(makeValue(FSDataType.String, buffer));
+      const literal = new LiteralBlock(makeValue(FSDataType.String, buffer), literalStart, currentIndex - literalStart);
       parts.push(literal);
       nodeParts.push(new ParseNode(ParseNodeType.LiteralString, literalStart, currentIndex - literalStart));
       buffer = '';
@@ -1841,7 +1841,7 @@ function getStringTemplateWithDelimiter(context, siblings, delimiter, index) {
   let expression;
   let parseNode;
   if (parts.length === 0) {
-    expression = new LiteralBlock(makeValue(FSDataType.String, ''));
+    expression = new LiteralBlock(makeValue(FSDataType.String, ''), templateStart, currentIndex - templateStart);
     parseNode = new ParseNode(ParseNodeType.LiteralString, templateStart, currentIndex - templateStart);
   } else if (parts.length === 1 && !hasExpressions && parts[0] instanceof LiteralBlock) {
     expression = parts[0];
@@ -1849,7 +1849,7 @@ function getStringTemplateWithDelimiter(context, siblings, delimiter, index) {
   } else {
     const parameterList = new ListExpression(parts.slice(), templateStart, currentIndex - templateStart);
     expression = new FunctionCallExpression(
-      new LiteralBlock(context.Provider.get('_templatemerge')),
+      new LiteralBlock(context.Provider.get('_templatemerge'), templateStart, 0),
       parameterList,
       templateStart,
       currentIndex - templateStart
@@ -1893,7 +1893,11 @@ function getFSTemplate(context, siblings, index) {
     const interpolationStart = getLiteralMatch(context.Expression, currentIndex, '${');
     if (interpolationStart > currentIndex) {
       if (buffer.length > 0) {
-      const literal = new LiteralBlock(makeValue(FSDataType.String, buffer));
+        const literal = new LiteralBlock(
+          makeValue(FSDataType.String, buffer),
+          literalStart,
+          currentIndex - literalStart
+        );
         parts.push(literal);
         nodeParts.push(new ParseNode(ParseNodeType.LiteralString, literalStart, currentIndex - literalStart));
         buffer = '';
@@ -1926,7 +1930,11 @@ function getFSTemplate(context, siblings, index) {
   }
 
   if (buffer.length > 0) {
-    const literal = new LiteralBlock(makeValue(FSDataType.String, buffer));
+    const literal = new LiteralBlock(
+      makeValue(FSDataType.String, buffer),
+      literalStart,
+      currentIndex - literalStart
+    );
     parts.push(literal);
     nodeParts.push(new ParseNode(ParseNodeType.LiteralString, literalStart, currentIndex - literalStart));
   }
@@ -1934,7 +1942,7 @@ function getFSTemplate(context, siblings, index) {
   let expression;
   let parseNode;
   if (parts.length === 0) {
-    expression = new LiteralBlock(makeValue(FSDataType.String, ''));
+    expression = new LiteralBlock(makeValue(FSDataType.String, ''), index, currentIndex - index);
     parseNode = new ParseNode(ParseNodeType.LiteralString, index, currentIndex - index);
   } else if (parts.length === 1 && !hasExpressions && parts[0] instanceof LiteralBlock) {
     expression = parts[0];
@@ -1942,7 +1950,7 @@ function getFSTemplate(context, siblings, index) {
   } else {
     const parameterList = new ListExpression(parts.slice(), index, currentIndex - index);
     expression = new FunctionCallExpression(
-      new LiteralBlock(context.Provider.get('_templatemerge')),
+      new LiteralBlock(context.Provider.get('_templatemerge'), index, 0),
       parameterList,
       index,
       currentIndex - index
@@ -1973,7 +1981,7 @@ function wrapTemplateExpression(context, expressionBlock) {
   const length = location.Length ?? 0;
   const parameterList = new ListExpression([expressionBlock], position, length);
   return new FunctionCallExpression(
-    new LiteralBlock(formatFunction),
+    new LiteralBlock(formatFunction, position, 0),
     parameterList,
     position,
     length

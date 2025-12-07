@@ -40,5 +40,10 @@ namespace FuncScript.Functions.Text
         {
             return index == 0 ? "value" : "format";
         }
+
+        public override string ToString()
+        {
+            return Symbol;
+        }
     }
 }

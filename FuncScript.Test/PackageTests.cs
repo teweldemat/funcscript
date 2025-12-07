@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Esprima.Ast;
 using FuncScript;
 using FuncScript.Binding.JavaScript;
 using FuncScript.Core;
@@ -414,6 +415,221 @@ namespace FuncScript.Test
             
         }
 
+        [Test]
+        public void LoadPackage_HierarchicalTracingAcrossExpressions_2()
+        {
+            var stack = new Stack<TraceNode>();
+            TraceNode root = new TraceNode();
+            stack.Push(root);
+            var resolver = new TestPackageResolver(new
+            {
+                left = "error('test')",
+                right = "3",
+                eval = "right+left"
+            });
+
+            var result = PackageLoader.LoadPackage(
+                resolver,
+                trace: (path, info, entryState) =>
+                {
+                    var node = (TraceNode)entryState;
+                    node.Result = info.Result;
+                    stack.Pop();
+                    Assert.That(stack,Is.Not.Empty);
+                    stack.Peek().Children.Add(node);
+                },
+                entryTrace: (path, info) =>
+                {
+                    var node = new TraceNode { Path = path, Snippet = info?.Snippet ?? string.Empty };
+                    stack.Push(node);
+                    return node;
+                });
+            
+            stack.Pop();
+            
+            Assert.That(result, Is.TypeOf<FsError>());
+            Assert.That(stack.Count, Is.EqualTo(0), "trace stack should unwind");
+            Assert.That(root, Is.Not.Null);
+            Assert.That(root.Children.Count, Is.EqualTo(1));
+            root = root.Children[0];
+            var filtered = new List<TraceNode>();
+            var rightNode=CollectByFilter(root,node=>node.Path=="right").FirstOrDefault();
+            Assert.NotNull(rightNode);
+            Assert.That(rightNode.Result, Is.EqualTo(3));
+            
+            var leftErrorNode=CollectByFilter(root,node=>node.Path=="left" && node.Result is FsError).FirstOrDefault();
+            Assert.NotNull(leftErrorNode);
+        }
+
+        
+        [Test]
+        public void LoadPackage_HierarchicalTracingAcrossExpressions_3()
+        {
+            var stack = new Stack<TraceNode>();
+            TraceNode root = new TraceNode();
+            stack.Push(root);
+            var resolver = new TestPackageResolver(new
+            {
+                constants = "{x:5}",
+                eval = "3+constants.x"
+            });
+
+            var result = PackageLoader.LoadPackage(
+                resolver,
+                trace: (path, info, entryState) =>
+                {
+                    var node = (TraceNode)entryState;
+                    node.Result = info.Result;
+                    stack.Pop();
+                    Assert.That(stack,Is.Not.Empty);
+                    stack.Peek().Children.Add(node);
+                },
+                entryTrace: (path, info) =>
+                {
+                    var node = new TraceNode { Path = path, Snippet = info?.Snippet ?? string.Empty };
+                    stack.Push(node);
+                    return node;
+                });
+            
+            stack.Pop();
+            
+            Assert.That(result, Is.EqualTo(8));
+            Assert.That(stack.Count, Is.EqualTo(0), "trace stack should unwind");
+            Assert.That(root, Is.Not.Null);
+            Assert.That(root.Children.Count, Is.EqualTo(1));
+            var mainExp = root.Children[0];
+            
+            var tree = ToHierarchy(mainExp);
+            Console.WriteLine(
+                Newtonsoft.Json.JsonConvert.SerializeObject(
+                    tree,
+                    Newtonsoft.Json.Formatting.Indented
+                )
+            );
+
+            var nodes=mainExp.Children.Where(node=>node.Path=="eval" && string.Equals(node.Snippet,"constants.x",StringComparison.Ordinal));
+            Assert.That(nodes.Count(),Is.EqualTo(1));
+            var node = nodes.First();
+            Assert.That(node.Children.Count >= 2); //at least . function and parameter list
+            var parList = node.Children[1];
+            Assert.That( parList.Snippet,Is.EqualTo("constants.x")); 
+        }
+
+        [Test]
+        public void LoadPackage_HierarchicalTracingAcrossExpressions_4()
+        {
+            var stack = new Stack<TraceNode>();
+            var root = new TraceNode();
+            stack.Push(root);
+            var resolver = new TestPackageResolver(new
+            {
+                helpers = new
+                {
+                    z = "\"test\""
+                },
+                constants = "{ c1:12; c2:20; }",
+                eval = "\"this is a \" + helpers.z+ f\"\\n{constants.c1}\""
+            });
+
+            var result = PackageLoader.LoadPackage(
+                resolver,
+                trace: (path, info, entryState) =>
+                {
+                    var node = (TraceNode)entryState;
+                    node.Result = info.Result;
+                    stack.Pop();
+                    Assert.That(stack, Is.Not.Empty);
+                    stack.Peek().Children.Add(node);
+                },
+                entryTrace: (path, info) =>
+                {
+                    var node = new TraceNode { Path = path, Snippet = info?.Snippet ?? string.Empty, Result = info?.Result };
+                    stack.Push(node);
+                    return node;
+                });
+
+           
+
+            stack.Pop();
+
+            Assert.That(stack.Count, Is.EqualTo(0));
+            var candidateTemplates = CollectByFilter(root, n => true);
+            var templateNode = candidateTemplates.FirstOrDefault(n => n.Snippet != null && n.Snippet.Contains("constants.c1") && n.Result is string);
+            Assert.That(templateNode, Is.Not.Null);
+            StringAssert.Contains("12", templateNode.Result?.ToString());
+
+            var helperNodes = CollectByFilter(root, n =>
+                !string.IsNullOrEmpty(n.Snippet) &&
+                (n.Snippet.Contains("_templatemerge") || n.Snippet.Contains("format")));
+            Assert.That(helperNodes, Is.Not.Empty);
+            Assert.That(helperNodes.All(n => n.Result is IFsFunction));
+        }
+        
+        [Test]
+        public void LoadPackage_HierarchicalTracingAcrossExpressions_5()
+        {
+            var stack = new Stack<TraceNode>();
+            var root = new TraceNode();
+            stack.Push(root);
+            var resolver = new TestPackageResolver(new
+            {
+                f ="(x)=>Math.Round(x)",
+                eval = "f(5.6)"
+            });
+
+            var result = PackageLoader.LoadPackage(
+                resolver,
+                trace: (path, info, entryState) =>
+                {
+                    var node = (TraceNode)entryState;
+                    node.Result = info.Result;
+                    stack.Pop();
+                    Assert.That(stack, Is.Not.Empty);
+                    stack.Peek().Children.Add(node);
+                },
+                entryTrace: (path, info) =>
+                {
+                    var node = new TraceNode { Path = path, Snippet = info?.Snippet ?? string.Empty, Result = info?.Result };
+                    stack.Push(node);
+                    return node;
+                });
+
+           
+            stack.Pop();
+            Assert.That(stack.Count, Is.EqualTo(0));
+            Assert.That(root.Children.Count,Is.EqualTo(1));
+            var main = root.Children[0];
+            var tree = ToHierarchy(main);
+            Console.WriteLine(
+                Newtonsoft.Json.JsonConvert.SerializeObject(
+                    tree,
+                    Newtonsoft.Json.Formatting.Indented
+                )
+            );
+
+            var mathRound = CollectByFilter(main, n=>n.Path=="f" && n.Snippet=="Math.Round");
+            Assert.NotNull(mathRound);
+            
+        }
+        
+        List<TraceNode> CollectByFilter(TraceNode node, Func<TraceNode, bool> filter,bool excludeRoot=false)
+        {
+            var res = new List<TraceNode>();
+            CollectByFilter(node, res, filter,excludeRoot);
+            return res;
+        }
+        void CollectByFilter(TraceNode node, List<TraceNode> res,Func<TraceNode,bool> filter,bool excludeRoot=false)
+        {
+            if(!excludeRoot)
+            {
+                if(filter(node))
+                res.Add(node);
+            }
+            foreach (var n in node.Children)
+            {
+                CollectByFilter(n,res,filter,false);
+            }
+        }
 
         [Test]
         public void LoadPackage_TraceIncludesLineInfoForSyntaxErrors()

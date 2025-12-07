@@ -35,13 +35,16 @@ namespace FuncScript.Core
                 var interpolationStart = GetLiteralMatch(exp, currentIndex, "${");
                 if (interpolationStart > currentIndex)
                 {
-                    if (buffer.Length > 0)
+                if (buffer.Length > 0)
+                {
+                    parts.Add(new LiteralBlock(buffer.ToString())
                     {
-                        parts.Add(new LiteralBlock(buffer.ToString()));
-                        nodeParts.Add(new ParseNode(ParseNodeType.LiteralString, literalStart,
-                            currentIndex - literalStart));
-                        buffer.Clear();
-                    }
+                        CodeLocation = new CodeLocation(literalStart, currentIndex - literalStart)
+                    });
+                    nodeParts.Add(new ParseNode(ParseNodeType.LiteralString, literalStart,
+                        currentIndex - literalStart));
+                    buffer.Clear();
+                }
 
                     var expressionIndex = interpolationStart;
                     var expressionResult = GetExpression(context, nodeParts, referenceMode, expressionIndex);
@@ -73,7 +76,10 @@ namespace FuncScript.Core
 
             if (buffer.Length > 0)
             {
-                parts.Add(new LiteralBlock(buffer.ToString()));
+                parts.Add(new LiteralBlock(buffer.ToString())
+                {
+                    CodeLocation = new CodeLocation(literalStart, currentIndex - literalStart)
+                });
                 nodeParts.Add(new ParseNode(ParseNodeType.LiteralString, literalStart,
                     currentIndex - literalStart));
             }
@@ -82,7 +88,10 @@ namespace FuncScript.Core
             ParseNode parseNode;
             if (parts.Count == 0)
             {
-                expression = new LiteralBlock("");
+                expression = new LiteralBlock("")
+                {
+                    CodeLocation = new CodeLocation(index, currentIndex - index)
+                };
                 parseNode = new ParseNode(ParseNodeType.LiteralString, index, currentIndex - index);
             }
             else if (parts.Count == 1)
@@ -96,7 +105,10 @@ namespace FuncScript.Core
                 {
                     expression = new FunctionCallExpression
                     (
-                        new LiteralBlock(context.Provider.Get(TemplateMergeMergeFunction.SYMBOL)),
+                        new LiteralBlock(context.Provider.Get(TemplateMergeMergeFunction.SYMBOL))
+                        {
+                            CodeLocation = new CodeLocation(index, 0)
+                        },
                         new ListExpression(parts.ToArray())
                     );
                     parseNode = new ParseNode(ParseNodeType.StringTemplate, index, currentIndex - index, nodeParts);
@@ -106,11 +118,15 @@ namespace FuncScript.Core
             {
                 expression = new FunctionCallExpression
                 (
-                    new LiteralBlock(context.Provider.Get(TemplateMergeMergeFunction.SYMBOL)),
+                    new LiteralBlock(context.Provider.Get(TemplateMergeMergeFunction.SYMBOL))
+                    {
+                        CodeLocation = new CodeLocation(index, 0)
+                    },
                     new ListExpression(parts.ToArray())
                 );
                 parseNode = new ParseNode(ParseNodeType.StringTemplate, index, currentIndex - index, nodeParts);
             }
+            expression.CodeLocation = new CodeLocation(index, currentIndex - index);
 
             if (parseNode != null)
                 siblings.Add(parseNode);
