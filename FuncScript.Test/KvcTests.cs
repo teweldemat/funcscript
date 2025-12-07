@@ -526,6 +526,23 @@ return Map(z,(x)=>x*x);
         }
 
         [Test]
+        public void KvcAdditionKeepsDeepChildrenWhileOverridingSiblings()
+        {
+            const string exp =
+@"{
+    base:{ torso:{ height:22; width:12 }; legs:{ left:{ upper:10; target:[1,2] }; right:{ target:[3,4] } } };
+    overrides:{ legs:{ left:{ target:[9,9] }; right:{ upper:12 } }; torso:{ width:10 } };
+    merged:base + overrides;
+    eval merged;
+}";
+
+            var res = FuncScriptRuntime.Evaluate(exp);
+            var expected = FuncScriptRuntime.Evaluate("{ torso:{ height:22; width:10 }; legs:{ left:{ upper:10; target:[9,9] }; right:{ target:[3,4]; upper:12 } } }");
+
+            Assert.That(FuncScriptRuntime.FormatToJson(res), Is.EqualTo(FuncScriptRuntime.FormatToJson(expected)));
+        }
+
+        [Test]
         public void KvcAdditionPrefersRightScalarOverLeftCollection()
         {
             var exp = "{a:{x:1,y:2}}+{a:5}";
