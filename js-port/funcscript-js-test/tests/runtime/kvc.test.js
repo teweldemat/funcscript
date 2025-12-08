@@ -123,6 +123,17 @@ describe('KvcTests', () => {
     expect(toPlain(result)).to.deep.equal({ a: 5 });
   });
 
+  it('does not mutate left operand when merging kvcs', () => {
+    const expression = `{
+      a:{x:5,y:7};
+      b:a+{x:6};
+      c:{x:5,y:7};
+      eval a=c;
+    }`;
+    const result = evaluate(expression, provider);
+    expect(toPlain(result)).to.equal(true);
+  });
+
   it('KeyWord mixup still returns values', () => {
     const result = evaluate('{ null1:5; y:null1;}', provider);
     expect(toPlain(result)).to.deep.equal({ null1: 5, y: 5 });

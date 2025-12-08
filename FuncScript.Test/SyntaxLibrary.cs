@@ -64,6 +64,10 @@ namespace FuncScript.Test
         [TestCase("3=3.0", true)]
 
         [TestCase("3=3.0", true)] //= different int and double
+        [TestCase("3=3L", true)]
+        [TestCase("3L=3", true)]
+        [TestCase("3.0=3L", true)]
+        [TestCase("3L=3.0", true)]
         [TestCase("1==1", true)]
         [TestCase("1==2", false)]
 

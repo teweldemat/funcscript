@@ -477,7 +477,6 @@ const loadPackage = createPackageLoader({
   MapDataProvider,
   normalize
 });
-const buildPackageExpression = typeof loadPackage.buildExpression === 'function' ? loadPackage.buildExpression : null;
 const createPackageEvaluationProvider =
   typeof loadPackage.createEvaluationProvider === 'function' ? loadPackage.createEvaluationProvider : null;
 
@@ -495,13 +494,6 @@ function ensurePackageResolver(resolver) {
 
 function formatPackagePath(pathSegments) {
   return formatResolverPath(pathSegments);
-}
-
-function buildExpressionFromPackage(resolver, pathSegments) {
-  if (typeof buildPackageExpression !== 'function') {
-    throw new Error('Package loader does not support targeted expressions');
-  }
-  return buildPackageExpression(resolver, pathSegments);
 }
 
 function createPackageProvider(resolver, provider) {
@@ -528,6 +520,7 @@ function testPackage(resolver, provider = new DefaultFsDataProvider()) {
   }
 
   const evaluationProvider = createPackageProvider(resolver, provider);
+  const buildExpression = typeof loadPackage.buildExpression === 'function' ? loadPackage.buildExpression : null;
   const tests = [];
   const totals = {
     scripts: 0,
@@ -540,9 +533,22 @@ function testPackage(resolver, provider = new DefaultFsDataProvider()) {
   for (const pair of testPairs) {
     const scriptPath = pair.folderPath.concat([pair.scriptName]);
     const testPath = pair.folderPath.concat([pair.testName]);
-    const expressionSource = buildExpressionFromPackage(resolver, scriptPath);
-    const testExpressionSource = buildExpressionFromPackage(resolver, testPath);
-    const runResult = test(expressionSource, testExpressionSource, evaluationProvider);
+    let expressionSource;
+    let testExpressionSource;
+    let runProvider = evaluationProvider;
+    if (buildExpression) {
+      expressionSource = buildExpression(resolver, scriptPath);
+      testExpressionSource = buildExpression(resolver, testPath);
+    } else {
+      const packageIdentifier = '__fs_package';
+      // Create a fresh package root for each pair to avoid leaking cached values between tests.
+      const packageRoot = loadPackage(resolver, evaluationProvider);
+      runProvider = new MapDataProvider({ [packageIdentifier]: packageRoot }, evaluationProvider);
+      expressionSource = buildPackagePathExpression(packageIdentifier, scriptPath);
+      testExpressionSource = resolveFuncscriptExpression(resolver, testPath);
+    }
+
+    const runResult = test(expressionSource, testExpressionSource, runProvider);
     totals.scripts += 1;
     totals.suites += runResult.summary.suites;
     totals.cases += runResult.summary.cases;
@@ -559,6 +565,53 @@ function testPackage(resolver, provider = new DefaultFsDataProvider()) {
     tests,
     summary: totals
   };
+}
+
+function resolveFuncscriptExpression(resolver, pathSegments) {
+  const descriptor = resolver.getExpression(pathSegments);
+  if (descriptor == null) {
+    throw new Error(`Expression not found at path '${formatPackagePath(pathSegments)}'`);
+  }
+
+  let expression = null;
+  let language = 'funcscript';
+  if (typeof descriptor === 'string') {
+    expression = descriptor;
+  } else if (typeof descriptor === 'object') {
+    expression = descriptor.expression ?? descriptor.Expression ?? descriptor.code ?? descriptor.Code ?? null;
+    language = descriptor.language ?? descriptor.lang ?? descriptor.Language ?? 'funcscript';
+  }
+
+  if (expression == null) {
+    throw new Error(`Expression not found at path '${formatPackagePath(pathSegments)}'`);
+  }
+
+  const langLower = String(language).toLowerCase();
+  if (langLower === 'javascript' || langLower === 'js') {
+    const jsExpression = String(expression);
+    return `\`\`\`javascript
+${jsExpression}
+\`\`\``;
+  }
+
+  if (langLower !== 'funcscript' && langLower !== 'fs' && langLower !== 'fsx') {
+    throw new Error(
+      `Unsupported package expression language '${language}' at '${formatPackagePath(pathSegments)}'`
+    );
+  }
+  return String(expression);
+}
+
+function buildPackagePathExpression(rootIdentifier, pathSegments) {
+  const root = rootIdentifier && String(rootIdentifier).trim() ? String(rootIdentifier).trim() : '__package';
+  const safeSegments = Array.isArray(pathSegments) ? pathSegments : [];
+  let expression = root;
+  for (const segment of safeSegments) {
+    const text = segment == null ? '' : String(segment);
+    const escaped = text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    expression += `["${escaped}"]`;
+  }
+  return expression;
 }
 
 function isListContainer(nodeType) {

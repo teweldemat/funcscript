@@ -543,6 +543,22 @@ return Map(z,(x)=>x*x);
         }
 
         [Test]
+        public void KvcAdditionDoesNotMutateLeftOperand()
+        {
+            const string exp =
+@"{
+    a:{x:5,y:7};
+    b:a+{x:6};
+    c:{x:5,y:7};
+    eval a=c;
+}";
+
+            var res = FuncScriptRuntime.Evaluate(exp);
+
+            Assert.That(res, Is.EqualTo(true));
+        }
+
+        [Test]
         public void KvcAdditionPrefersRightScalarOverLeftCollection()
         {
             var exp = "{a:{x:1,y:2}}+{a:5}";
