@@ -89,8 +89,8 @@ class DefaultFsDataProvider extends MapDataProvider {
     return null;
   }
 
-  isDefined(name) {
-    if (super.isDefined(name)) {
+  isDefined(name, hierarchy = true) {
+    if (super.isDefined(name, hierarchy)) {
       return true;
     }
     if (!name) {

@@ -74,6 +74,21 @@ namespace FuncScript.Test
         }
 
         [Test]
+        public void EvalHidesIntermediateMembersInKvc()
+        {
+            var exp =
+@"{
+    y:{
+        a:2;
+        eval { x:a+2 };
+    };
+    eval y.a;
+}";
+            var res = FuncScriptRuntime.Evaluate(exp);
+            Assert.AreEqual(null, res);
+        }
+
+        [Test]
         public void TestKvcIdenOnly()
         {
             var g = new DefaultFsDataProvider();

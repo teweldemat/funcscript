@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using Esprima.Ast;
@@ -254,6 +255,35 @@ namespace FuncScript.Test
         }
 
         [Test]
+        public void PackageMemberAccess_EvaluatesMathPiDivision()
+        {
+            var lib = new TestPackageResolver(new
+            {
+                bugexp = @"
+{
+  piOverTwo: math.Pi / 2;
+  eval
+  {
+    angle: piOverTwo;
+  };
+}"
+            });
+            var imports = new Dictionary<string, IFsPackageResolver>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["lib"] = lib
+            };
+
+            var resolver = new TestPackageResolver(new
+            {
+                eval = @"package(""lib"").bugexp.piOverTwo"
+            }, imports);
+
+            var result = PackageLoader.LoadPackage(resolver);
+
+            Assert.That(result, Is.Null, "Expected hidden intermediate member to be null");
+        }
+
+        [Test]
         public void PackageMemberAccess_BindsFunctionOnLazyPackageValue()
         {
             var lib = new TestPackageResolver(new
@@ -297,6 +327,44 @@ namespace FuncScript.Test
             var func = (IFsFunction)squareFn;
             var callResult = func.Evaluate(new ArrayFsList(new []{3}));
             Assert.That(callResult, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void PackageMemberAccess_BindsFunctionOnLazyPackageValue_2()
+        {
+            var lib = new TestPackageResolver(new
+            {
+                f = "x =>math.sin(1)"
+            });
+            var imports = new Dictionary<string, IFsPackageResolver>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["lib"] = lib
+            };
+
+            var resolver = new TestPackageResolver(new
+            {
+                lib = "package(\"lib\")",
+                eval = "lib.f(0)"
+            }, imports);
+
+            var package = PackageLoader.LoadPackage(resolver, new DefaultFsDataProvider(),(p, info, _) =>
+            {
+                Console.WriteLine("Exit :"+info.Snippet);
+                if(info.Result is string or FsError or int)
+                    Console.WriteLine("Value "+info.Result);
+                else
+                {
+                    Console.WriteLine("Value "+info.Result.GetType());
+                }
+
+            },
+            (p, info) =>
+            {
+                Console.WriteLine("Entry :"+info.Snippet);
+                return null;
+            });
+
+            Assert.That(package,Is.EqualTo(Math.Sin(1)).Within(1e-6));
         }
 
         [Test]
@@ -1184,6 +1252,14 @@ return coord[0] * 2;
                 var node = Root;
                 foreach (var segment in path ?? Array.Empty<string>())
                 {
+                    if (string.IsNullOrWhiteSpace(segment) ||
+                        string.Equals(segment, ".", StringComparison.Ordinal) ||
+                        segment.Contains(Path.DirectorySeparatorChar) ||
+                        segment.Contains(Path.AltDirectorySeparatorChar))
+                    {
+                        return null;
+                    }
+
                     if (!node.Children.TryGetValue(segment, out var child))
                     {
                         return null;

@@ -306,6 +306,7 @@ function ensureResolver(resolver) {
     const childExpressions = new Map();
     const selection = Array.isArray(selectPath) && selectPath.length > 0 ? selectPath : null;
     const targetLower = selection ? String(selection[0]).toLowerCase() : null;
+    let evalExpression = null;
 
     for (const entry of childEntries) {
       const name = extractChildName(entry);
@@ -325,27 +326,40 @@ function ensureResolver(resolver) {
       const valueExpression = buildNodeExpression(resolver, childPath, depth + 1, childSelect);
       childExpressions.set(lower, valueExpression);
       if (lower === 'eval') {
-        if (!selection) {
-          statements.push(`eval ${valueExpression}`);
-        }
+        evalExpression = valueExpression;
       } else {
         statements.push(`${escapeKey(strName)}: ${valueExpression}`);
       }
+    }
+
+    const indentCurrent = indent(depth);
+    const indentInner = indent(depth + 1);
+
+    if (selection) {
+      if (!childExpressions.has(targetLower)) {
+        throw new Error(`Package resolver node '${formatPath(path)}' does not contain entry '${selection[0]}'`);
+      }
+
+      const targetExpression = childExpressions.get(targetLower);
+      const combined = statements
+        .map((statement) => `${indentInner}${statement}`)
+        .concat(`${indentInner}eval ${targetExpression}`);
+      const body = combined.join(';\n');
+      return `{\n${body}\n${indentCurrent}}`;
+    }
+
+    if (evalExpression) {
+      const combined = statements
+        .map((statement) => `${indentInner}${statement}`)
+        .concat(`${indentInner}eval ${evalExpression}`);
+      const body = combined.join(';\n');
+      return `{\n${body}\n${indentCurrent}}`;
     }
 
     if (statements.length === 0) {
       return '{}';
     }
 
-    const indentCurrent = indent(depth);
-    const indentInner = indent(depth + 1);
-    if (selection) {
-      if (!childExpressions.has(targetLower)) {
-        throw new Error(`Package resolver node '${formatPath(path)}' does not contain entry '${selection[0]}'`);
-      }
-      const targetExpression = childExpressions.get(targetLower);
-      statements.push(`eval ${targetExpression}`);
-    }
     const body = statements.map((statement) => `${indentInner}${statement}`).join(';\n');
     return `{\n${body}\n${indentCurrent}}`;
   }

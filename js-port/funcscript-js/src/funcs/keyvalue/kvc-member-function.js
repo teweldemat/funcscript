@@ -40,7 +40,11 @@ class KvcMemberFunction extends BaseFunction {
     }
 
     const collection = helpers.valueOf(typedTarget);
-    const entry = collection.get(keyResult.value.toLowerCase());
+    const keyLower = keyResult.value.toLowerCase();
+    if (!collection.isDefined(keyLower, false)) {
+      return helpers.typedNull();
+    }
+    const entry = collection.get(keyLower);
     if (entry === null || entry === undefined) {
       return helpers.typedNull();
     }

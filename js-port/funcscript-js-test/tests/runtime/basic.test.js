@@ -87,6 +87,21 @@ describe('Basic', () => {
     expect(toPlain(result)).to.deep.equal({ a: 5, b: 6 });
   });
 
+  it('does not leak members hidden behind eval in KVC', () => {
+    const expression = `
+{
+  y:{
+    a:2;
+    eval { x:a+2 };
+  };
+  eval y.a;
+}
+`;
+    const result = evalExpression(expression);
+    expect(typeOf(result)).to.equal(FSDataType.Null);
+    expect(valueOf(result)).to.equal(null);
+  });
+
   it('parses scientific notation with negative exponent', () => {
     expect(toPlain(evalExpression('1e-6'))).to.be.closeTo(1e-6, 1e-12);
   });

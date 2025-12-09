@@ -22,14 +22,36 @@ namespace FuncScript.Package
             var evaluationProvider = PackageLoader.CreatePackageProvider(resolver, provider);
             var tests = new List<PackageTestEntry>();
             var summary = new PackageTestSummary();
+            var buildExpression = PackageLoader.BuildExpression;
 
             foreach (var pair in testPairs)
             {
                 var scriptPath = pair.FolderPath.Concat(new[] { pair.ScriptName }).ToArray();
                 var testPath = pair.FolderPath.Concat(new[] { pair.TestName }).ToArray();
-                var expressionSource = PackageLoader.BuildExpression(resolver, scriptPath);
-                var testExpressionSource = PackageLoader.BuildExpression(resolver, testPath);
-                var runResult = FuncScriptTestRunner.Run(expressionSource, testExpressionSource, evaluationProvider);
+
+                KeyValueCollection runProvider = evaluationProvider;
+                string expressionSource;
+                string testExpressionSource;
+
+                if (buildExpression != null)
+                {
+                    expressionSource = buildExpression(resolver, scriptPath);
+                    testExpressionSource = buildExpression(resolver, testPath);
+                }
+                else
+                {
+                    var packageRoot = PackageLoader.LoadPackage(resolver, evaluationProvider);
+                    var packageIdentifier = "__fs_package";
+                    var bindings = new SimpleKeyValueCollection(evaluationProvider, new[]
+                    {
+                        KeyValuePair.Create(packageIdentifier, Engine.NormalizeDataType(packageRoot))
+                    });
+                    runProvider = new KvcProvider(bindings, evaluationProvider);
+                    expressionSource = BuildPackagePathExpression(packageIdentifier, scriptPath);
+                    testExpressionSource = BuildPackagePathExpression(packageIdentifier, testPath);
+                }
+
+                var runResult = FuncScriptTestRunner.Run(expressionSource, testExpressionSource, runProvider);
 
                 summary.Scripts += 1;
                 summary.Suites += runResult.Summary.Suites;
@@ -121,6 +143,25 @@ namespace FuncScript.Package
             }
 
             return string.Join('/', path);
+        }
+
+        private static string BuildPackagePathExpression(string rootIdentifier, IReadOnlyList<string> path)
+        {
+            var root = string.IsNullOrWhiteSpace(rootIdentifier) ? "__package" : rootIdentifier.Trim();
+            var expression = root;
+            if (path == null || path.Count == 0)
+            {
+                return expression;
+            }
+
+            foreach (var segment in path)
+            {
+                var text = segment ?? string.Empty;
+                var escaped = text.Replace("\\", "\\\\").Replace("\"", "\\\"");
+                expression += $"[\"{escaped}\"]";
+            }
+
+            return expression;
         }
 
         private static void EnsureResolver(IFsPackageResolver resolver)
@@ -290,19 +331,21 @@ namespace FuncScript.Package
                     }
 
                     var casesValue = suiteCollection.Get("cases");
-                    if (casesValue == null)
-                    {
-                        throw new InvalidOperationException($"Test suite \"{displayName}\" must include a cases list.");
-                    }
-
-                    var caseList = EnsureList(casesValue, $"Suite \"{displayName}\" cases must be a list.");
                     var cases = new List<CaseDefinition>();
-                    var caseIndex = 0;
-                    foreach (var caseEntry in caseList)
+                    if (casesValue != null)
                     {
-                        caseIndex += 1;
-                        var caseCollection = EnsureKeyValue(caseEntry, $"Case #{caseIndex} in suite \"{displayName}\" must be an object.");
-                        cases.Add(new CaseDefinition(caseIndex, caseCollection));
+                        var caseList = EnsureList(casesValue, $"Suite \"{displayName}\" cases must be a list.");
+                        var caseIndex = 0;
+                        foreach (var caseEntry in caseList)
+                        {
+                            caseIndex += 1;
+                            var caseCollection = EnsureKeyValue(caseEntry, $"Case #{caseIndex} in suite \"{displayName}\" must be an object.");
+                            cases.Add(new CaseDefinition(caseIndex, caseCollection));
+                        }
+                    }
+                    else
+                    {
+                        cases.Add(new CaseDefinition(1, new SimpleKeyValueCollection(null, Array.Empty<KeyValuePair<string, object>>())));
                     }
 
                     var testValue = suiteCollection.Get("test");
@@ -375,14 +418,12 @@ namespace FuncScript.Package
                     if (expressionValue is IFsFunction function)
                     {
                         var inputValue = caseData.Collection.Get("input");
-                        if (inputValue == null)
+                        if (inputValue != null)
                         {
-                            throw new InvalidOperationException($"{CaseLabel(suite, caseData)} must define an input list when testing a function expression.");
+                            var inputList = EnsureList(inputValue, $"{CaseLabel(suite, caseData)} input must be a list.");
+                            var args = inputList.ToArray();
+                            expressionValue = InvokeFunction(function, caseProvider, args);
                         }
-
-                        var inputList = EnsureList(inputValue, $"{CaseLabel(suite, caseData)} input must be a list.");
-                        var args = inputList.ToArray();
-                        expressionValue = InvokeFunction(function, caseProvider, args);
                     }
 
                     caseResult.ExpressionResult = ConvertValue(expressionValue, new HashSet<KeyValueCollection>(), new HashSet<FsList>());

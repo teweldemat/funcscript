@@ -155,7 +155,9 @@ namespace FuncScript
                 s_funcByName.TryGetValue(normalized, out ret);
             }
             if (ret != null)
+            {
                 return ret;
+            }
 
             KeyValuePair<string, object>[] providerSnapshot = null;
             lock (s_registryLock)
@@ -287,10 +289,16 @@ namespace FuncScript
         public object Get(string name)
         {
             if (_kvc.IsDefined(name))
-                return _kvc.Get(name);
+            {
+                var value = _kvc.Get(name);
+                return value;
+            }
             if (_parent == null)
+            {
                 return null;
-            return _parent.Get(name);
+            }
+            var parentValue = _parent.Get(name);
+            return parentValue;
         }
 
         public KeyValueCollection ParentProvider => _parent;

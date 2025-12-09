@@ -12,8 +12,8 @@ class KeyValueCollection extends FsDataProvider {
     return this.parent ? this.parent.get(key) : null;
   }
 
-  isDefined(key) {
-    return this.parent ? this.parent.isDefined(key) : false;
+  isDefined(key, hierarchy = true) {
+    return this.parent && hierarchy !== false ? this.parent.isDefined(key, hierarchy) : false;
   }
 
   getAll() {
@@ -100,15 +100,18 @@ class SimpleKeyValueCollection extends KeyValueCollection {
     if (this._index.has(lower)) {
       return this._index.get(lower);
     }
-    return this.parent ? this.parent.get(key) : null;
+    return null;
   }
 
-  isDefined(key) {
+  isDefined(key, hierarchy = true) {
     const lower = key.toLowerCase();
     if (this._index.has(lower)) {
       return true;
     }
-    return this.parent ? this.parent.isDefined(key) : false;
+    if (hierarchy === false) {
+      return false;
+    }
+    return this.parent ? this.parent.isDefined(key, hierarchy) : false;
   }
 
   getAll() {

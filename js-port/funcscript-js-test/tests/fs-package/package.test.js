@@ -364,11 +364,39 @@ describe('Packages', () => {
       progress: FormatToJson(stepKvc.get('progress'))
     });
 
-    const warmPlain = toPlain(warmStep);
-    const firstPlain = toPlain(firstStep);
-    const secondPlain = toPlain(secondStep);
+  const warmPlain = toPlain(warmStep);
+  const firstPlain = toPlain(firstStep);
+  const secondPlain = toPlain(secondStep);
 
-    expect(warmPlain.fixedSide).to.equal('right');
-    expect(firstPlain).to.deep.equal(secondPlain);
+  expect(warmPlain.fixedSide).to.equal('right');
+  expect(firstPlain).to.deep.equal(secondPlain);
+  });
+
+  it('does not expose intermediate members when eval is present', () => {
+    const libResolver = createMockResolver({
+      children: {
+        bugexp: {
+          expression: `
+{
+  piOverTwo: math.Pi / 2;
+  eval { angle: piOverTwo; };
+}
+`
+        }
+      }
+    });
+
+    const rootResolver = createMockResolver(
+      {
+        children: {
+          eval: { expression: 'package("lib").bugexp.piOverTwo' }
+        }
+      },
+      { lib: libResolver }
+    );
+
+    const typed = loadPackage(rootResolver);
+    expect(typeOf(typed)).to.equal(FSDataType.Null);
+    expect(valueOf(typed)).to.equal(null);
   });
 });

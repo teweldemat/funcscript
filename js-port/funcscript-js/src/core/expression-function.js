@@ -18,12 +18,12 @@ class ParameterProvider extends FsDataProvider {
     return super.get(name);
   }
 
-  isDefined(name) {
+  isDefined(name, hierarchy = true) {
     const lower = name.toLowerCase();
     if (this.expressionFunction.parameterIndex.has(lower)) {
       return true;
     }
-    return super.isDefined(name);
+    return super.isDefined(name, hierarchy);
   }
 }
 

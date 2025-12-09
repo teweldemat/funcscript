@@ -12,9 +12,9 @@ class FsDataProvider {
     return null;
   }
 
-  isDefined(name) {
-    if (this.parent) {
-      return this.parent.isDefined(name);
+  isDefined(name, hierarchy = true) {
+    if (this.parent && hierarchy !== false) {
+      return this.parent.isDefined(name, hierarchy);
     }
     return false;
   }
@@ -41,12 +41,15 @@ class MapDataProvider extends FsDataProvider {
     return super.get(name);
   }
 
-  isDefined(name) {
+  isDefined(name, hierarchy = true) {
     const key = name.toLowerCase();
     if (Object.prototype.hasOwnProperty.call(this.map, key)) {
       return true;
     }
-    return super.isDefined(name);
+    if (hierarchy === false) {
+      return false;
+    }
+    return super.isDefined(name, hierarchy);
   }
 }
 
@@ -58,18 +61,21 @@ class KvcProvider extends FsDataProvider {
 
   get(name) {
     const key = name.toLowerCase();
-    if (this.kvc.isDefined(key)) {
+    if (this.kvc.isDefined(key, true)) {
       return this.kvc.get(key);
     }
     return super.get(name);
   }
 
-  isDefined(name) {
+  isDefined(name, hierarchy = true) {
     const key = name.toLowerCase();
-    if (this.kvc.isDefined(key)) {
+    if (this.kvc.isDefined(key, hierarchy)) {
       return true;
     }
-    return super.isDefined(name);
+    if (hierarchy === false) {
+      return false;
+    }
+    return super.isDefined(name, hierarchy);
   }
 }
 

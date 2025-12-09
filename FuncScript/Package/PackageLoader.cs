@@ -394,12 +394,35 @@ namespace FuncScript.Package
                 var childPath = _path.Concat(new[] { key }).ToArray();
                 var expressionDescriptor = _resolver.GetExpression(childPath);
                 var childEntries = _resolver.ListChildren(childPath) ?? Array.Empty<PackageNodeDescriptor>();
+                if (expressionDescriptor != null && childEntries.Any())
+                {
+                    throw new InvalidOperationException($"Package resolver node '{FormatPath(childPath)}' cannot have both children and an expression");
+                }
+
                 if (expressionDescriptor == null && !childEntries.Any())
+                {
                     return _helperProvider.Get(key);
+                }
 
                 if (expressionDescriptor == null && childEntries.Any())
                 {
-                    var parentProvider = EvaluationProvider ?? _helperProvider;
+                    var parentProvider = EvaluationProvider;
+                    var hasEvalChild = childEntries.Any(entry =>
+                        string.Equals(entry.Name, "eval", StringComparison.OrdinalIgnoreCase));
+
+                    if (hasEvalChild)
+                    {
+                        var evalNested = new LazyPackageCollection(_resolver, parentProvider, childPath, _trace, _entryTrace);
+                        var evalNestedProvider = new KvcProvider(evalNested, parentProvider);
+                        evalNested.SetEvaluationProvider(evalNestedProvider);
+
+                        var evalDescriptor = _resolver.GetExpression(childPath.Concat(new[] { "eval" }).ToArray());
+                        var evalExpression = WrapExpressionByLanguage(evalDescriptor.Value);
+                        var evalValue = EvaluateWithTrace(evalNestedProvider, evalExpression, _trace, _entryTrace, childPath);
+                        _cache[normalized] = evalValue;
+                        return evalValue;
+                    }
+
                     var nested = new LazyPackageCollection(_resolver, parentProvider, childPath, _trace, _entryTrace);
                     var nestedProvider = new KvcProvider(nested, parentProvider);
                     nested.SetEvaluationProvider(nestedProvider);
@@ -408,7 +431,7 @@ namespace FuncScript.Package
                     return normalizedValue;
                 }
 
-                var expression = BuildNodeExpression(_resolver, childPath, 0, null);
+                var expression = WrapExpressionByLanguage(expressionDescriptor.Value);
                 var scopeProvider = new KvcProvider(this, EvaluationProvider);
                 var value = EvaluateWithTrace(scopeProvider, expression, _trace, _entryTrace, childPath);
                 _cache[normalized] = value;

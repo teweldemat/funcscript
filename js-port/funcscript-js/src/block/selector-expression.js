@@ -30,12 +30,12 @@ class SelectorProvider extends FsDataProvider {
     return super.get(name);
   }
 
-  isDefined(name) {
+  isDefined(name, hierarchy = true) {
     const lower = name.toLowerCase();
-    if (this.sourceCollection && this.sourceCollection.isDefined(lower)) {
+    if (this.sourceCollection && this.sourceCollection.isDefined(lower, false)) {
       return true;
     }
-    return super.isDefined(name);
+    return super.isDefined(name, hierarchy);
   }
 }
 

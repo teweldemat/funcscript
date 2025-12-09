@@ -1,6 +1,6 @@
 const { ExpressionBlock, createDepthOverflowValue } = require('./expression-block');
 const { KeyValueCollection } = require('../model/key-value-collection');
-const { assertTyped, makeValue } = require('../core/value');
+const { assertTyped, makeValue, typeOf, valueOf } = require('../core/value');
 const { FSDataType } = require('../core/fstypes');
 
 class KvcExpressionCollection extends KeyValueCollection {
@@ -54,12 +54,15 @@ class KvcExpressionCollection extends KeyValueCollection {
     }
   }
 
-  isDefined(name) {
+  isDefined(name, hierarchy = true) {
     const lower = name.toLowerCase();
     if (this.expression._index.has(lower)) {
       return true;
     }
-    return this.parent ? this.parent.isDefined(name) : false;
+    if (hierarchy === false) {
+      return false;
+    }
+    return this.parent ? this.parent.isDefined(name, hierarchy) : false;
   }
 
   getAll() {
@@ -102,10 +105,67 @@ class KvcExpression extends ExpressionBlock {
     return this._keyValues;
   }
 
+  /**
+   * Wraps a KVC value to hide parent lookup for keys that are not part of the eval
+   * result while keeping lazy evaluation for the keys that are defined.
+   */
+  _isolateEvalResult(result) {
+    if (typeOf(result) !== FSDataType.KeyValueCollection) {
+      return result;
+    }
+    const source = valueOf(result);
+    if (!source || typeof source.getAllKeys !== 'function' || typeof source.get !== 'function') {
+      return result;
+    }
+
+    class IsolatedKeyValueCollection extends KeyValueCollection {
+      constructor(inner) {
+        super(null);
+        this._inner = inner;
+        this._keys = Array.isArray(inner.getAllKeys?.()) ? inner.getAllKeys() : [];
+        this._keySet = new Set(this._keys.map((k) => String(k).toLowerCase()));
+      }
+
+      get(name) {
+        const lower = name.toLowerCase();
+        if (!this._keySet.has(lower)) {
+          return null;
+        }
+        return this._inner.get(name);
+      }
+
+      isDefined(name, hierarchy = true) {
+        const lower = name.toLowerCase();
+        if (!this._keySet.has(lower)) {
+          return false;
+        }
+        if (typeof this._inner.isDefined === 'function') {
+          return this._inner.isDefined(name, hierarchy);
+        }
+        return true;
+      }
+
+      getAll() {
+        const result = [];
+        for (const key of this._keys) {
+          result.push([key, this._inner.get(key)]);
+        }
+        return result;
+      }
+
+      getAllKeys() {
+        return this._keys.slice();
+      }
+    }
+
+    return makeValue(FSDataType.KeyValueCollection, new IsolatedKeyValueCollection(source));
+  }
+
   evaluateInternal(provider) {
     const collection = new KvcExpressionCollection(provider, this);
     if (this.singleReturn) {
-      return assertTyped(this.singleReturn.evaluate(collection));
+      const result = assertTyped(this.singleReturn.evaluate(collection));
+      return this._isolateEvalResult(result);
     }
     return makeValue(FSDataType.KeyValueCollection, collection);
   }
