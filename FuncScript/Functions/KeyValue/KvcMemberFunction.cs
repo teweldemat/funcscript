@@ -31,7 +31,6 @@ namespace FuncScript.Functions.KeyValue
 
             var par1 =pars[1];
             var par0 = pars[0];
-            
 
             if (!(par1 is string))
                 return new FsError(FsError.ERROR_TYPE_MISMATCH,

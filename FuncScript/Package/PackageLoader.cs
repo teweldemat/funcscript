@@ -384,10 +384,6 @@ namespace FuncScript.Package
 
             public object Get(string key)
             {
-                if (string.IsNullOrWhiteSpace(key))
-                {
-                    return null;
-                }
 
                 var normalized = key.ToLowerInvariant();
                 if (_cache.TryGetValue(normalized, out var cached))
@@ -399,9 +395,7 @@ namespace FuncScript.Package
                 var expressionDescriptor = _resolver.GetExpression(childPath);
                 var childEntries = _resolver.ListChildren(childPath) ?? Array.Empty<PackageNodeDescriptor>();
                 if (expressionDescriptor == null && !childEntries.Any())
-                {
-                    return null;
-                }
+                    return _helperProvider.Get(key);
 
                 if (expressionDescriptor == null && childEntries.Any())
                 {
@@ -425,11 +419,6 @@ namespace FuncScript.Package
 
             public bool IsDefined(string key, bool hierarchy = true)
             {
-                if (string.IsNullOrWhiteSpace(key))
-                {
-                    return false;
-                }
-
                 var childPath = _path.Concat(new[] { key }).ToArray();
                 if (_resolver.GetExpression(childPath) != null)
                 {
@@ -520,6 +509,15 @@ namespace FuncScript.Package
                 if (nestedResolver == null)
                 {
                     throw new Error.EvaluationTimeException($"Package '{packageName}' could not be resolved");
+                }
+
+                try
+                {
+                    Console.Error.WriteLine($"[FuncScript.PackageLoader] package('{packageName}') resolved to {nestedResolver.GetType().FullName}");
+                }
+                catch
+                {
+                    // ignore logging failures
                 }
 
                 return _loadPackage(nestedResolver, _provider,_trace, _entryTrace);

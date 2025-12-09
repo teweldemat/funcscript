@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using FuncScript.Core;
 
 namespace FuncScript.Test
 {
@@ -715,6 +716,24 @@ d";
             var sb = new StringBuilder();
             FuncScriptRuntime.Format(sb, obj, null, false, true);
             Assert.IsTrue(FuncScriptRuntime.FormatToJson(sb).Contains("AbC"));
+
+        }
+        [Test]
+        public void KvcFromFunc()
+        {
+            var exp="""
+            {
+                f:(x)=>{
+                    a:x=>x+1;
+                };
+                b:f(1);
+                c:b.a;
+            }
+            """;
+            var res=Engine.Evaluate(exp);
+            Assert.That(res,Is.InstanceOf<KeyValueCollection>());
+            var kvc=(KeyValueCollection)res;
+            Assert.That(kvc.Get("c"),Is.AssignableTo<IFsFunction>());
 
         }
         [Test]

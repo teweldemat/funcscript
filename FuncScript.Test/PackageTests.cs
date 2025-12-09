@@ -229,6 +229,124 @@ namespace FuncScript.Test
             Assert.That(traces.Any(t => t.Path=="eval"  && t.Info.Snippet == "3+h.f(-4)" && Equals(t.Info.Result, 7)));
         }
 
+        [Test]
+        public void PackageMemberAccess_ResolvesFunctionsFromImportedPackage()
+        {
+            var lib = new TestPackageResolver(new
+            {
+                square = "x => x + 1"
+            });
+            var imports = new Dictionary<string, IFsPackageResolver>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["lib"] = lib
+            };
+
+            var resolver = new TestPackageResolver(new
+            {
+                lib = "package(\"lib\")",
+                squareFn = "lib.square",
+                eval = "squareFn(3)"
+            }, imports);
+
+            var result = PackageLoader.LoadPackage(resolver);
+            Assert.That(result, Is.Not.InstanceOf<FsError>(), "lib.square should resolve and evaluate");
+            Assert.That(result, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void PackageMemberAccess_BindsFunctionOnLazyPackageValue()
+        {
+            var lib = new TestPackageResolver(new
+            {
+                square = "x => x + 1"
+            });
+            var imports = new Dictionary<string, IFsPackageResolver>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["lib"] = lib
+            };
+
+            var resolver = new TestPackageResolver(new
+            {
+                lib = "package(\"lib\")",
+                squareFn = "lib.square"
+            }, imports);
+
+            var package = PackageLoader.LoadPackage(resolver, new DefaultFsDataProvider(),(p, info, _) =>
+            {
+                Console.WriteLine("Exit :"+info.Snippet);
+                if(info.Result is string or FsError or int)
+                    Console.WriteLine("Value "+info.Result);
+                else
+                {
+                    Console.WriteLine("Value "+info.Result.GetType());
+                }
+
+            },
+            (p, info) =>
+            {
+                Console.WriteLine("Entry :"+info.Snippet);
+                return null;
+            });
+            Assert.That(package, Is.InstanceOf<KeyValueCollection>(), "Root package should be a KVC");
+
+            var kvc = (KeyValueCollection)package;
+            var squareFn = kvc.Get("squareFn");
+            Assert.That(squareFn, Is.Not.InstanceOf<FsError>(), "squareFn should resolve without type mismatch");
+            Assert.That(squareFn, Is.InstanceOf<IFsFunction>(), "squareFn should be callable");
+
+            var func = (IFsFunction)squareFn;
+            var callResult = func.Evaluate(new ArrayFsList(new []{3}));
+            Assert.That(callResult, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void PackageMemberAccess_InlineCallInCompositeExpressionProducesValues()
+        {
+            var lib = new TestPackageResolver(new
+            {
+                square = @"
+(center, sideLength)=>
+{
+  centerPoint:center ?? [0,0];
+  size:sideLength ?? 2;
+  eval
+  {
+    position:centerPoint;
+    size:size;
+  }
+}"
+            });
+            var imports = new Dictionary<string, IFsPackageResolver>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["lib"] = lib
+            };
+
+            var resolver = new TestPackageResolver(new
+            {
+                lib = "package(\"lib\")",
+                square = "lib.square",
+                eval = @"
+{
+  graphics:[
+    lib.square([1,2], 3),
+    square([4,5], 6)
+  ]
+}"
+            }, imports);
+
+            var root = PackageLoader.LoadPackage(resolver);
+            Assert.That(root, Is.InstanceOf<KeyValueCollection>(), "Root package should be a KVC");
+
+            var rootKvc = (KeyValueCollection)root;
+            var graphics = rootKvc.Get("graphics");
+            Assert.That(graphics, Is.InstanceOf<FsList>(), "graphics should be a list");
+
+            var list = (FsList)graphics;
+            Assert.That(list.Length, Is.EqualTo(2), "Both lib.square calls should succeed");
+            Assert.That(list[0], Is.InstanceOf<KeyValueCollection>());
+            Assert.That(list[1], Is.InstanceOf<KeyValueCollection>());
+        }
+
         static string FormatTraceValue(object v)
         {
             if (v is KeyValueCollection)
