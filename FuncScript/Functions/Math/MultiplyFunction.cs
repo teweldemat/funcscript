@@ -27,11 +27,20 @@ namespace FuncScript.Functions.Math
                 if (isNull)
                 {
                     if (d is int)
+                    {
+                        isNull = false;
                         isInt = true;
+                    }
                     else if (d is long)
+                    {
+                        isNull = false;
                         isLong = true;
+                    }
                     else if (d is double)
+                    {
+                        isNull = false;
                         isDouble = true;
+                    }
                 }
 
                 if (isInt)
@@ -43,16 +52,17 @@ namespace FuncScript.Functions.Math
                     else if (d is long)
                     {
                         isLong = true;
-                        longTotal = intTotal;
+                        isInt = false;
+                        longTotal = intTotal * (long)d;
                     }
                     else if (d is double)
                     {
                         isDouble = true;
-                        doubleTotal = intTotal;
+                        isInt = false;
+                        doubleTotal = intTotal * (double)d;
                     }
                 }
-
-                if (isLong)
+                else if (isLong)
                 {
                     if (d is int)
                     {
@@ -65,11 +75,11 @@ namespace FuncScript.Functions.Math
                     else if (d is double)
                     {
                         isDouble = true;
-                        doubleTotal = longTotal;
+                        isLong = false;
+                        doubleTotal = longTotal * (double)d;
                     }
                 }
-
-                if (isDouble)
+                else if (isDouble)
                 {
                     if (d is int)
                     {
