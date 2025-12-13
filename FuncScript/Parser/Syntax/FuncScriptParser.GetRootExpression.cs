@@ -12,6 +12,7 @@ namespace FuncScript.Core
 
             var errors = CreateErrorBuffer();
             var nodes = new List<ParseNode>();
+            var expressionText = context.Expression ?? string.Empty;
             var kvcResult = GetKvcExpression(context, nodes,ReferenceMode.Standard, true, index);
             AppendErrors(errors, kvcResult);
             if (kvcResult.HasProgress(index))
@@ -25,6 +26,13 @@ namespace FuncScript.Core
                     }
 
                     var last = SkipSpace(context, nodes, kvcResult.NextIndex);
+                    last = SkipTrailingTerminators(context, nodes, last);
+                    if (last < expressionText.Length)
+                    {
+                        errors.Add(new SyntaxErrorData(last, 1, $"Unexpected token '{expressionText[last]}'"));
+                        return new ParseBlockResultWithNode(last, null, null, errors);
+                    }
+
                     return new ParseBlockResultWithNode(last, kvcExpression,new ParseNode(ParseNodeType.RootExpression,index,last - index,nodes), null);
                 }
 
@@ -41,23 +49,44 @@ namespace FuncScript.Core
                     expression.CodeLocation = new CodeLocation(index, expressionResult.NextIndex - index);
                 }
                 var last = SkipSpace(context, nodes, expressionResult.NextIndex);
+                last = SkipTrailingTerminators(context, nodes, last);
+
+                if (last < expressionText.Length)
+                {
+                    errors.Add(new SyntaxErrorData(last, 1, $"Unexpected token '{expressionText[last]}'"));
+                    return new ParseBlockResultWithNode(last, null, null, errors);
+                }
 
                 return new ParseBlockResultWithNode(last, expressionResult.ExpressionBlock,new ParseNode(ParseNodeType.RootExpression,index,last - index,nodes), null);;
             }
 
             if (errors.Count == 0)
             {
-                var expression = context.Expression ?? string.Empty;
                 var firstNonWhitespace = 0;
-                while (firstNonWhitespace < expression.Length && char.IsWhiteSpace(expression[firstNonWhitespace]))
+                while (firstNonWhitespace < expressionText.Length && char.IsWhiteSpace(expressionText[firstNonWhitespace]))
                     firstNonWhitespace++;
 
-                var errorLoc = firstNonWhitespace < expression.Length ? firstNonWhitespace : 0;
-                var errorLength = firstNonWhitespace < expression.Length ? 1 : 0;
+                var errorLoc = firstNonWhitespace < expressionText.Length ? firstNonWhitespace : 0;
+                var errorLength = firstNonWhitespace < expressionText.Length ? 1 : 0;
                 errors.Add(new SyntaxErrorData(errorLoc, errorLength, "expression expected"));
             }
 
             return new ParseBlockResultWithNode(index,null,null, errors);
+        }
+
+        static int SkipTrailingTerminators(ParseContext context, IList<ParseNode> siblings, int index)
+        {
+            var current = index;
+            while (true)
+            {
+                var afterSeparator = GetToken(context, current, siblings, ParseNodeType.ListSeparator, ",", ";");
+                if (afterSeparator == current)
+                    break;
+
+                current = SkipSpace(context, siblings, afterSeparator);
+            }
+
+            return current;
         }
     }
 }

@@ -2109,13 +2109,20 @@ function getRootExpression(context, index) {
       setCodeLocation(kvcExpression, index, kvcResult.NextIndex - index);
     }
     const last = skipSpace(context, nodes, kvcResult.NextIndex);
+    const finalIndex = skipTrailingTerminators(context, nodes, last);
+    if (finalIndex < context.Expression.length) {
+      context.ErrorsList.push(
+        new SyntaxErrorData(finalIndex, 1, `Unexpected token '${context.Expression[finalIndex]}'`)
+      );
+      return new ParseBlockResultWithNode(finalIndex, null, null);
+    }
     const rootNode = new ParseNode(
       ParseNodeType.RootExpression,
       index,
-      last - index,
+      finalIndex - index,
       nodes
     );
-    return new ParseBlockResultWithNode(last, kvcExpression, rootNode);
+    return new ParseBlockResultWithNode(finalIndex, kvcExpression, rootNode);
   }
 
   const expressionResult = getExpression(context, nodes, index);
@@ -2126,13 +2133,20 @@ function getRootExpression(context, index) {
       setCodeLocation(expression, index, expressionResult.NextIndex - index);
     }
     const last = skipSpace(context, nodes, expressionResult.NextIndex);
+    const finalIndex = skipTrailingTerminators(context, nodes, last);
+    if (finalIndex < context.Expression.length) {
+      context.ErrorsList.push(
+        new SyntaxErrorData(finalIndex, 1, `Unexpected token '${context.Expression[finalIndex]}'`)
+      );
+      return new ParseBlockResultWithNode(finalIndex, null, null);
+    }
     const rootNode = new ParseNode(
       ParseNodeType.RootExpression,
       index,
-      last - index,
+      finalIndex - index,
       nodes
     );
-    return new ParseBlockResultWithNode(last, expressionResult.ExpressionBlock, rootNode);
+    return new ParseBlockResultWithNode(finalIndex, expressionResult.ExpressionBlock, rootNode);
   }
 
   if (context.ErrorsList.length === 0) {
@@ -2143,6 +2157,18 @@ function getRootExpression(context, index) {
   }
 
   return new ParseBlockResultWithNode(index, null, null);
+}
+
+function skipTrailingTerminators(context, siblings, index) {
+  let current = index;
+  while (true) {
+    const afterSeparator = getToken(context, current, siblings, ParseNodeType.ListSeparator, ',', ';');
+    if (afterSeparator === current) {
+      break;
+    }
+    current = skipSpace(context, siblings, afterSeparator);
+  }
+  return current;
 }
 
 class FuncScriptParser {

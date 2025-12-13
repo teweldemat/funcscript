@@ -106,6 +106,13 @@ describe('Basic', () => {
     expect(toPlain(evalExpression('1e-6'))).to.be.closeTo(1e-6, 1e-12);
   });
 
+  it('throws on invalid expressions', () => {
+    const invalidCases = ['12e-', 'false || ture', '{x:true && true;y:3}'];
+    for (const expression of invalidCases) {
+      expect(() => evalExpression(expression)).to.throw();
+    }
+  });
+
   it('logs formatted value when no message is provided', () => {
     const originalLog = console.log;
     const calls = [];

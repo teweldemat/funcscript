@@ -223,6 +223,8 @@ namespace FuncScript.Test
         }
         [Test]
         [TestCase("12e-")]
+        [TestCase("false || ture")]
+        [TestCase("{x:true && true;y:3}")]
         public void TestInvalid(string exp)
         {
             Assert.Throws<Error.SyntaxError>(() =>
