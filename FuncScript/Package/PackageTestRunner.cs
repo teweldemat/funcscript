@@ -12,46 +12,42 @@ namespace FuncScript.Package
     {
         public static PackageTestResult TestPackage(IFsPackageResolver resolver, KeyValueCollection provider = null)
         {
+            return TestPackage(resolver, Array.Empty<string>(), provider);
+        }
+
+        public static PackageTestResult TestPackage(
+            IFsPackageResolver resolver,
+            string[] targetPath,
+            KeyValueCollection provider = null)
+        {
             EnsureResolver(resolver);
-            var testPairs = CollectPackageTestPairs(resolver, Array.Empty<string>(), new List<PackageTestPair>());
+            var testPairs = CollectTargetedPackageTestPairs(resolver, targetPath);
             if (testPairs.Count == 0)
             {
                 return new PackageTestResult(Array.Empty<PackageTestEntry>(), new PackageTestSummary());
             }
 
             var evaluationProvider = PackageLoader.CreatePackageProvider(resolver, provider);
+            var expressionCache = new FuncScriptTestRunner.PackageExpressionCache(resolver, evaluationProvider);
             var tests = new List<PackageTestEntry>();
             var summary = new PackageTestSummary();
-            var buildExpression = PackageLoader.BuildExpression;
+            const string packageIdentifier = "__fs_nodes";
 
             foreach (var pair in testPairs)
             {
                 var scriptPath = pair.FolderPath.Concat(new[] { pair.ScriptName }).ToArray();
                 var testPath = pair.FolderPath.Concat(new[] { pair.TestName }).ToArray();
 
-                KeyValueCollection runProvider = evaluationProvider;
-                string expressionSource;
-                string testExpressionSource;
+                var expressionSource = BuildPackagePathExpression(packageIdentifier, scriptPath);
+                var testExpressionSource = BuildPackagePathExpression(packageIdentifier, testPath);
 
-                if (buildExpression != null)
-                {
-                    expressionSource = buildExpression(resolver, scriptPath);
-                    testExpressionSource = buildExpression(resolver, testPath);
-                }
-                else
-                {
-                    var packageRoot = PackageLoader.LoadPackage(resolver, evaluationProvider);
-                    var packageIdentifier = "__fs_package";
-                    var bindings = new SimpleKeyValueCollection(evaluationProvider, new[]
-                    {
-                        KeyValuePair.Create(packageIdentifier, Engine.NormalizeDataType(packageRoot))
-                    });
-                    runProvider = new KvcProvider(bindings, evaluationProvider);
-                    expressionSource = BuildPackagePathExpression(packageIdentifier, scriptPath);
-                    testExpressionSource = BuildPackagePathExpression(packageIdentifier, testPath);
-                }
-
-                var runResult = FuncScriptTestRunner.Run(expressionSource, testExpressionSource, runProvider);
+                var runResult = FuncScriptTestRunner.Run(
+                    resolver,
+                    expressionSource,
+                    testExpressionSource,
+                    evaluationProvider,
+                    packageIdentifier,
+                    expressionCache);
 
                 summary.Scripts += 1;
                 summary.Suites += runResult.Summary.Suites;
@@ -63,6 +59,74 @@ namespace FuncScript.Package
             }
 
             return new PackageTestResult(tests, summary);
+        }
+
+        private static List<PackageTestPair> CollectTargetedPackageTestPairs(
+            IFsPackageResolver resolver,
+            IReadOnlyList<string> targetPath)
+        {
+            var normalizedTarget = targetPath?.ToArray() ?? Array.Empty<string>();
+            if (normalizedTarget.Length == 0)
+            {
+                return CollectPackageTestPairs(resolver, Array.Empty<string>(), new List<PackageTestPair>());
+            }
+
+            normalizedTarget = StripTestSuffix(normalizedTarget);
+
+            if (resolver.GetExpression(normalizedTarget) != null)
+            {
+                var pairs = CollectPackageTestPairs(resolver, Array.Empty<string>(), new List<PackageTestPair>());
+                return pairs
+                    .Where(pair => PathEquals(pair.FolderPath.Concat(new[] { pair.ScriptName }).ToArray(), normalizedTarget))
+                    .ToList();
+            }
+
+            var children = resolver.ListChildren(normalizedTarget) ?? Array.Empty<PackageNodeDescriptor>();
+            if (children.Any())
+            {
+                return CollectPackageTestPairs(resolver, normalizedTarget, new List<PackageTestPair>());
+            }
+
+            return new List<PackageTestPair>();
+        }
+
+        private static string[] StripTestSuffix(string[] path)
+        {
+            if (path == null || path.Length == 0)
+            {
+                return Array.Empty<string>();
+            }
+
+            var last = path[^1];
+            if (!string.IsNullOrWhiteSpace(last) && last.EndsWith(".test", StringComparison.OrdinalIgnoreCase))
+            {
+                path[^1] = last[..^5];
+            }
+
+            return path;
+        }
+
+        private static bool PathEquals(IReadOnlyList<string> left, IReadOnlyList<string> right)
+        {
+            if (left == null || right == null)
+            {
+                return false;
+            }
+
+            if (left.Count != right.Count)
+            {
+                return false;
+            }
+
+            for (var index = 0; index < left.Count; index += 1)
+            {
+                if (!string.Equals(left[index], right[index], StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private static List<PackageTestPair> CollectPackageTestPairs(
@@ -211,13 +275,23 @@ namespace FuncScript.Package
 
         private sealed class FuncScriptTestRunner
         {
-            public static TestRunResult Run(string expression, string testExpression, KeyValueCollection provider)
+            public static TestRunResult Run(
+                IFsPackageResolver resolver,
+                string expression,
+                string testExpression,
+                KeyValueCollection provider,
+                string packageIdentifier,
+                PackageExpressionCache expressionCache)
             {
                 var baseProvider = provider ?? new DefaultFsDataProvider();
-                var expressionBlock = Parse(expression, baseProvider, "expression under test");
-                var testBlock = Parse(testExpression, baseProvider, "test expression");
+                var evaluationContext = new PackageEvaluationContext(resolver, baseProvider, expressionCache);
+                var nodeAccessor = new PackageNodeCollection(evaluationContext, Array.Empty<string>());
+                var providerWithNodes = CreateProviderWithBinding(baseProvider, packageIdentifier, nodeAccessor);
 
-                var suitesValue = testBlock.Evaluate(baseProvider, new ExpressionBlock.DepthCounter());
+                var expressionBlock = Parse(expression, providerWithNodes, "expression under test");
+                var testBlock = Parse(testExpression, providerWithNodes, "test expression");
+
+                var suitesValue = testBlock.Evaluate(providerWithNodes, new ExpressionBlock.DepthCounter());
                 var suitesList = EnsureList(suitesValue, "Test expression must return a list of testSuit objects.");
                 var suites = ExtractSuites(suitesList);
 
@@ -234,7 +308,14 @@ namespace FuncScript.Package
 
                     foreach (var caseDefinition in suite.Cases)
                     {
-                        var result = RunCase(expressionBlock, baseProvider, suite, caseDefinition);
+                        var result = RunCase(
+                            resolver,
+                            expressionCache,
+                            packageIdentifier,
+                            expressionBlock,
+                            baseProvider,
+                            suite,
+                            caseDefinition);
                         caseResults.Add(result);
                         if (result.Passed)
                         {
@@ -259,6 +340,16 @@ namespace FuncScript.Package
                 return new TestRunResult(
                     suiteResults,
                     new TestRunSummary(suiteResults.Count, totalCases, totalPassed, totalFailed));
+            }
+
+            private static KeyValueCollection CreateProviderWithBinding(KeyValueCollection provider, string key, object value)
+            {
+                var normalizedKey = string.IsNullOrWhiteSpace(key) ? "__fs_nodes" : key.Trim();
+                var bindings = new SimpleKeyValueCollection(null, new[]
+                {
+                    KeyValuePair.Create(normalizedKey, Engine.NormalizeDataType(value))
+                });
+                return new KvcProvider(bindings, provider);
             }
 
             private static ExpressionBlock Parse(string source, KeyValueCollection provider, string label)
@@ -391,6 +482,9 @@ namespace FuncScript.Package
             }
 
             private static PackageTestCaseResult RunCase(
+                IFsPackageResolver resolver,
+                PackageExpressionCache expressionCache,
+                string packageIdentifier,
                 ExpressionBlock expressionBlock,
                 KeyValueCollection baseProvider,
                 SuiteDefinition suite,
@@ -409,7 +503,10 @@ namespace FuncScript.Package
                     providerCollection = EnsureKeyValue(ambientValue, $"{CaseLabel(suite, caseData)} ambient must be an object.");
                 }
 
-                var caseProvider = new KvcProvider(providerCollection, baseProvider);
+                var caseContextProvider = new KvcProvider(providerCollection, baseProvider);
+                var caseContext = new PackageEvaluationContext(resolver, caseContextProvider, expressionCache);
+                var caseNodes = new PackageNodeCollection(caseContext, Array.Empty<string>());
+                var caseProvider = CreateProviderWithBinding(caseContextProvider, packageIdentifier, caseNodes);
 
                 object expressionValue;
                 try
@@ -461,6 +558,444 @@ namespace FuncScript.Package
                 }
 
                 return caseResult;
+            }
+
+            internal sealed class PackageExpressionCache
+            {
+                private readonly IFsPackageResolver _resolver;
+                private readonly KeyValueCollection _parseProvider;
+                private readonly Dictionary<string, CachedExpression> _cache =
+                    new(StringComparer.OrdinalIgnoreCase);
+
+                public PackageExpressionCache(IFsPackageResolver resolver, KeyValueCollection parseProvider)
+                {
+                    _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
+                    _parseProvider = parseProvider ?? throw new ArgumentNullException(nameof(parseProvider));
+                }
+
+                public CachedExpression GetExpression(IReadOnlyList<string> path)
+                {
+                    var normalizedPath = path?.ToArray() ?? Array.Empty<string>();
+                    var key = normalizedPath.Length == 0 ? "<root>" : string.Join("/", normalizedPath);
+                    if (_cache.TryGetValue(key, out var cached))
+                    {
+                        return cached;
+                    }
+
+                    var descriptor = _resolver.GetExpression(normalizedPath);
+                    if (descriptor == null)
+                    {
+                        return null;
+                    }
+
+                    var source = WrapExpressionByLanguage(descriptor.Value);
+                    ExpressionBlock block = null;
+                    FsError error = null;
+
+                    try
+                    {
+                        var errors = new List<FuncScriptParser.SyntaxErrorData>();
+                        block = FuncScriptParser.Parse(_parseProvider, source ?? string.Empty, errors);
+                        if (block == null)
+                        {
+                            throw new SyntaxError(source ?? string.Empty, errors);
+                        }
+                    }
+                    catch (SyntaxError syntaxError)
+                    {
+                        error = new FsError(FsError.ERROR_SYNTAX_ERROR, syntaxError.Message);
+                    }
+                    catch (Exception ex)
+                    {
+                        error = new FsError(FsError.ERROR_UNKNOWN_ERROR, ex.Message);
+                    }
+
+                    cached = new CachedExpression(source, block, error);
+                    _cache[key] = cached;
+                    return cached;
+                }
+
+                private static string WrapExpressionByLanguage(PackageExpressionDescriptor descriptor)
+                {
+                    var expression = descriptor.Expression ?? string.Empty;
+                    var language = descriptor.Language?.ToLowerInvariant() ?? PackageLanguages.FuncScript;
+                    if (language == PackageLanguages.FuncScript)
+                    {
+                        return expression;
+                    }
+
+                    if (language == PackageLanguages.JavaScript)
+                    {
+                        return $"```javascript\n{expression}\n```";
+                    }
+
+                    throw new InvalidOperationException($"Unsupported package expression language '{descriptor.Language}'");
+                }
+
+                public sealed record CachedExpression(string Source, ExpressionBlock Block, FsError Error);
+            }
+
+            private sealed class PackageEvaluationContext
+            {
+                private readonly IFsPackageResolver _resolver;
+                private readonly KeyValueCollection _outerProvider;
+                private readonly PackageExpressionCache _expressionCache;
+                private readonly Dictionary<string, PackageScopeCollection> _scopeCache =
+                    new(StringComparer.OrdinalIgnoreCase);
+
+                public PackageEvaluationContext(
+                    IFsPackageResolver resolver,
+                    KeyValueCollection outerProvider,
+                    PackageExpressionCache expressionCache)
+                {
+                    _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
+                    _outerProvider = outerProvider ?? throw new ArgumentNullException(nameof(outerProvider));
+                    _expressionCache = expressionCache ?? throw new ArgumentNullException(nameof(expressionCache));
+                }
+
+                public IFsPackageResolver Resolver => _resolver;
+
+                public PackageScopeCollection GetScope(IReadOnlyList<string> folderPath)
+                {
+                    var normalized = folderPath?.ToArray() ?? Array.Empty<string>();
+                    var key = normalized.Length == 0 ? "<root>" : string.Join("/", normalized);
+                    if (_scopeCache.TryGetValue(key, out var cached))
+                    {
+                        return cached;
+                    }
+
+                    if (normalized.Length == 0)
+                    {
+                        cached = new PackageScopeCollection(this, Array.Empty<string>(), _outerProvider);
+                        _scopeCache[key] = cached;
+                        return cached;
+                    }
+
+                    var parentPath = normalized.Take(normalized.Length - 1).ToArray();
+                    var parentScope = GetScope(parentPath);
+                    cached = new PackageScopeCollection(this, normalized, parentScope);
+                    _scopeCache[key] = cached;
+                    return cached;
+                }
+
+                public object EvaluateExpression(IReadOnlyList<string> path, PackageScopeCollection scope)
+                {
+                    var cachedExpression = _expressionCache.GetExpression(path);
+                    if (cachedExpression == null)
+                    {
+                        return null;
+                    }
+
+                    if (cachedExpression.Error != null)
+                    {
+                        return cachedExpression.Error;
+                    }
+
+                    try
+                    {
+                        return Engine.Evaluate(cachedExpression.Block, cachedExpression.Source, scope, null);
+                    }
+                    catch (Exception ex)
+                    {
+                        return new FsError(FsError.ERROR_UNKNOWN_ERROR, ex.Message);
+                    }
+                }
+            }
+
+            private sealed class PackageScopeCollection : KeyValueCollection
+            {
+                private readonly PackageEvaluationContext _context;
+                private readonly string[] _path;
+                private readonly KeyValueCollection _parent;
+                private readonly Dictionary<string, object> _valueCache =
+                    new(StringComparer.OrdinalIgnoreCase);
+
+                private Dictionary<string, string> _childNameMap;
+
+                public PackageScopeCollection(
+                    PackageEvaluationContext context,
+                    IReadOnlyList<string> path,
+                    KeyValueCollection parent)
+                {
+                    _context = context ?? throw new ArgumentNullException(nameof(context));
+                    _path = (path ?? Array.Empty<string>()).ToArray();
+                    _parent = parent ?? throw new ArgumentNullException(nameof(parent));
+                }
+
+                public KeyValueCollection ParentProvider => _parent;
+
+                public object Get(string key)
+                {
+                    if (string.IsNullOrWhiteSpace(key))
+                    {
+                        return null;
+                    }
+
+                    var normalized = key.ToLowerInvariant();
+                    if (_valueCache.TryGetValue(normalized, out var cached))
+                    {
+                        return cached;
+                    }
+
+                    EnsureChildMap();
+                    if (!_childNameMap.TryGetValue(normalized, out var actualName))
+                    {
+                        return ParentProvider?.Get(normalized);
+                    }
+
+                    var childPath = _path.Concat(new[] { actualName }).ToArray();
+                    var expressionDescriptor = _context.Resolver.GetExpression(childPath);
+                    var childEntries = _context.Resolver.ListChildren(childPath) ?? Array.Empty<PackageNodeDescriptor>();
+
+                    if (expressionDescriptor != null && childEntries.Any())
+                    {
+                        throw new InvalidOperationException($"Package resolver node '{FormatPath(childPath)}' cannot have both children and an expression");
+                    }
+
+                    object value;
+                    if (expressionDescriptor != null)
+                    {
+                        value = _context.EvaluateExpression(childPath, this);
+                    }
+                    else if (childEntries.Any())
+                    {
+                        var childScope = _context.GetScope(childPath);
+                        if (HasEvalExpressionChild(childPath, childEntries))
+                        {
+                            value = childScope.Get("eval");
+                        }
+                        else
+                        {
+                            value = Engine.NormalizeDataType(childScope);
+                        }
+                    }
+                    else
+                    {
+                        value = ParentProvider?.Get(normalized);
+                    }
+
+                    _valueCache[normalized] = value;
+                    return value;
+                }
+
+                public bool IsDefined(string key, bool hierarchy = true)
+                {
+                    if (string.IsNullOrWhiteSpace(key))
+                    {
+                        return false;
+                    }
+
+                    EnsureChildMap();
+                    if (_childNameMap.ContainsKey(key.ToLowerInvariant()))
+                    {
+                        return true;
+                    }
+
+                    if (!hierarchy)
+                    {
+                        return false;
+                    }
+
+                    return ParentProvider?.IsDefined(key) == true;
+                }
+
+                public IList<KeyValuePair<string, object>> GetAll()
+                {
+                    var children = _context.Resolver.ListChildren(_path) ?? Array.Empty<PackageNodeDescriptor>();
+                    if (!children.Any())
+                    {
+                        return Array.Empty<KeyValuePair<string, object>>();
+                    }
+
+                    var result = new List<KeyValuePair<string, object>>(children.Count());
+                    foreach (var child in children)
+                    {
+                        if (string.IsNullOrWhiteSpace(child.Name))
+                        {
+                            continue;
+                        }
+
+                        result.Add(KeyValuePair.Create(child.Name, Get(child.Name)));
+                    }
+
+                    return result;
+                }
+
+                public IList<string> GetAllKeys()
+                {
+                    var children = _context.Resolver.ListChildren(_path) ?? Array.Empty<PackageNodeDescriptor>();
+                    return children
+                        .Where(child => !string.IsNullOrWhiteSpace(child.Name))
+                        .Select(child => child.Name)
+                        .ToList();
+                }
+
+                private void EnsureChildMap()
+                {
+                    if (_childNameMap != null)
+                    {
+                        return;
+                    }
+
+                    var children = _context.Resolver.ListChildren(_path) ?? Array.Empty<PackageNodeDescriptor>();
+                    var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var entry in children)
+                    {
+                        var name = entry.Name;
+                        if (string.IsNullOrWhiteSpace(name))
+                        {
+                            continue;
+                        }
+
+                        var lower = name.ToLowerInvariant();
+                        if (map.ContainsKey(lower))
+                        {
+                            throw new InvalidOperationException($"Duplicate entry '{name}' under '{FormatPath(_path)}'");
+                        }
+
+                        map[lower] = name;
+                    }
+
+                    _childNameMap = map;
+                }
+
+                private bool HasEvalExpressionChild(string[] childPath, IEnumerable<PackageNodeDescriptor> childEntries)
+                {
+                    string evalName = null;
+                    foreach (var entry in childEntries)
+                    {
+                        if (string.Equals(entry.Name, "eval", StringComparison.OrdinalIgnoreCase))
+                        {
+                            evalName = entry.Name;
+                            break;
+                        }
+                    }
+
+                    if (string.IsNullOrWhiteSpace(evalName))
+                    {
+                        return false;
+                    }
+
+                    var evalPath = childPath.Concat(new[] { evalName }).ToArray();
+                    return _context.Resolver.GetExpression(evalPath) != null;
+                }
+            }
+
+            private sealed class PackageNodeCollection : KeyValueCollection
+            {
+                private readonly PackageEvaluationContext _context;
+                private readonly string[] _path;
+                private Dictionary<string, string> _childNameMap;
+
+                public PackageNodeCollection(PackageEvaluationContext context, IReadOnlyList<string> path)
+                {
+                    _context = context ?? throw new ArgumentNullException(nameof(context));
+                    _path = (path ?? Array.Empty<string>()).ToArray();
+                }
+
+                public KeyValueCollection ParentProvider => null;
+
+                public object Get(string key)
+                {
+                    if (string.IsNullOrWhiteSpace(key))
+                    {
+                        return null;
+                    }
+
+                    var normalized = key.ToLowerInvariant();
+                    EnsureChildMap();
+                    if (!_childNameMap.TryGetValue(normalized, out var actualName))
+                    {
+                        return null;
+                    }
+
+                    var childPath = _path.Concat(new[] { actualName }).ToArray();
+                    var expressionDescriptor = _context.Resolver.GetExpression(childPath);
+                    if (expressionDescriptor != null)
+                    {
+                        var folderScope = _context.GetScope(_path);
+                        return _context.EvaluateExpression(childPath, folderScope);
+                    }
+
+                    var children = _context.Resolver.ListChildren(childPath) ?? Array.Empty<PackageNodeDescriptor>();
+                    if (children.Any())
+                    {
+                        return new PackageNodeCollection(_context, childPath);
+                    }
+
+                    return null;
+                }
+
+                public bool IsDefined(string key, bool hierarchy = true)
+                {
+                    if (string.IsNullOrWhiteSpace(key))
+                    {
+                        return false;
+                    }
+
+                    EnsureChildMap();
+                    return _childNameMap.ContainsKey(key.ToLowerInvariant());
+                }
+
+                public IList<KeyValuePair<string, object>> GetAll()
+                {
+                    var children = _context.Resolver.ListChildren(_path) ?? Array.Empty<PackageNodeDescriptor>();
+                    if (!children.Any())
+                    {
+                        return Array.Empty<KeyValuePair<string, object>>();
+                    }
+
+                    var result = new List<KeyValuePair<string, object>>(children.Count());
+                    foreach (var child in children)
+                    {
+                        if (string.IsNullOrWhiteSpace(child.Name))
+                        {
+                            continue;
+                        }
+
+                        result.Add(KeyValuePair.Create(child.Name, Get(child.Name)));
+                    }
+
+                    return result;
+                }
+
+                public IList<string> GetAllKeys()
+                {
+                    var children = _context.Resolver.ListChildren(_path) ?? Array.Empty<PackageNodeDescriptor>();
+                    return children
+                        .Where(child => !string.IsNullOrWhiteSpace(child.Name))
+                        .Select(child => child.Name)
+                        .ToList();
+                }
+
+                private void EnsureChildMap()
+                {
+                    if (_childNameMap != null)
+                    {
+                        return;
+                    }
+
+                    var children = _context.Resolver.ListChildren(_path) ?? Array.Empty<PackageNodeDescriptor>();
+                    var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var entry in children)
+                    {
+                        var name = entry.Name;
+                        if (string.IsNullOrWhiteSpace(name))
+                        {
+                            continue;
+                        }
+
+                        var lower = name.ToLowerInvariant();
+                        if (map.ContainsKey(lower))
+                        {
+                            throw new InvalidOperationException($"Duplicate entry '{name}' under '{FormatPath(_path)}'");
+                        }
+
+                        map[lower] = name;
+                    }
+
+                    _childNameMap = map;
+                }
             }
 
             private static TestExecutionOutcome RunSingleTest(IFsFunction testFn, KeyValueCollection provider, object[] args)

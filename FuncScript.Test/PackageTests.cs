@@ -937,6 +937,130 @@ namespace FuncScript.Test
         }
 
         [Test]
+        public void TestPackage_CanTargetSpecificExpression()
+        {
+            var resolver = new TestPackageResolver(new
+            {
+                total = "a + b",
+                total_test = """
+{
+  suite: {
+    name: "adds values";
+    cases: [
+      { a: 1, b: 2 },
+      { a: -3, b: 5 }
+    ];
+    test: (res, data) => assert.equal(res, data.a + data.b);
+  };
+
+  eval [suite];
+}
+""",
+                eval = "total",
+                eval_test = """
+{
+  suite: {
+    name: "exports total";
+    cases: [
+      { a: 2, b: 3 }
+    ];
+    test: (res) => assert.equal(res, 5);
+  };
+
+  eval [suite];
+}
+"""
+            });
+
+            var result = PackageTestRunner.TestPackage(resolver, new[] { "total" });
+            Assert.That(result.Summary.Scripts, Is.EqualTo(1));
+            Assert.That(result.Summary.Failed, Is.EqualTo(0));
+            Assert.That(result.Tests, Has.Count.EqualTo(1));
+            Assert.That(result.Tests[0].Path, Is.EqualTo("total"));
+            Assert.That(result.Tests[0].Result.Summary.Passed, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void TestPackage_CanTargetFolder()
+        {
+            var resolver = new TestPackageResolver(new
+            {
+                total = "a + b",
+                total_test = """
+{
+  suite: {
+    name: "root test";
+    cases: [
+      { a: 1, b: 2 }
+    ];
+    test: (res, data) => assert.equal(res, data.a + data.b);
+  };
+
+  eval [suite];
+}
+""",
+                math = new
+                {
+                    eval = "a * factor",
+                    eval_test = """
+{
+  suite: {
+    name: "math eval";
+    cases: [
+      { a: 2, factor: 3 },
+      { a: -4, factor: 5 }
+    ];
+    test: (res, data) => assert.equal(res, data.a * data.factor);
+  };
+
+  eval [suite];
+}
+"""
+                }
+            });
+
+            var result = PackageTestRunner.TestPackage(resolver, new[] { "math" });
+            Assert.That(result.Summary.Scripts, Is.EqualTo(1));
+            Assert.That(result.Summary.Failed, Is.EqualTo(0));
+            Assert.That(result.Tests, Has.Count.EqualTo(1));
+            Assert.That(result.Tests[0].Path, Is.EqualTo("math/eval"));
+            Assert.That(result.Tests[0].Result.Summary.Passed, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void TestPackage_IgnoreUnreferencedExpression()
+        {
+            var resolver = new TestPackageResolver(new
+            {
+                total = "a + b",
+                total_test = """
+{
+  suite: {
+    name: "ignores unreferenced expressions";
+    cases: [
+      { a: 1, b: 2 },
+      { a: -3, b: 5 }
+    ];
+    test: (res, data) => assert.equal(res, data.a + data.b);
+  };
+
+  eval [suite];
+}
+""",
+                badMain = "{)",
+                badTest_test = "{)"
+            });
+
+            var result = PackageTestRunner.TestPackage(resolver);
+            Assert.That(result.Summary.Scripts, Is.EqualTo(1));
+            Assert.That(result.Summary.Failed, Is.EqualTo(0));
+            Assert.That(result.Tests, Has.Count.EqualTo(1));
+
+            var totalTest = result.Tests.First(entry => entry.Path == "total");
+            Assert.That(totalTest.Result.Summary.Passed, Is.EqualTo(2));
+        }
+
+        [Test]
         public void TestPackage_FuncScriptExpressionTestedByJavaScript()
         {
             var resolver = new TestPackageResolver(new

@@ -53,26 +53,6 @@ function formatPath(path) {
   return path.join('/');
 }
 
-function escapeKey(name) {
-  const simpleIdentifier = /^[A-Za-z_][A-Za-z0-9_]*$/;
-  if (simpleIdentifier.test(name)) {
-    return name;
-  }
-  const escaped = name
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    .replace(/\r/g, '\\r')
-    .replace(/\n/g, '\\n');
-  return `"${escaped}"`;
-}
-
-function indent(level) {
-  if (level <= 0) {
-    return '';
-  }
-  return '  '.repeat(level);
-}
-
 function buildLineStarts(expression) {
   const text = expression == null ? '' : String(expression);
   const starts = [0];
@@ -284,86 +264,6 @@ function ensureResolver(resolver) {
     }
   }
 
-  function buildNodeExpression(resolver, path, depth, selectPath) {
-    const normalizedPath = clonePath(path);
-    const expressionDescriptor = normalizeExpressionDescriptor(resolver.getExpression(normalizedPath));
-    const childEntries = iterableToArray(resolver.listChildren(normalizedPath));
-    if (expressionDescriptor && childEntries.length > 0) {
-      throw new Error(`Package resolver node '${formatPath(path)}' cannot have both children and an expression`);
-    }
-    if (expressionDescriptor) {
-      return wrapExpressionByLanguage(expressionDescriptor);
-    }
-    if (childEntries.length === 0) {
-      if (!path || path.length === 0) {
-        throw new Error('Package resolver root has no entries or expression');
-      }
-      throw new Error(`Package resolver node '${formatPath(path)}' has no children or expression`);
-    }
-
-    const statements = [];
-    const seen = new Set();
-    const childExpressions = new Map();
-    const selection = Array.isArray(selectPath) && selectPath.length > 0 ? selectPath : null;
-    const targetLower = selection ? String(selection[0]).toLowerCase() : null;
-    let evalExpression = null;
-
-    for (const entry of childEntries) {
-      const name = extractChildName(entry);
-      if (!name) {
-        throw new Error(`Package resolver returned invalid child entry under '${formatPath(path)}'`);
-      }
-      const strName = String(name);
-      const lower = strName.toLowerCase();
-      if (seen.has(lower)) {
-        throw new Error(`Duplicate entry '${strName}' under '${formatPath(path)}'`);
-      }
-      seen.add(lower);
-
-      const childPath = normalizedPath.concat([strName]);
-      const childSelect =
-        selection && lower === targetLower && selection.length > 1 ? selection.slice(1) : null;
-      const valueExpression = buildNodeExpression(resolver, childPath, depth + 1, childSelect);
-      childExpressions.set(lower, valueExpression);
-      if (lower === 'eval') {
-        evalExpression = valueExpression;
-      } else {
-        statements.push(`${escapeKey(strName)}: ${valueExpression}`);
-      }
-    }
-
-    const indentCurrent = indent(depth);
-    const indentInner = indent(depth + 1);
-
-    if (selection) {
-      if (!childExpressions.has(targetLower)) {
-        throw new Error(`Package resolver node '${formatPath(path)}' does not contain entry '${selection[0]}'`);
-      }
-
-      const targetExpression = childExpressions.get(targetLower);
-      const combined = statements
-        .map((statement) => `${indentInner}${statement}`)
-        .concat(`${indentInner}eval ${targetExpression}`);
-      const body = combined.join(';\n');
-      return `{\n${body}\n${indentCurrent}}`;
-    }
-
-    if (evalExpression) {
-      const combined = statements
-        .map((statement) => `${indentInner}${statement}`)
-        .concat(`${indentInner}eval ${evalExpression}`);
-      const body = combined.join(';\n');
-      return `{\n${body}\n${indentCurrent}}`;
-    }
-
-    if (statements.length === 0) {
-      return '{}';
-    }
-
-    const body = statements.map((statement) => `${indentInner}${statement}`).join(';\n');
-    return `{\n${body}\n${indentCurrent}}`;
-  }
-
   function createProviderWithPackage(resolver, provider, loadPackageFn, traceHook, entryHook) {
     const resolverAccessor = isFunction(resolver?.package) ? resolver.package.bind(resolver) : null;
     if (!resolverAccessor) {
@@ -438,21 +338,44 @@ function ensureResolver(resolver) {
       const childPath = this._path.concat([String(actualName)]);
       const expressionDescriptor = normalizeExpressionDescriptor(this._resolver.getExpression(childPath));
       const childEntries = iterableToArray(this._resolver.listChildren(childPath));
+      if (expressionDescriptor && childEntries.length > 0) {
+        throw new Error(`Package resolver node '${formatPath(childPath)}' cannot have both children and an expression`);
+      }
+
       if (!expressionDescriptor && childEntries.length === 0) {
         return null;
       }
+
+      const parentProvider = this._evaluationContext() || this.parent || null;
 
       if (!expressionDescriptor && childEntries.length > 0) {
         const hasEvalChild = childEntries.some((entry) => {
           const name = extractChildName(entry);
           return name && String(name).toLowerCase() === 'eval';
         });
+
         if (hasEvalChild) {
-          const expression = buildNodeExpression(this._resolver, childPath, 0, null);
-          const scopeProvider = new KvcProvider(this, this._evaluationContext() || this.parent || null);
+          const evalDescriptor = normalizeExpressionDescriptor(
+            this._resolver.getExpression(childPath.concat(['eval']))
+          );
+          if (!evalDescriptor) {
+            throw new Error(`Package resolver node '${formatPath(childPath)}' is missing eval expression`);
+          }
+
+          const evalNested = new LazyPackageCollection(
+            this._resolver,
+            parentProvider,
+            childPath,
+            this._traceHook,
+            this._entryTraceHook
+          );
+          const evalNestedProvider = new KvcProvider(evalNested, parentProvider);
+          evalNested.setEvaluationProvider(evalNestedProvider);
+
+          const expression = wrapExpressionByLanguage(evalDescriptor);
           const value = evaluateWithTrace(
             expression,
-            scopeProvider,
+            evalNestedProvider,
             this._traceHook,
             this._entryTraceHook,
             childPath
@@ -461,7 +384,6 @@ function ensureResolver(resolver) {
           return value;
         }
 
-        const parentProvider = this._evaluationContext() || this.parent || null;
         const nested = new LazyPackageCollection(
           this._resolver,
           parentProvider,
@@ -476,10 +398,11 @@ function ensureResolver(resolver) {
         return typedNested;
       }
 
-      const expression = buildNodeExpression(this._resolver, childPath, 0, null);
+      const expression = wrapExpressionByLanguage(expressionDescriptor);
+      const scopeProvider = new KvcProvider(this, parentProvider);
       const value = evaluateWithTrace(
         expression,
-        this._evaluationContext(),
+        scopeProvider,
         this._traceHook,
         this._entryTraceHook,
         childPath
@@ -538,27 +461,12 @@ function ensureResolver(resolver) {
     return normalize(lazyValues);
   }
 
-  function buildExpressionForPath(resolver, targetPath) {
-    ensureResolver(resolver);
-    const normalized = clonePath(targetPath);
-    if (normalized.length === 0) {
-      return buildNodeExpression(resolver, [], 0);
-    }
-    const last = normalized[normalized.length - 1];
-    if (typeof last === 'string' && last.toLowerCase() === 'eval') {
-      const parentPath = normalized.slice(0, -1);
-      return buildNodeExpression(resolver, parentPath, 0);
-    }
-    return buildNodeExpression(resolver, [], 0, normalized);
-  }
-
   function createPackageProvider(resolver, provider, traceHook, entryHook) {
     ensureResolver(resolver);
     const baseProvider = provider || new DefaultFsDataProvider();
     return createProviderWithPackage(resolver, baseProvider, loadPackage, traceHook, entryHook);
   }
 
-  loadPackage.buildExpression = buildExpressionForPath;
   loadPackage.createEvaluationProvider = createPackageProvider;
 
   return loadPackage;

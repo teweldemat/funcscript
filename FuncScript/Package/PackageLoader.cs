@@ -56,35 +56,6 @@ namespace FuncScript.Package
             return CreateProviderWithPackage(resolver, baseProvider, LoadPackage, trace, entryTrace);
         }
 
-        public static string BuildExpression(IFsPackageResolver resolver, IReadOnlyList<string> targetPath)
-        {
-            EnsureResolver(resolver);
-            var normalizedTarget = NormalizePath(targetPath);
-            if (normalizedTarget.Count == 0)
-            {
-                return BuildNodeExpression(resolver, Array.Empty<string>(), 0, null);
-            }
-
-            var lastSegment = normalizedTarget[^1];
-            if (string.Equals(lastSegment, "eval", StringComparison.OrdinalIgnoreCase))
-            {
-                var parentPath = normalizedTarget.Take(normalizedTarget.Count - 1).ToArray();
-                return BuildNodeExpression(resolver, parentPath, 0, null);
-            }
-
-            return BuildNodeExpression(resolver, Array.Empty<string>(), 0, normalizedTarget);
-        }
-
-        private static IReadOnlyList<string> NormalizePath(IReadOnlyList<string> path)
-        {
-            if (path == null || path.Count == 0)
-            {
-                return Array.Empty<string>();
-            }
-
-            return path.ToArray();
-        }
-
         private static object EvaluateWithTrace(
             KeyValueCollection provider,
             string expression,
@@ -180,7 +151,7 @@ namespace FuncScript.Package
 
             if (expressionDescriptor != null)
             {
-                return WrapExpressionByLanguage(expressionDescriptor.Value);
+                return BuildSafeExpression(path, expressionDescriptor.Value);
             }
 
             if (!childEntries.Any())
@@ -270,6 +241,61 @@ namespace FuncScript.Package
 
             throw new InvalidOperationException($"Unsupported package expression language '{descriptor.Language}'");
         }
+
+        private static string BuildSafeExpression(IReadOnlyList<string> path, PackageExpressionDescriptor descriptor)
+        {
+            var language = descriptor.Language?.ToLowerInvariant() ?? PackageLanguages.FuncScript;
+            if (language != PackageLanguages.FuncScript)
+            {
+                return WrapExpressionByLanguage(descriptor);
+            }
+
+            var expression = descriptor.Expression ?? string.Empty;
+            if (IsValidFuncScriptExpression(expression))
+            {
+                return expression;
+            }
+
+            var syntaxMessage = GetSyntaxErrorMessage(expression);
+            var messagePrefix = $"Syntax error in package node '{FormatPath(path)}': ";
+            var message = messagePrefix + syntaxMessage;
+            return $"error(\"{EscapeStringLiteral(message)}\", \"{FsError.ERROR_SYNTAX_ERROR}\")";
+        }
+
+        private static bool IsValidFuncScriptExpression(string expression)
+        {
+            var errors = new List<FuncScriptParser.SyntaxErrorData>();
+            var block = FuncScriptParser.Parse(ExpressionValidationProvider, expression ?? string.Empty, errors);
+            return block != null;
+        }
+
+        private static string GetSyntaxErrorMessage(string expression)
+        {
+            var errors = new List<FuncScriptParser.SyntaxErrorData>();
+            var block = FuncScriptParser.Parse(ExpressionValidationProvider, expression ?? string.Empty, errors);
+            if (block != null || errors.Count == 0)
+            {
+                return "Syntax error";
+            }
+
+            return new SyntaxError(expression ?? string.Empty, errors).Message;
+        }
+
+        private static string EscapeStringLiteral(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return string.Empty;
+            }
+
+            return value
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\r", "\\r")
+                .Replace("\n", "\\n");
+        }
+
+        private static readonly KeyValueCollection ExpressionValidationProvider = new DefaultFsDataProvider();
 
         private static KeyValueCollection CreateProviderWithPackage(
             IFsPackageResolver resolver,
