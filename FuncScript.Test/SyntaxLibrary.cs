@@ -491,6 +491,30 @@ namespace FuncScript.Test
         }
 
         [Test]
+        public void TestRangeFunction_StartTypeControlsOutput()
+        {
+            var longRes = FuncScriptRuntime.Evaluate("range(1L,3)");
+            var longExpected = new ArrayFsList(new object[] { 1L, 2L, 3L });
+            Assert.AreEqual(longExpected, longRes);
+
+            var floatRes = FuncScriptRuntime.Evaluate("range(1.5,3)");
+            var floatExpected = new ArrayFsList(new object[] { 1.5d, 2.5d, 3.5d });
+            Assert.AreEqual(floatExpected, floatRes);
+        }
+
+        [Test]
+        public void TestRangeFunction_CountIsCoercedToInt()
+        {
+            var fromFloatCount = FuncScriptRuntime.Evaluate("range(1,3.9)");
+            var expectedFromFloatCount = new ArrayFsList(new object[] { 1, 2, 3 });
+            Assert.AreEqual(expectedFromFloatCount, fromFloatCount);
+
+            var fromLongCount = FuncScriptRuntime.Evaluate("range(1,5L)");
+            var expectedFromLongCount = new ArrayFsList(new object[] { 1, 2, 3, 4, 5 });
+            Assert.AreEqual(expectedFromLongCount, fromLongCount);
+        }
+
+        [Test]
         public void Complicated1()
         {
             var exp =

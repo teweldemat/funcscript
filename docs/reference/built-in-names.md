@@ -53,7 +53,7 @@ All numeric helpers belong to the `math` provider collection, so you can call th
 - `` list map (value, index) => ... `` – Transform each element.
 - `` list filter (value, index) => ... `` – Keep elements that satisfy the predicate.
 - `` list reduce (acc, value) => ... ~ seed `` – Accumulate a list into a single value.
-- `Range(start, count)` (`Series`) – Produce `[start, start+1, ...]` with `count` elements.
+- `Range(start, count)` (`Series`) – Produce `[start, start+1, ...]` with `count` elements; `start` may be any numeric type and controls the output element type, while `count` is coerced to an integer by truncating toward zero.
 - `Distinct(list)` – Remove duplicate values while preserving order.
 - `Any(list, predicate)` – Returns `true` when any element satisfies `predicate`.
 - `Contains(list, value)` – Returns `true` when `value` is present.

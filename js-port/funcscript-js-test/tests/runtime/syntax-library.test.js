@@ -269,6 +269,22 @@ describe('SyntaxLibrary', () => {
     expect(toPlain(result)).to.deep.equal([1, 2, 3, 4, 5]);
   });
 
+  it('uses start type for range output', () => {
+    const bigintRange = evaluate('range(1L,3)', provider);
+    expect(toPlain(bigintRange)).to.deep.equal([1n, 2n, 3n]);
+
+    const floatRange = evaluate('range(1.5,3)', provider);
+    expect(toPlain(floatRange)).to.deep.equal([1.5, 2.5, 3.5]);
+  });
+
+  it('coerces range count to an integer', () => {
+    const coerced = evaluate('range(1,3.9)', provider);
+    expect(toPlain(coerced)).to.deep.equal([1, 2, 3]);
+
+    const bigintCount = evaluate('range(1,5L)', provider);
+    expect(toPlain(bigintCount)).to.deep.equal([1, 2, 3, 4, 5]);
+  });
+
   it('evaluates nested function scopes', () => {
     const expression = '{\n      r:5;\n      f:(a,b)=>r*a*b;\n      return f(1,2);\n}';
     const result = evaluate(expression, provider);
