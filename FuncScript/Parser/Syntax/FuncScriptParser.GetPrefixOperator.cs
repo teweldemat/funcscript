@@ -19,14 +19,24 @@ namespace FuncScript.Core
             var currentIndex = index;
             foreach (var op in s_prefixOp)
             {
-                var nextIndex = GetToken(context, index,childNodes,ParseNodeType.Operator,op[0]);
-                if (nextIndex > index)
+                var opBuffer = CreateNodeBuffer(childNodes);
+                var nextIndex = GetToken(context, index, opBuffer, ParseNodeType.Operator, op[0]);
+                if (nextIndex <= index)
+                    continue;
+
+                if (!string.IsNullOrEmpty(op[0])
+                    && IsIdentfierFirstChar(op[0][0])
+                    && nextIndex < exp.Length
+                    && IsIdentfierOtherChar(exp[nextIndex]))
                 {
-                    matchedSymbol = op[0];
-                    functionName = op[1];
-                    currentIndex = nextIndex;
-                    break;
+                    continue;
                 }
+
+                CommitNodeBuffer(childNodes, opBuffer);
+                matchedSymbol = op[0];
+                functionName = op[1];
+                currentIndex = nextIndex;
+                break;
             }
 
             if (matchedSymbol == null)

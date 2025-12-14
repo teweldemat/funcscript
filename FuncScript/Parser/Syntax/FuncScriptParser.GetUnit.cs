@@ -131,6 +131,16 @@ namespace FuncScript.Core
                 return new ParseBlockResult(keywordIndex, block, errors);
             }
 
+            // Prefix operator
+            var prefixResult = GetPrefixOperator(context, siblings, referenceMode, index);
+            AppendErrors(errors, prefixResult);
+            if (prefixResult.HasProgress(index))
+            {
+                if (prefixResult.ExpressionBlock != null)
+                    return new ParseBlockResult(prefixResult.NextIndex, prefixResult.ExpressionBlock, errors);
+                return new ParseBlockResult(prefixResult.NextIndex, null, errors);
+            }
+
             // Identifier reference
             var iden=GetIdentifier(context,siblings, index);
             var identifierIndex = iden.NextIndex;
@@ -151,16 +161,6 @@ namespace FuncScript.Core
                 if (parenthesisResult.ExpressionBlock != null)
                     return new ParseBlockResult(parenthesisResult.NextIndex, parenthesisResult.ExpressionBlock, errors);
                 return new ParseBlockResult(parenthesisResult.NextIndex, null, errors);
-            }
-            
-            // Prefix operator
-            var prefixResult = GetPrefixOperator(context, siblings, referenceMode, index);
-            AppendErrors(errors, prefixResult);
-            if (prefixResult.HasProgress(index))
-            {
-                if (prefixResult.ExpressionBlock != null)
-                    return new ParseBlockResult(prefixResult.NextIndex, prefixResult.ExpressionBlock, errors);
-                return new ParseBlockResult(prefixResult.NextIndex, null, errors);
             }
 
             return ParseBlockResult.NoAdvance(index, errors);

@@ -100,7 +100,7 @@ namespace FuncScript.Core
         };
 
         private static string[][] s_prefixOp =
-            { new string[] { "!", NotFunction.SYMBOL }, new string[] { "-", NegateFunction.SYMBOL } };
+            { new string[] { "!", NotFunction.SYMBOL },new string[] { "not", NotFunction.SYMBOL }, new string[] { "-", NegateFunction.SYMBOL } };
 
         const string KW_RETURN = "return";
         const string KW_EVAL = "eval";

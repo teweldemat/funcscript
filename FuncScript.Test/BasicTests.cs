@@ -135,6 +135,7 @@ namespace FuncScript.Test
         [TestCase("\"12\"+3", "123")]
         [TestCase("\"a\\\"b\"", "a\"b")]
 
+        [TestCase("not true",false)]
         [TestCase("{x:5; return f\"a{x}b\"; }", "a5b")]
         [TestCase("{x:5; return f\"a\\{x}b\"; }", "a{x}b")]
 
