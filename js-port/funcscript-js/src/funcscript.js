@@ -503,6 +503,333 @@ function createPackageProvider(resolver, provider) {
   return provider || new DefaultFsDataProvider();
 }
 
+function normalizePackageExpressionDescriptor(descriptor) {
+  if (descriptor == null) {
+    return null;
+  }
+  if (typeof descriptor === 'string') {
+    return { expression: descriptor, language: 'funcscript' };
+  }
+  if (typeof descriptor !== 'object') {
+    return null;
+  }
+  const expression = descriptor.expression ?? descriptor.Expression ?? descriptor.code ?? descriptor.Code ?? null;
+  if (expression == null) {
+    return null;
+  }
+  const language = descriptor.language ?? descriptor.lang ?? descriptor.Language ?? 'funcscript';
+  return { expression: String(expression), language: String(language) };
+}
+
+function wrapPackageExpressionByLanguage(descriptor) {
+  const normalized = normalizePackageExpressionDescriptor(descriptor);
+  if (!normalized) {
+    return null;
+  }
+  const language = normalized.language.toLowerCase();
+  if (language === 'javascript' || language === 'js') {
+    return `\`\`\`javascript\n${normalized.expression}\n\`\`\``;
+  }
+  if (language !== 'funcscript' && language !== 'fs' && language !== 'fsx') {
+    throw new Error(`Unsupported package expression language '${normalized.language}'`);
+  }
+  return normalized.expression;
+}
+
+class PackageExpressionCache {
+  constructor(resolver, parseProvider) {
+    this.resolver = resolver;
+    this.parseProvider = parseProvider;
+    this.cache = new Map();
+  }
+
+  getExpression(pathSegments) {
+    const normalizedPath = Array.isArray(pathSegments) ? pathSegments : [];
+    const key = normalizedPath.length === 0 ? '<root>' : normalizedPath.join('/');
+    if (this.cache.has(key)) {
+      return this.cache.get(key);
+    }
+
+    const descriptor = this.resolver.getExpression(normalizedPath);
+    if (descriptor == null) {
+      return null;
+    }
+
+    const source = wrapPackageExpressionByLanguage(descriptor) ?? '';
+    let block = null;
+    let error = null;
+    try {
+      const parseOutcome = FuncScriptParser.parse(this.parseProvider, source);
+      block = parseOutcome?.block ?? null;
+      if (!block) {
+        const firstError = Array.isArray(parseOutcome?.errors) && parseOutcome.errors.length > 0
+          ? parseOutcome.errors[0]
+          : null;
+        const message = firstError
+          ? `Failed to parse expression (pos ${firstError.Loc}): ${firstError.Message}`
+          : 'Failed to parse expression';
+        throw new Error(message);
+      }
+    } catch (err) {
+      error = normalize(new FsError(FsError.ERROR_DEFAULT, err?.message || String(err)));
+    }
+
+    const cached = { source, block, error };
+    this.cache.set(key, cached);
+    return cached;
+  }
+}
+
+class PackageEvaluationContext {
+  constructor(resolver, outerProvider, expressionCache) {
+    this.resolver = resolver;
+    this.outerProvider = outerProvider;
+    this.expressionCache = expressionCache;
+    this.scopeCache = new Map();
+  }
+
+  getScope(folderPath) {
+    const normalized = Array.isArray(folderPath) ? folderPath : [];
+    const key = normalized.length === 0 ? '<root>' : normalized.join('/');
+    if (this.scopeCache.has(key)) {
+      return this.scopeCache.get(key);
+    }
+
+    let scope;
+    if (normalized.length === 0) {
+      scope = new PackageScopeCollection(this, [], this.outerProvider);
+    } else {
+      const parentPath = normalized.slice(0, -1);
+      const parentScope = this.getScope(parentPath);
+      scope = new PackageScopeCollection(this, normalized, parentScope);
+    }
+
+    this.scopeCache.set(key, scope);
+    return scope;
+  }
+
+  evaluateExpression(pathSegments, scope) {
+    const cachedExpression = this.expressionCache.getExpression(pathSegments);
+    if (!cachedExpression) {
+      return null;
+    }
+    if (cachedExpression.error) {
+      return cachedExpression.error;
+    }
+
+    try {
+      attachExpressionSource(scope, cachedExpression.source);
+      const value = cachedExpression.block.evaluate(scope);
+      return assertTyped(value);
+    } catch (err) {
+      return normalize(new FsError(FsError.ERROR_DEFAULT, err?.message || String(err)));
+    }
+  }
+}
+
+class PackageScopeCollection extends KeyValueCollection {
+  constructor(context, pathSegments, parentProvider) {
+    super(parentProvider);
+    this._context = context;
+    this._path = Array.isArray(pathSegments) ? pathSegments : [];
+    this._valueCache = new Map();
+    this._childNameMap = null;
+  }
+
+  _ensureChildMap() {
+    if (this._childNameMap) {
+      return;
+    }
+    const children = iterableToArray(this._context.resolver.listChildren(this._path));
+    const map = new Map();
+    for (const entry of children) {
+      const name = extractResolverChildName(entry);
+      if (!name) {
+        continue;
+      }
+      const lower = String(name).toLowerCase();
+      if (map.has(lower)) {
+        throw new Error(`Duplicate entry '${name}' under '${formatPackagePath(this._path)}'`);
+      }
+      map.set(lower, String(name));
+    }
+    this._childNameMap = map;
+  }
+
+  _hasEvalExpressionChild(childPath, childEntries) {
+    const entries = Array.isArray(childEntries) ? childEntries : [];
+    for (const entry of entries) {
+      const name = extractResolverChildName(entry);
+      if (!name) {
+        continue;
+      }
+      if (String(name).toLowerCase() !== 'eval') {
+        continue;
+      }
+      const evalPath = childPath.concat([String(name)]);
+      return this._context.resolver.getExpression(evalPath) != null;
+    }
+    return false;
+  }
+
+  get(key) {
+    if (!key) {
+      return null;
+    }
+
+    const normalized = String(key).toLowerCase();
+    if (this._valueCache.has(normalized)) {
+      return this._valueCache.get(normalized);
+    }
+
+    this._ensureChildMap();
+    const actualName = this._childNameMap.get(normalized);
+    if (!actualName) {
+      const fallback = super.get(key);
+      this._valueCache.set(normalized, fallback);
+      return fallback;
+    }
+
+    const childPath = this._path.concat([actualName]);
+    const expressionDescriptor = this._context.resolver.getExpression(childPath);
+    const childEntries = iterableToArray(this._context.resolver.listChildren(childPath));
+    if (expressionDescriptor != null && childEntries.length > 0) {
+      throw new Error(`Package resolver node '${formatPackagePath(childPath)}' cannot have both children and an expression`);
+    }
+
+    let value;
+    if (expressionDescriptor != null) {
+      value = this._context.evaluateExpression(childPath, this);
+    } else if (childEntries.length > 0) {
+      const childScope = this._context.getScope(childPath);
+      if (this._hasEvalExpressionChild(childPath, childEntries)) {
+        value = childScope.get('eval');
+      } else {
+        value = normalize(childScope);
+      }
+    } else {
+      value = super.get(key);
+    }
+
+    this._valueCache.set(normalized, value);
+    return value;
+  }
+
+  isDefined(key, hierarchy = true) {
+    if (!key) {
+      return false;
+    }
+
+    this._ensureChildMap();
+    if (this._childNameMap.has(String(key).toLowerCase())) {
+      return true;
+    }
+
+    if (hierarchy === false) {
+      return false;
+    }
+    return super.isDefined(key, hierarchy);
+  }
+
+  getAll() {
+    const children = iterableToArray(this._context.resolver.listChildren(this._path));
+    if (children.length === 0) {
+      return [];
+    }
+
+    const result = [];
+    for (const entry of children) {
+      const name = extractResolverChildName(entry);
+      if (!name) {
+        continue;
+      }
+      result.push([String(name), this.get(String(name))]);
+    }
+    return result;
+  }
+}
+
+class PackageNodeCollection extends KeyValueCollection {
+  constructor(context, pathSegments) {
+    super(null);
+    this._context = context;
+    this._path = Array.isArray(pathSegments) ? pathSegments : [];
+    this._childNameMap = null;
+  }
+
+  _ensureChildMap() {
+    if (this._childNameMap) {
+      return;
+    }
+    const children = iterableToArray(this._context.resolver.listChildren(this._path));
+    const map = new Map();
+    for (const entry of children) {
+      const name = extractResolverChildName(entry);
+      if (!name) {
+        continue;
+      }
+      const lower = String(name).toLowerCase();
+      if (map.has(lower)) {
+        throw new Error(`Duplicate entry '${name}' under '${formatPackagePath(this._path)}'`);
+      }
+      map.set(lower, String(name));
+    }
+    this._childNameMap = map;
+  }
+
+  get(key) {
+    if (!key) {
+      return null;
+    }
+
+    this._ensureChildMap();
+    const actualName = this._childNameMap.get(String(key).toLowerCase());
+    if (!actualName) {
+      return null;
+    }
+
+    const childPath = this._path.concat([actualName]);
+    const expressionDescriptor = this._context.resolver.getExpression(childPath);
+    if (expressionDescriptor != null) {
+      const folderScope = this._context.getScope(this._path);
+      return this._context.evaluateExpression(childPath, folderScope);
+    }
+
+    const children = iterableToArray(this._context.resolver.listChildren(childPath));
+    if (children.length > 0) {
+      return normalize(new PackageNodeCollection(this._context, childPath));
+    }
+
+    return null;
+  }
+
+  isDefined(key) {
+    if (!key) {
+      return false;
+    }
+
+    this._ensureChildMap();
+    return this._childNameMap.has(String(key).toLowerCase());
+  }
+
+  getAll() {
+    const children = iterableToArray(this._context.resolver.listChildren(this._path));
+    if (children.length === 0) {
+      return [];
+    }
+
+    const result = [];
+    for (const entry of children) {
+      const name = extractResolverChildName(entry);
+      if (!name) {
+        continue;
+      }
+      result.push([String(name), this.get(String(name))]);
+    }
+    return result;
+  }
+}
+
 function testPackage(resolver, provider = new DefaultFsDataProvider()) {
   ensurePackageResolver(resolver);
   const testPairs = collectPackageTestPairs(resolver, []);
@@ -520,7 +847,6 @@ function testPackage(resolver, provider = new DefaultFsDataProvider()) {
   }
 
   const evaluationProvider = createPackageProvider(resolver, provider);
-  const buildExpression = typeof loadPackage.buildExpression === 'function' ? loadPackage.buildExpression : null;
   const tests = [];
   const totals = {
     scripts: 0,
@@ -530,25 +856,31 @@ function testPackage(resolver, provider = new DefaultFsDataProvider()) {
     failed: 0
   };
 
+  const packageIdentifier = '__fs_nodes';
+  const expressionCache = new PackageExpressionCache(resolver, evaluationProvider);
+
   for (const pair of testPairs) {
     const scriptPath = pair.folderPath.concat([pair.scriptName]);
     const testPath = pair.folderPath.concat([pair.testName]);
-    let expressionSource;
-    let testExpressionSource;
-    let runProvider = evaluationProvider;
-    if (buildExpression) {
-      expressionSource = buildExpression(resolver, scriptPath);
-      testExpressionSource = buildExpression(resolver, testPath);
-    } else {
-      const packageIdentifier = '__fs_package';
-      // Create a fresh package root for each pair to avoid leaking cached values between tests.
-      const packageRoot = loadPackage(resolver, evaluationProvider);
-      runProvider = new MapDataProvider({ [packageIdentifier]: packageRoot }, evaluationProvider);
-      expressionSource = buildPackagePathExpression(packageIdentifier, scriptPath);
-      testExpressionSource = resolveFuncscriptExpression(resolver, testPath);
-    }
+    const expressionSource = buildPackagePathExpression(packageIdentifier, scriptPath);
+    const testExpressionSource = buildPackagePathExpression(packageIdentifier, testPath);
 
-    const runResult = test(expressionSource, testExpressionSource, runProvider);
+    const baseContext = new PackageEvaluationContext(resolver, evaluationProvider, expressionCache);
+    const baseNodes = new PackageNodeCollection(baseContext, []);
+    const baseProviderWithNodes = new MapDataProvider(
+      { [packageIdentifier]: normalize(baseNodes) },
+      evaluationProvider
+    );
+
+    const runResult = test(expressionSource, testExpressionSource, baseProviderWithNodes, {
+      createCaseProvider: (providerCollection) => {
+        const caseContextProvider = new KvcProvider(providerCollection, evaluationProvider);
+        const caseContext = new PackageEvaluationContext(resolver, caseContextProvider, expressionCache);
+        const caseNodes = new PackageNodeCollection(caseContext, []);
+        return new MapDataProvider({ [packageIdentifier]: normalize(caseNodes) }, caseContextProvider);
+      }
+    });
+
     totals.scripts += 1;
     totals.suites += runResult.summary.suites;
     totals.cases += runResult.summary.cases;

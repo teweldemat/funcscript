@@ -58,6 +58,7 @@ const OPERATOR_SYMBOLS = [
 // Mirrors FuncScript/Parser/FuncScriptParser.Main.cs :: s_prefixOp
 const PREFIX_OPERATORS = [
   ['!', '!'],
+  ['not', 'not'],
   ['-', 'negate']
 ];
 
@@ -1618,13 +1619,27 @@ function getPrefixOperator(context, siblings, index) {
   let currentIndex = index;
   const buffer = createNodeBuffer(siblings);
   for (const op of PREFIX_OPERATORS) {
-    const nextIndex = getToken(context, index, buffer, ParseNodeType.Operator, op[0]);
-    if (nextIndex > index) {
-      matchedSymbol = op[0];
-      functionName = op[1];
-      currentIndex = nextIndex;
-      break;
+    const opBuffer = createNodeBuffer(buffer);
+    const nextIndex = getToken(context, index, opBuffer, ParseNodeType.Operator, op[0]);
+    if (nextIndex <= index) {
+      continue;
     }
+
+    if (
+      op[0] &&
+      op[0].length > 0 &&
+      isIdentifierFirstChar(op[0][0]) &&
+      nextIndex < context.Expression.length &&
+      isIdentifierOtherChar(context.Expression[nextIndex])
+    ) {
+      continue;
+    }
+
+    commitNodeBuffer(buffer, opBuffer);
+    matchedSymbol = op[0];
+    functionName = op[1];
+    currentIndex = nextIndex;
+    break;
   }
 
   if (!matchedSymbol) {
@@ -2076,6 +2091,11 @@ function getUnit(context, siblings, index) {
     return new ParseBlockResult(keywordLiteral.nextIndex, block);
   }
 
+  attempt = tryParse(() => getPrefixOperator(context, siblings, index));
+  if (attempt) {
+    return attempt;
+  }
+
   const iden = getIdentifier(context, siblings, index, KEYWORDS);
   if (iden.NextIndex > index) {
     const reference = new ReferenceBlock(iden.Iden, iden.StartIndex, iden.Length);
@@ -2083,11 +2103,6 @@ function getUnit(context, siblings, index) {
   }
 
   attempt = tryParse(() => getExpInParenthesis(context, siblings, index));
-  if (attempt) {
-    return attempt;
-  }
-
-  attempt = tryParse(() => getPrefixOperator(context, siblings, index));
   if (attempt) {
     return attempt;
   }

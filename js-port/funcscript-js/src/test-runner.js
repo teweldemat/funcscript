@@ -336,7 +336,7 @@ const createTestRunner = ({
     return { passed: true, details };
   }
 
-  function runCase(expressionBlock, baseProvider, suite, caseData) {
+  function runCase(expressionBlock, baseProvider, suite, caseData, createCaseProvider) {
     const ambientValue = caseData.collection.get('ambient');
     let providerCollection = caseData.collection;
     if (ambientValue !== null && ambientValue !== undefined) {
@@ -352,7 +352,9 @@ const createTestRunner = ({
       }
     }
 
-    const caseProvider = new KvcProvider(providerCollection, baseProvider);
+    const caseProvider = createCaseProvider
+      ? createCaseProvider(providerCollection, baseProvider, suite, caseData)
+      : new KvcProvider(providerCollection, baseProvider);
     const caseResult = {
       index: caseData.index,
       input: convertValue(caseData.typed)
@@ -414,7 +416,7 @@ const createTestRunner = ({
     return caseResult;
   }
 
-  return function test(expression, testExpression, provider = new DefaultFsDataProvider()) {
+  return function test(expression, testExpression, provider = new DefaultFsDataProvider(), options = null) {
     if (typeof expression !== 'string') {
       throw new TypeError('expression must be a string');
     }
@@ -423,6 +425,8 @@ const createTestRunner = ({
     }
 
     const baseProvider = provider ?? new DefaultFsDataProvider();
+    const createCaseProvider =
+      options && typeof options.createCaseProvider === 'function' ? options.createCaseProvider : null;
     const expressionBlock = parseBlock(baseProvider, expression, 'expression under test');
     const testBlock = parseBlock(baseProvider, testExpression, 'test expression');
     const suitesValue = assertTyped(testBlock.evaluate(baseProvider));
@@ -438,7 +442,7 @@ const createTestRunner = ({
       let suitePassed = 0;
       let suiteFailed = 0;
       for (const caseData of suite.cases) {
-        const result = runCase(expressionBlock, baseProvider, suite, caseData);
+        const result = runCase(expressionBlock, baseProvider, suite, caseData, createCaseProvider);
         caseResults.push(result);
         if (result.passed) {
           suitePassed += 1;

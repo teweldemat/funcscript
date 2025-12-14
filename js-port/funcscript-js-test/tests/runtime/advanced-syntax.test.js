@@ -26,6 +26,7 @@ describe('AdvancedSyntax', () => {
   const notCases = [
     ['!true', false],
     ['!false', true],
+    ['not true', false],
     ['!(1=2)', true]
   ];
   notCases.forEach(([expr, expected]) => {

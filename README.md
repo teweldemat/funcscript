@@ -150,7 +150,7 @@ To publish updates to https://funcscript.org:
 5. Attach the domain inside Vercel (`vercel domains add funcscript.org`) so certificates are issued
    automatically.
 
-Once linked, you can enable Vercel's GitHub import for automatic deploys from `main`, or keep running `vercel deploy --prod` after reviewing changes locally. FuncDraw lives at https://funcdraw.com as a separately built project, so the docs link to it instead of building it locally.
+Once linked, you can enable Vercel's GitHub import for automatic deploys from `main`, or keep running `vercel deploy --prod` after reviewing changes locally.
 
 ## Maintainers
 - Tewelde Ma. Tegegne (<teweldemat@gmail.com>)

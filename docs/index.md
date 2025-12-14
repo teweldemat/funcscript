@@ -117,4 +117,3 @@ back into JSON pipelines, APIs, or templating systems.
 
 ## Hosted Demos
 - [FuncScript Tester](/fsstudio/)
-- [FuncDraw](https://www.funcdraw.app) — a separately maintained drawing application that uses FuncScript to define graphical models
