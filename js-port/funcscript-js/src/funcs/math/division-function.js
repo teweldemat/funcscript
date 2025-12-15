@@ -1,5 +1,5 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
-const { assertTyped, typeOf, valueOf, makeValue } = require('../../core/value');
+const { assertTyped, typeOf, valueOf, makeValue, typedNull } = require('../../core/value');
 const { FSDataType } = require('../../core/fstypes');
 const { makeError, FsError } = require('../helpers');
 
@@ -17,7 +17,7 @@ class DivisionFunction extends BaseFunction {
 
   evaluate(provider, parameters) {
     if (parameters.count === 0) {
-      return makeError(FsError.ERROR_PARAMETER_COUNT_MISMATCH, `${this.symbol}: at least one operand required`);
+      return typedNull();
     }
 
     let current = assertTyped(parameters.getParameter(provider, 0));
@@ -95,7 +95,7 @@ class DivisionFunction extends BaseFunction {
       const operandType = typeOf(operand);
 
       if (!isNumericType(operandType)) {
-        return makeError(FsError.ERROR_TYPE_MISMATCH, `${this.symbol}: numeric operand expected`);
+        continue;
       }
 
       let error = null;

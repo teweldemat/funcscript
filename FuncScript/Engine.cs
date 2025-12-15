@@ -856,7 +856,7 @@ namespace FuncScript
             var end = GetLineAndColumn(lineStarts, expression, endPos);
             var snippet = ExtractSnippet(expression, block, location);
 
-            return new TraceInfo(location?.Position??-1,  start.line, start.column, location?.Length??-1, end.line, end.column, snippet, result);
+            return new TraceInfo(location?.Position ?? -1, start.line, start.column, endPos, end.line, end.column, snippet, result);
         }
 
         public static (int line, int column) GetLineAndColumn(List<int> lineStarts, string expression, int position)

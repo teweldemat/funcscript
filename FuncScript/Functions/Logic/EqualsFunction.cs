@@ -31,6 +31,11 @@ namespace FuncScript.Functions.Logic
 
         private object EvaluateInternal(object par0, object par1)
         {
+            if (par0 is FsError par0Error)
+                return par0Error;
+            if (par1 is FsError par1Error)
+                return par1Error;
+
             if (par0 == null && par1 == null)
                 return true;
 

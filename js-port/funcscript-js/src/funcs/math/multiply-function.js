@@ -1,5 +1,5 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
-const { assertTyped, typeOf, valueOf, makeValue, convertToCommonNumericType } = require('../../core/value');
+const { assertTyped, typeOf, valueOf, makeValue, typedNull } = require('../../core/value');
 const { FSDataType } = require('../../core/fstypes');
 
 class MultiplyFunction extends BaseFunction {
@@ -7,26 +7,69 @@ class MultiplyFunction extends BaseFunction {
     super();
     this.symbol = '*';
     this.callType = CallType.Infix;
+    this.precidence = 50;
   }
 
   evaluate(provider, parameters) {
-    if (parameters.count === 0) {
-      return makeValue(FSDataType.Integer, 1);
-    }
-    let result = assertTyped(parameters.getParameter(provider, 0));
+    let mode = null;
+    let intTotal = 1;
+    let longTotal = 1n;
+    let doubleTotal = 1.0;
 
-    for (let i = 1; i < parameters.count; i += 1) {
-      const next = assertTyped(parameters.getParameter(provider, i));
-      let [left, right] = convertToCommonNumericType(result, next);
-      if (typeOf(left) === FSDataType.BigInteger) {
-        result = makeValue(FSDataType.BigInteger, valueOf(left) * valueOf(right));
-      } else if (typeOf(left) === FSDataType.Float) {
-        result = makeValue(FSDataType.Float, valueOf(left) * valueOf(right));
-      } else {
-        result = makeValue(FSDataType.Integer, valueOf(left) * valueOf(right));
+    for (let i = 0; i < parameters.count; i += 1) {
+      const operand = assertTyped(parameters.getParameter(provider, i));
+      const operandType = typeOf(operand);
+
+      if (mode === null) {
+        if (operandType === FSDataType.Integer) {
+          mode = FSDataType.Integer;
+        } else if (operandType === FSDataType.BigInteger) {
+          mode = FSDataType.BigInteger;
+        } else if (operandType === FSDataType.Float) {
+          mode = FSDataType.Float;
+        }
+      }
+
+      if (mode === FSDataType.Integer) {
+        if (operandType === FSDataType.Integer) {
+          intTotal *= valueOf(operand);
+        } else if (operandType === FSDataType.BigInteger) {
+          mode = FSDataType.BigInteger;
+          longTotal = BigInt(intTotal) * valueOf(operand);
+        } else if (operandType === FSDataType.Float) {
+          mode = FSDataType.Float;
+          doubleTotal = intTotal * valueOf(operand);
+        }
+      } else if (mode === FSDataType.BigInteger) {
+        if (operandType === FSDataType.Integer) {
+          longTotal *= BigInt(valueOf(operand));
+        } else if (operandType === FSDataType.BigInteger) {
+          longTotal *= valueOf(operand);
+        } else if (operandType === FSDataType.Float) {
+          mode = FSDataType.Float;
+          doubleTotal = Number(longTotal) * valueOf(operand);
+        }
+      } else if (mode === FSDataType.Float) {
+        if (operandType === FSDataType.Integer) {
+          doubleTotal *= valueOf(operand);
+        } else if (operandType === FSDataType.BigInteger) {
+          doubleTotal *= Number(valueOf(operand));
+        } else if (operandType === FSDataType.Float) {
+          doubleTotal *= valueOf(operand);
+        }
       }
     }
-    return result;
+
+    if (mode === FSDataType.Float) {
+      return makeValue(FSDataType.Float, doubleTotal);
+    }
+    if (mode === FSDataType.BigInteger) {
+      return makeValue(FSDataType.BigInteger, longTotal);
+    }
+    if (mode === FSDataType.Integer) {
+      return makeValue(FSDataType.Integer, intTotal);
+    }
+    return typedNull();
   }
 }
 

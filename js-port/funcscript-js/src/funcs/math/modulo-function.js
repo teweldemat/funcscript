@@ -1,5 +1,5 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
-const { makeValue, assertTyped, convertToCommonNumericType, typeOf, valueOf } = require('../../core/value');
+const { makeValue, assertTyped, convertToCommonNumericType, typeOf, valueOf, typedNull } = require('../../core/value');
 const { FSDataType } = require('../../core/fstypes');
 const { makeError, FsError } = require('../helpers');
 
@@ -17,7 +17,7 @@ class ModuloFunction extends BaseFunction {
 
   evaluate(provider, parameters) {
     if (parameters.count === 0) {
-      return makeValue(FSDataType.Integer, 1);
+      return typedNull();
     }
 
     let current = assertTyped(parameters.getParameter(provider, 0));
@@ -31,7 +31,7 @@ class ModuloFunction extends BaseFunction {
     for (let i = 1; i < parameters.count; i += 1) {
       let next = assertTyped(parameters.getParameter(provider, i));
       if (!isNumericType(typeOf(next))) {
-        return makeError(FsError.ERROR_TYPE_MISMATCH, `${this.symbol}: numeric value expected`);
+        continue;
       }
 
       [current, next] = convertToCommonNumericType(current, next);

@@ -21,6 +21,13 @@ class EqualsFunction extends BaseFunction {
     const left = helpers.assertTyped(parameters.getParameter(provider, 0));
     const right = helpers.assertTyped(parameters.getParameter(provider, 1));
 
+    if (helpers.typeOf(left) === helpers.FSDataType.Error) {
+      return left;
+    }
+    if (helpers.typeOf(right) === helpers.FSDataType.Error) {
+      return right;
+    }
+
     return helpers.makeValue(helpers.FSDataType.Boolean, valuesAreEqual(left, right));
   }
 }

@@ -21,6 +21,13 @@ class NotEqualsFunction extends BaseFunction {
     let left = parameters.getParameter(provider, 0);
     let right = parameters.getParameter(provider, 1);
 
+    if (helpers.typeOf(left) === helpers.FSDataType.Error) {
+      return left;
+    }
+    if (helpers.typeOf(right) === helpers.FSDataType.Error) {
+      return right;
+    }
+
     if (helpers.typeOf(left) === helpers.FSDataType.Null && helpers.typeOf(right) === helpers.FSDataType.Null) {
       return helpers.makeValue(helpers.FSDataType.Boolean, false);
     }

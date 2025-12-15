@@ -1,4 +1,5 @@
 ﻿using FuncScript.Core;
+using FuncScript.Model;
 
 namespace FuncScript.Functions.Math
 {
@@ -26,6 +27,11 @@ namespace FuncScript.Functions.Math
             {
                 var d = pars[0];
 
+                if (d is FsError fsError)
+                    return fsError;
+                if (d == null)
+                    return null;
+
                 if (d is int)
                 {
                     isInt = true;
@@ -43,14 +49,18 @@ namespace FuncScript.Functions.Math
                 }
                 else
                 {
-                    isInt = true;
-                    intTotal = 1;
+                    return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: number expected");
                 }
             }
 
             for (int i = 1; i < count; i++)
             {
                 var d = pars[i];
+
+                if (d is FsError fsError)
+                    return fsError;
+                if (d == null)
+                    return null;
 
                 if (isInt)
                 {
@@ -72,6 +82,10 @@ namespace FuncScript.Functions.Math
                         doubleTotal = intTotal;
                         doubleTotal %= (double)d;
                     }
+                    else
+                    {
+                        return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: number expected");
+                    }
                 }
 
                 else if (isLong)
@@ -91,6 +105,10 @@ namespace FuncScript.Functions.Math
                         doubleTotal = longTotal;
                         doubleTotal %= (double)d;
                     }
+                    else
+                    {
+                        return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: number expected");
+                    }
                 }
 
                 else if (isDouble)
@@ -106,6 +124,10 @@ namespace FuncScript.Functions.Math
                     else if (d is double)
                     {
                         doubleTotal %= (double)d;
+                    }
+                    else
+                    {
+                        return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: number expected");
                     }
                 }
             }

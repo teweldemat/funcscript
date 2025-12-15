@@ -42,6 +42,9 @@ function numericValueOf(typed) {
 function ensureNumeric(symbol, parameter, name = 'number') {
   const typed = assertTyped(parameter);
   const t = typeOf(typed);
+  if (t === FSDataType.Error) {
+    return { ok: false, error: typed };
+  }
   if (t === FSDataType.Integer || t === FSDataType.Float || t === FSDataType.BigInteger) {
     return {
       ok: true,
@@ -134,6 +137,9 @@ class AbsoluteValueFunction extends BaseFunction {
   evaluate(provider, parameters) {
     const typed = assertTyped(parameters.getParameter(provider, 0));
     const t = typeOf(typed);
+    if (t === FSDataType.Error) {
+      return typed;
+    }
     if (t === FSDataType.Integer) {
       return makeValue(FSDataType.Integer, Math.abs(valueOf(typed)));
     }

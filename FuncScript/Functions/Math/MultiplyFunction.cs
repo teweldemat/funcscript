@@ -1,4 +1,5 @@
 ﻿using FuncScript.Core;
+using FuncScript.Model;
 
 namespace FuncScript.Functions.Math
 {
@@ -24,6 +25,12 @@ namespace FuncScript.Functions.Math
             {
                 var d = pars[i];
 
+                if (d is FsError fsError)
+                    return fsError;
+
+                if (d == null)
+                    continue;
+
                 if (isNull)
                 {
                     if (d is int)
@@ -40,6 +47,10 @@ namespace FuncScript.Functions.Math
                     {
                         isNull = false;
                         isDouble = true;
+                    }
+                    else
+                    {
+                        return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: number expected");
                     }
                 }
 
@@ -61,6 +72,10 @@ namespace FuncScript.Functions.Math
                         isInt = false;
                         doubleTotal = intTotal * (double)d;
                     }
+                    else
+                    {
+                        return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: number expected");
+                    }
                 }
                 else if (isLong)
                 {
@@ -78,6 +93,10 @@ namespace FuncScript.Functions.Math
                         isLong = false;
                         doubleTotal = longTotal * (double)d;
                     }
+                    else
+                    {
+                        return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: number expected");
+                    }
                 }
                 else if (isDouble)
                 {
@@ -92,6 +111,10 @@ namespace FuncScript.Functions.Math
                     else if (d is double)
                     {
                         doubleTotal *= (double)d;
+                    }
+                    else
+                    {
+                        return new FsError(FsError.ERROR_TYPE_MISMATCH, $"{this.Symbol}: number expected");
                     }
                 }
             }

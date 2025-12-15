@@ -38,6 +38,8 @@ namespace FuncScript.Functions.Math
         {
             switch (value)
             {
+                case FsError error:
+                    return new NumberResult(error);
                 case int i:
                     return new NumberResult(i, NumericKind.Int);
                 case long l:
@@ -190,6 +192,8 @@ namespace FuncScript.Functions.Math
             var pars = FunctionArgumentHelper.ExpectList(par, this.Symbol);
 
             var value = pars[0];
+            if (value is FsError fsError)
+                return fsError;
             return value switch
             {
                 int i => System.Math.Abs(i),

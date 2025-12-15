@@ -3,7 +3,7 @@ const { FSDataType } = require('../core/fstypes');
 const { FsError } = require('../model/fs-error');
 
 const DEFAULT_CODE_LOCATION = Object.freeze({ Position: 0, Length: 0 });
-const MAX_EVALUATION_DEPTH = 306;
+const MAX_EVALUATION_DEPTH = 2048;
 let currentEvaluationDepth = 0;
 const MAX_SNIPPET_LENGTH = 200;
 
@@ -126,7 +126,7 @@ function buildTraceInfo(traceState, block, typedResult) {
     startIndex,
     startLine: start.line,
     startColumn: start.column,
-    endIndex: length,
+    endIndex,
     endLine: end.line,
     endColumn: end.column,
     snippet: extractSnippet(traceState.expression, block, location),

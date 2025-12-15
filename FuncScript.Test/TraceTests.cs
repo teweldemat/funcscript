@@ -78,6 +78,21 @@ namespace FuncScript.Test
             Assert.That(last.StartLine, Is.EqualTo(1));
             Assert.That(last.StartColumn, Is.GreaterThanOrEqualTo(1));
         }
+
+        [Test]
+        public void TraceReportsInclusiveEndIndex()
+        {
+            Engine.TraceInfo last = null;
+            FuncScriptRuntime.Trace("1+2", (result, info, entryState) =>
+            {
+                if (Equals(result, 3))
+                    last = info;
+            });
+
+            Assert.That(last, Is.Not.Null);
+            Assert.That(last.StartIndex, Is.EqualTo(0));
+            Assert.That(last.EndIndex, Is.EqualTo(2));
+        }
         [Test]
         public void TraceWithHookReceivesLocationDataForError()
         {

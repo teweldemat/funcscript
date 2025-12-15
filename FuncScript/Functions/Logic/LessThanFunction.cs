@@ -29,6 +29,10 @@ namespace FuncScript.Functions.Logic
 
             var par0 = pars[0];
             var par1 = pars[1];
+            if (par0 is FsError par0Error)
+                return par0Error;
+            if (par1 is FsError par1Error)
+                return par1Error;
             if (par0 == null || par1 == null)
                 return null;
 

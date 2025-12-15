@@ -45,15 +45,22 @@ function toBoolean(typed) {
 }
 
 function compare(typedLeft, typedRight, symbol) {
-  if (typeOf(typedLeft) === FSDataType.Null && typeOf(typedRight) === FSDataType.Null) {
-    return typedNull();
-  }
-  if (typeOf(typedLeft) === FSDataType.Null || typeOf(typedRight) === FSDataType.Null) {
-    return typedNull();
-  }
-
   let left = coreAssertTyped(typedLeft);
   let right = coreAssertTyped(typedRight);
+
+  if (typeOf(left) === FSDataType.Error) {
+    return left;
+  }
+  if (typeOf(right) === FSDataType.Error) {
+    return right;
+  }
+
+  if (typeOf(left) === FSDataType.Null && typeOf(right) === FSDataType.Null) {
+    return typedNull();
+  }
+  if (typeOf(left) === FSDataType.Null || typeOf(right) === FSDataType.Null) {
+    return typedNull();
+  }
 
   if (isNumeric(left) && isNumeric(right)) {
     [left, right] = convertToCommonNumericType(left, right);

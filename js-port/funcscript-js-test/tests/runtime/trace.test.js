@@ -55,6 +55,19 @@ describe('Trace', () => {
     expect(last.startColumn).to.be.greaterThan(0);
   });
 
+  it('reports inclusive endIndex', () => {
+    let last = null;
+    trace('1+2', (res, info) => {
+      if (res === 3) {
+        last = info;
+      }
+    });
+
+    expect(last).to.not.be.null;
+    expect(last.startIndex).to.equal(0);
+    expect(last.endIndex).to.equal(2);
+  });
+
   it('counts evaluations for common shapes', () => {
     const infos1 = [];
     trace('1+2', (res, info) => infos1.push(info));
