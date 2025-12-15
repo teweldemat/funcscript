@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using NUnit.Framework;
 using FuncScript.Core;
 using FuncScript.Error;
+using FuncScript.Functions.Test;
 using FuncScript.Model;
 
 namespace FuncScript.Test;
@@ -183,4 +185,13 @@ testData.Samples map (sample) => sample
         Assert.Less(timer.ElapsedMilliseconds, 2000, "Processing big-kvc2.fs 100 times should take less than 2 seconds.");
     }
 
+    [Test]
+    public void Bug20251215()
+    {
+        var o = new ObjectKvc(new { Count = 2 });
+        var sb = new StringBuilder();
+        Engine.Format(sb, o, null, false, true);
+        var json = sb.ToString().ToLower().Replace("\n", "").Replace(" ", "").Replace("\"", "");
+        Assert.That(json, Is.EqualTo("{count:2}"));
+    }
 }

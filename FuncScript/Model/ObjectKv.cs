@@ -27,13 +27,13 @@ namespace FuncScript.Model
                 var tinfo = new TypeInfo();
                 foreach (var prop in t.GetProperties().Where(p => p.CanRead && p.GetMethod.GetParameters().Length == 0))
                 {
-                        tinfo.Properties.Add(prop.Name.ToLower(), new PropInfo { Name = prop.Name, Prop = prop });
+                        tinfo.Properties.Add(prop.Name.ToLowerInvariant(), new PropInfo { Name = prop.Name, Prop = prop });
                 }
                 foreach (var field in t.GetFields())
                 {
                     if (field.IsStatic)
                         continue;
-                    tinfo.Properties.Add(field.Name.ToLower(), new PropInfo { Name = field.Name, Field= field});
+                    tinfo.Properties.Add(field.Name.ToLowerInvariant(), new PropInfo { Name = field.Name, Field= field});
                 }
                 s_typeInfos.Add(t, tinfo);
                 return tinfo;
@@ -59,17 +59,21 @@ namespace FuncScript.Model
         {
             if (_val == null)
                 return false;
+            if (string.IsNullOrWhiteSpace(key))
+                return false;
             var t = _val.GetType();
-            return GetTypeInfo(t).Properties.ContainsKey(key);
+            return GetTypeInfo(t).Properties.ContainsKey(key.ToLowerInvariant());
         }
 
         public object Get(string key)
         {
             if (_val == null)
                 return null;
+            if (string.IsNullOrWhiteSpace(key))
+                return null;
             var t = _val.GetType();
             var tInfo = GetTypeInfo(t);
-            if (!tInfo.Properties.TryGetValue(key, out var val))
+            if (!tInfo.Properties.TryGetValue(key.ToLowerInvariant(), out var val))
                 return null;
             if(val.Prop!=null)
                 return Engine.NormalizeDataType(val.Prop.GetValue(_val));

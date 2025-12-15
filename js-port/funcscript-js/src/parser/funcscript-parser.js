@@ -862,6 +862,15 @@ function getKvcItem(context, siblings, nakedKvc, index) {
     return new ValueParseResult(lambdaPair.NextIndex, lambdaPair.Value);
   }
 
+  if (!nakedKvc) {
+    const selectorPairBuffer = createNodeBuffer(siblings);
+    const selectorPair = getIdentifierSelectorPair(context, selectorPairBuffer, index);
+    if (selectorPair.hasProgress(index)) {
+      commitNodeBuffer(siblings, selectorPairBuffer);
+      return new ValueParseResult(selectorPair.NextIndex, selectorPair.Value);
+    }
+  }
+
   const returnBuffer = createNodeBuffer(siblings);
   const returnResult = getReturnDefinition(context, returnBuffer, index);
   if (returnResult.hasProgress(index) && returnResult.ExpressionBlock) {
@@ -902,6 +911,45 @@ function getKvcItem(context, siblings, nakedKvc, index) {
   }
 
   return new ValueParseResult(index, null);
+}
+
+function getIdentifierSelectorPair(context, siblings, index) {
+  if (!context) {
+    throw new Error('context is required');
+  }
+
+  const childNodes = [];
+  const keyCaptureIndex = childNodes.length;
+  const iden = getIdentifier(context, childNodes, index, KEYWORDS);
+  if (iden.NextIndex === index || !iden.Iden) {
+    return new ValueParseResult(index, null);
+  }
+
+  markKeyNodes(childNodes, keyCaptureIndex, iden.StartIndex, iden.Length);
+
+  let currentIndex = iden.NextIndex;
+  currentIndex = skipSpace(context, childNodes, currentIndex);
+
+  const selectorResult = getKvcExpression(context, childNodes, false, currentIndex);
+  if (!selectorResult.hasProgress(currentIndex) || !selectorResult.ExpressionBlock) {
+    return new ValueParseResult(index, null);
+  }
+
+  const reference = new ReferenceBlock(iden.Iden, iden.StartIndex, iden.Length, true);
+
+  const selector = new SelectorExpression();
+  selector.Source = reference;
+  selector.Selector = selectorResult.ExpressionBlock;
+  setCodeLocation(selector, iden.StartIndex, selectorResult.NextIndex - iden.StartIndex);
+
+  const item = new KeyValueExpression();
+  item.Key = iden.Iden;
+  item.KeyLower = iden.IdenLower;
+  item.ValueExpression = selector;
+
+  siblings.push(new ParseNode(ParseNodeType.KeyValuePair, index, selectorResult.NextIndex - index, childNodes));
+
+  return new ValueParseResult(selectorResult.NextIndex, item);
 }
 
 // Mirrors FuncScript/Parser/Syntax/FuncScriptParser.GetIdentifierLambdaPair :: GetIdentifierLambdaPair

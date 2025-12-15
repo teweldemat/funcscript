@@ -16,6 +16,7 @@ namespace FuncScript.Test
             var obj = new ObjectKvc(payload);
             AssertFormatMatchesNewtonsoft(obj, payload);
         }
+        
 
         [Test]
         public void FormatToJsonMatchesNewtonsoftForNestedObjectWithList()

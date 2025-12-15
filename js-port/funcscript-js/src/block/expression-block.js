@@ -3,7 +3,7 @@ const { FSDataType } = require('../core/fstypes');
 const { FsError } = require('../model/fs-error');
 
 const DEFAULT_CODE_LOCATION = Object.freeze({ Position: 0, Length: 0 });
-const MAX_EVALUATION_DEPTH = 256;
+const MAX_EVALUATION_DEPTH = 306;
 let currentEvaluationDepth = 0;
 const MAX_SNIPPET_LENGTH = 200;
 

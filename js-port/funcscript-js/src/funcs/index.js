@@ -107,6 +107,7 @@ const { FileTextFunction } = require('./os/file-text-function');
 const { GuidFunction } = require('./misc/guid-function');
 const { LogFunction } = require('./misc/log-function');
 const { ErrorFunction } = require('./misc/error-function');
+const { ChangeTypeFunction } = require('./misc/change-type-function');
 
 const {
   AssertEqualFunction,
@@ -235,6 +236,7 @@ module.exports = function buildBuiltinMap() {
     { fn: new FileTextFunction(), names: ['file'] },
     { fn: new GuidFunction(), names: ['guid'] },
     { fn: new ErrorFunction(), names: ['error'] },
+    { fn: new ChangeTypeFunction(), names: ['changetype'] },
     { fn: new LogFunction(), names: ['log'] }
   ];
 

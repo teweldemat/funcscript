@@ -33,6 +33,18 @@ namespace FuncScript.Core
             }
             AppendErrors(errors, lambdaPairResult);
             
+            if (!nakedKvc)
+            {
+                var selectorPairBuffer = CreateNodeBuffer(siblings);
+                var selectorPairResult = GetIdentifierSelectorPair(context, selectorPairBuffer, index);
+                if (selectorPairResult.HasProgress(index))
+                {
+                    CommitNodeBuffer(siblings, selectorPairBuffer);
+                    return new ValueParseResult<KvcExpression.KeyValueExpression>(selectorPairResult.NextIndex,
+                        selectorPairResult.Value, null);
+                }
+                AppendErrors(errors, selectorPairResult);
+            }
 
             var returnBuffer = CreateNodeBuffer(siblings);
             var returnResult = GetReturnDefinition(context, returnBuffer, referenceMode, index);
@@ -92,6 +104,50 @@ namespace FuncScript.Core
             }
 
             return new ValueParseResult<KvcExpression.KeyValueExpression>(index, null, errors);
+        }
+
+        static ValueParseResult<KvcExpression.KeyValueExpression> GetIdentifierSelectorPair(ParseContext context,
+            IList<ParseNode> siblings, int index)
+        {
+            var errors = CreateErrorBuffer();
+            var childNodes = new List<ParseNode>();
+
+            var keyCaptureIndex = childNodes.Count;
+            var iden = GetIdentifier(context, childNodes, index);
+            if (iden == null || iden.NextIndex == index || string.IsNullOrEmpty(iden.Iden))
+                return new ValueParseResult<KvcExpression.KeyValueExpression>(index, null, errors);
+
+            var currentIndex = iden.NextIndex;
+            MarkKeyNodes(childNodes, keyCaptureIndex, iden.StartIndex, iden.Length);
+
+            currentIndex = SkipSpace(context, childNodes, currentIndex);
+
+            var selectorResult = GetKvcExpression(context, childNodes, ReferenceMode.SkipSiblings, false, currentIndex);
+            AppendErrors(errors, selectorResult);
+            if (!selectorResult.HasProgress(currentIndex) || selectorResult.ExpressionBlock is not KvcExpression selectorKvc)
+                return new ValueParseResult<KvcExpression.KeyValueExpression>(index, null, errors);
+
+            var reference = new ReferenceBlock(iden.Iden, iden.IdenLower, ReferenceMode.SkipSiblings)
+            {
+                CodeLocation = new CodeLocation(iden.StartIndex, iden.Length)
+            };
+
+            var selector = new SelectorExpression(reference, selectorKvc)
+            {
+                CodeLocation = new CodeLocation(iden.StartIndex, selectorResult.NextIndex - iden.StartIndex)
+            };
+
+            var keyValue = new KvcExpression.KeyValueExpression
+            {
+                Key = iden.Iden,
+                KeyLower = iden.IdenLower,
+                ValueExpression = selector
+            };
+
+            var parseNode = new ParseNode(ParseNodeType.KeyValuePair, index, selectorResult.NextIndex - index, childNodes);
+            siblings.Add(parseNode);
+
+            return new ValueParseResult<KvcExpression.KeyValueExpression>(selectorResult.NextIndex, keyValue, errors);
         }
 
         static ValueParseResult<KvcExpression.KeyValueExpression> GetIdentifierLambdaPair(ParseContext context,
