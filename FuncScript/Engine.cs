@@ -546,7 +546,7 @@ namespace FuncScript
                     else
                         sb.Append($"\"{keys[i]}\":");
 
-                    Format(nextIndent, sb, kvc.Get(keys[i]), format, asFuncScriptLiteral, asJsonLiteral, adaptiveLineBreak);
+                    Format(nextIndent, sb, kvc.Get(keys[i].ToLowerInvariant()), format, asFuncScriptLiteral, asJsonLiteral, adaptiveLineBreak);
                 }
             }
 

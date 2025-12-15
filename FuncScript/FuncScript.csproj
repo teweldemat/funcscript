@@ -12,7 +12,7 @@
 
   <PropertyGroup>
     <PackageId>Tewelde.FuncScript</PackageId>
-    <Version>0.2.26</Version>
+    <Version>0.2.27</Version>
     <Authors>Tewelde Ma. Tegegne</Authors>
     <Company>FuncScript</Company>
     <Description>Expression-oriented scripting language runtime for .NET applications.</Description>

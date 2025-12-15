@@ -55,6 +55,7 @@ namespace FuncScript.Test
             var result = Engine.Evaluate(expression);
             Assert.That(result, Is.TypeOf<FsError>());
             var fsError = (FsError)result;
+            Assert.That(fsError.ErrorType, Is.EqualTo(FsError.ERROR_TYPE_MISMATCH));
             Assert.That(fsError.ErrorMessage, Does.Contain("integer parameters expected").IgnoreCase);
         }
     }

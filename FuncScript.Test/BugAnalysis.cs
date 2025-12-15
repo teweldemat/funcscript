@@ -194,4 +194,13 @@ testData.Samples map (sample) => sample
         var json = sb.ToString().ToLower().Replace("\n", "").Replace(" ", "").Replace("\"", "");
         Assert.That(json, Is.EqualTo("{count:2}"));
     }
+    [Test]
+    public void Bug20251215_2()
+    {
+        var o = new SimpleKeyValueCollection(new []{KeyValuePair.Create<string,object>("Count",5) });
+        var sb = new StringBuilder();
+        Engine.Format(sb, o, null, false, true);
+        var json = sb.ToString().ToLower().Replace("\n", "").Replace(" ", "").Replace("\"", "");
+        Assert.That(json, Is.EqualTo("{count:5}"));
+    }
 }
