@@ -18,6 +18,9 @@ class DivFunction extends BaseFunction {
 
     const first = assertTyped(parameters.getParameter(provider, 0));
     let mode = typeOf(first);
+    if (mode === FSDataType.Error) {
+      return first;
+    }
 
     if (mode !== FSDataType.Integer && mode !== FSDataType.BigInteger) {
       return makeError(FsError.ERROR_TYPE_MISMATCH, `${this.symbol}: integer parameters expected`);
@@ -29,6 +32,9 @@ class DivFunction extends BaseFunction {
     for (let i = 1; i < parameters.count; i += 1) {
       const operand = assertTyped(parameters.getParameter(provider, i));
       const operandType = typeOf(operand);
+      if (operandType === FSDataType.Error) {
+        return operand;
+      }
 
       if (operandType !== FSDataType.Integer && operandType !== FSDataType.BigInteger) {
         return makeError(FsError.ERROR_TYPE_MISMATCH, `${this.symbol}: integer parameters expected`);

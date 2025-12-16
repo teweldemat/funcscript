@@ -16,6 +16,8 @@ class NegateFunction extends BaseFunction {
   evaluate(provider, parameters) {
     const operand = assertTyped(parameters.getParameter(provider, 0));
     switch (typeOf(operand)) {
+      case FSDataType.Error:
+        return operand;
       case FSDataType.Integer:
         return makeValue(FSDataType.Integer, -valueOf(operand));
       case FSDataType.Float:

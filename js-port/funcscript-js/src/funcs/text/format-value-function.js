@@ -2,16 +2,136 @@ const { BaseFunction, CallType } = require('../../core/function-base');
 const helpers = require('../helpers');
 const { FSDataType } = require('../../core/fstypes');
 
+function toHex4(codePoint) {
+  return codePoint.toString(16).padStart(4, '0');
+}
+
 function escapeStringLiteral(value) {
   if (value == null) {
     return '';
   }
-  return String(value)
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    .replace(/\n/g, '\\n')
-    .replace(/\r/g, '\\r')
-    .replace(/\t/g, '\\t');
+  const str = String(value);
+  let out = '';
+  for (let i = 0; i < str.length; i += 1) {
+    const ch = str[i];
+    const code = ch.charCodeAt(0);
+    if (code < 0x20) {
+      out += `\\u${toHex4(code)}`;
+      continue;
+    }
+    switch (ch) {
+      case '\n':
+        out += '\\n';
+        break;
+      case '\r':
+        out += '\\r';
+        break;
+      case '\t':
+        out += '\\t';
+        break;
+      case '"':
+        out += '\\"';
+        break;
+      case '\\':
+        out += '\\\\';
+        break;
+      default:
+        out += ch;
+        break;
+    }
+  }
+  return out;
+}
+
+function applyGrouping(digits) {
+  const len = digits.length;
+  let firstGroupLen = len % 3;
+  if (firstGroupLen === 0) {
+    firstGroupLen = 3;
+  }
+  let out = digits.slice(0, firstGroupLen);
+  for (let i = firstGroupLen; i < len; i += 3) {
+    out += `,${digits.slice(i, i + 3)}`;
+  }
+  return out;
+}
+
+function parseFormatPattern(pattern) {
+  const normalized = String(pattern).trim();
+  if (!normalized) {
+    return null;
+  }
+  const dotIndex = normalized.indexOf('.');
+  const integerPattern = dotIndex >= 0 ? normalized.slice(0, dotIndex) : normalized;
+  const fractionPattern = dotIndex >= 0 ? normalized.slice(dotIndex + 1) : '';
+  const useGrouping = integerPattern.includes(',');
+  const minIntegerDigits = Math.max(1, (integerPattern.replaceAll(',', '').match(/0/g) || []).length);
+  const maxFractionDigits = fractionPattern.length;
+  const minFractionDigits = (fractionPattern.match(/0/g) || []).length;
+  return {
+    useGrouping,
+    minIntegerDigits,
+    maxFractionDigits,
+    minFractionDigits
+  };
+}
+
+function roundToEven(value, digits) {
+  if (!Number.isFinite(value)) {
+    return value;
+  }
+  const places = Math.max(0, digits);
+  const factor = 10 ** places;
+  const scaled = value * factor;
+  const floor = Math.floor(scaled);
+  const diff = scaled - floor;
+  if (diff === 0.5) {
+    return ((floor % 2 === 0 ? floor : floor + 1) / factor);
+  }
+  if (diff === -0.5) {
+    return (((floor % 2 === 0 ? floor : floor - 1)) / factor);
+  }
+  return (Math.round(scaled) / factor);
+}
+
+function trimOptionalFraction(fractionDigits, minDigits) {
+  let end = fractionDigits.length;
+  while (end > minDigits && fractionDigits[end - 1] === '0') {
+    end -= 1;
+  }
+  return fractionDigits.slice(0, end);
+}
+
+function formatNumberWithPattern(number, pattern) {
+  const parsed = parseFormatPattern(pattern);
+  if (!parsed) {
+    return String(number);
+  }
+  if (!Number.isFinite(number)) {
+    return String(number);
+  }
+
+  const { useGrouping, minIntegerDigits, maxFractionDigits, minFractionDigits } = parsed;
+  const rounded = roundToEven(number, maxFractionDigits);
+  const sign = rounded < 0 ? '-' : '';
+  const abs = Math.abs(rounded);
+
+  const fixed = maxFractionDigits > 0 ? abs.toFixed(maxFractionDigits) : String(Math.trunc(abs));
+  const [rawInteger, rawFraction = ''] = fixed.split('.');
+
+  let integerText = rawInteger.padStart(minIntegerDigits, '0');
+  if (useGrouping) {
+    integerText = applyGrouping(integerText);
+  }
+  if (maxFractionDigits === 0) {
+    return `${sign}${integerText}`;
+  }
+
+  const trimmedFraction = trimOptionalFraction(rawFraction, minFractionDigits);
+  if (!trimmedFraction) {
+    return `${sign}${integerText}`;
+  }
+  return `${sign}${integerText}.${trimmedFraction}`;
 }
 
 function convertToString(value, options = {}) {
@@ -23,8 +143,15 @@ function convertToString(value, options = {}) {
     case FSDataType.Boolean:
     case FSDataType.Integer:
     case FSDataType.Float:
-    case FSDataType.BigInteger:
       return String(helpers.valueOf(typed));
+    case FSDataType.BigInteger: {
+      const raw = helpers.valueOf(typed);
+      const text = String(raw);
+      if (jsonMode) {
+        return `"${escapeStringLiteral(text)}"`;
+      }
+      return text;
+    }
     case FSDataType.String: {
       const raw = helpers.valueOf(typed);
       if (!quoteStrings) {
@@ -38,14 +165,14 @@ function convertToString(value, options = {}) {
       for (const item of list) {
         parts.push(convertToString(item, { quoteStrings: true, jsonMode }));
       }
-      return `[${parts.join(', ')}]`;
+      return `[ ${parts.join(', ')} ]`;
     }
     case FSDataType.KeyValueCollection: {
       const kv = helpers.valueOf(typed);
       const entries = kv
         .getAll()
         .map(([key, val]) => `"${key}":${convertToString(val, { quoteStrings: true, jsonMode })}`);
-      return `{ ${entries.join(', ')} }`;
+      return '{ ' + entries.join(', ') + '}';
     }
     case FSDataType.Function: {
       const fn = helpers.valueOf(typed);
@@ -59,35 +186,6 @@ function convertToString(value, options = {}) {
   }
 }
 
-function formatNumberWithPattern(number, pattern) {
-  const normalizedPattern = pattern.trim();
-  if (!normalizedPattern) {
-    return String(number);
-  }
-
-  const hasGrouping = normalizedPattern.includes(',');
-  const decimalIndex = normalizedPattern.indexOf('.');
-  const integerPart = decimalIndex >= 0 ? normalizedPattern.slice(0, decimalIndex) : normalizedPattern;
-  const fractionalPart = decimalIndex >= 0 ? normalizedPattern.slice(decimalIndex + 1) : '';
-
-  const integerZeros = (integerPart.match(/0/g) || []).length;
-  const fractionalZeros = (fractionalPart.match(/0/g) || []).length;
-  const fractionalLength = fractionalPart.length;
-
-  const minimumIntegerDigits = integerZeros > 0 ? integerZeros : 1;
-  const minimumFractionDigits = fractionalZeros;
-  const maximumFractionDigits = Math.max(fractionalLength, fractionalZeros);
-
-  const formatter = new Intl.NumberFormat('en-US', {
-    useGrouping: hasGrouping,
-    minimumIntegerDigits,
-    minimumFractionDigits,
-    maximumFractionDigits
-  });
-
-  return formatter.format(number);
-}
-
 function tryFormatWithPattern(value, pattern) {
   const typed = helpers.assertTyped(value);
   const formatPattern = pattern.trim();
@@ -99,22 +197,24 @@ function tryFormatWithPattern(value, pattern) {
     return 'null';
   }
 
-  const isNumeric = helpers.isNumeric(typed);
-  if (isNumeric) {
+  const type = helpers.typeOf(typed);
+  if (type === FSDataType.Integer || type === FSDataType.Float) {
     const numeric = Number(helpers.valueOf(typed));
-    if (Number.isFinite(numeric)) {
-      return formatNumberWithPattern(numeric, formatPattern);
-    }
-    return String(numeric);
+    return formatNumberWithPattern(numeric, formatPattern);
   }
 
-  if (helpers.typeOf(typed) === FSDataType.String) {
-    const str = helpers.valueOf(typed);
-    const numeric = Number(str);
-    if (!Number.isNaN(numeric)) {
-      return formatNumberWithPattern(numeric, formatPattern);
+  if (type === FSDataType.BigInteger) {
+    const bigint = helpers.valueOf(typed);
+    const str = String(bigint);
+    const dotIndex = formatPattern.indexOf('.');
+    const integerPattern = dotIndex >= 0 ? formatPattern.slice(0, dotIndex) : formatPattern;
+    const useGrouping = integerPattern.includes(',');
+    const minIntegerDigits = Math.max(1, (integerPattern.replaceAll(',', '').match(/0/g) || []).length);
+    let integerText = str.padStart(minIntegerDigits, '0');
+    if (useGrouping) {
+      integerText = applyGrouping(integerText);
     }
-    return str;
+    return integerText;
   }
 
   return null;

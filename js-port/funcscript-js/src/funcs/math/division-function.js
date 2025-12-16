@@ -22,6 +22,9 @@ class DivisionFunction extends BaseFunction {
 
     let current = assertTyped(parameters.getParameter(provider, 0));
     let mode = typeOf(current);
+    if (mode === FSDataType.Error) {
+      return current;
+    }
 
     if (!isNumericType(mode)) {
       mode = FSDataType.Integer;
@@ -93,6 +96,9 @@ class DivisionFunction extends BaseFunction {
     for (let i = 1; i < parameters.count; i += 1) {
       const operand = assertTyped(parameters.getParameter(provider, i));
       const operandType = typeOf(operand);
+      if (operandType === FSDataType.Error) {
+        return operand;
+      }
 
       if (!isNumericType(operandType)) {
         continue;

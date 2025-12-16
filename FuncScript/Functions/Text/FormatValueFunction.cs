@@ -1,6 +1,5 @@
 ﻿using FuncScript.Core;
 using System;
-using System.Text;
 using FuncScript.Model;
 
 namespace FuncScript.Functions.Text
@@ -22,18 +21,14 @@ namespace FuncScript.Functions.Text
             var par0 = pars[0];
             var par1 = pars.Length > 1 ? pars[1] : null;
 
-            var sb = new StringBuilder();
             var format = par1 as string;
 
             if (string.Equals(format, "json", StringComparison.OrdinalIgnoreCase))
             {
-                Engine.Format(sb, par0, null, asFuncScriptLiteral: false, asJsonLiteral: true);
+                return FsValueFormatter.Format(par0, null, asJsonLiteral: true);
             }
-            else
-            {
-                Engine.Format(sb, par0, format);
-            }
-            return sb.ToString();
+
+            return FsValueFormatter.Format(par0, format, asJsonLiteral: false);
         }
 
         public string ParName(int index)

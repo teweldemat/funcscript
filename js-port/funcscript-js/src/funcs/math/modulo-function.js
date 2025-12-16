@@ -22,6 +22,9 @@ class ModuloFunction extends BaseFunction {
 
     let current = assertTyped(parameters.getParameter(provider, 0));
     let mode = typeOf(current);
+    if (mode === FSDataType.Error) {
+      return current;
+    }
 
     if (!isNumericType(mode)) {
       current = makeValue(FSDataType.Integer, 1);
@@ -30,7 +33,11 @@ class ModuloFunction extends BaseFunction {
 
     for (let i = 1; i < parameters.count; i += 1) {
       let next = assertTyped(parameters.getParameter(provider, i));
-      if (!isNumericType(typeOf(next))) {
+      const nextType = typeOf(next);
+      if (nextType === FSDataType.Error) {
+        return next;
+      }
+      if (!isNumericType(nextType)) {
         continue;
       }
 

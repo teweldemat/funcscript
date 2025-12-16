@@ -17,6 +17,9 @@ class SubtractFunction extends BaseFunction {
 
     const first = assertTyped(parameters.getParameter(provider, 0));
     let mode = typeOf(first);
+    if (mode === FSDataType.Error) {
+      return first;
+    }
 
     let intTotal = 0;
     let longTotal = 0n;
@@ -35,6 +38,9 @@ class SubtractFunction extends BaseFunction {
     for (let i = 1; i < parameters.count; i += 1) {
       const operand = assertTyped(parameters.getParameter(provider, i));
       const operandType = typeOf(operand);
+      if (operandType === FSDataType.Error) {
+        return operand;
+      }
 
       if (mode === FSDataType.Integer) {
         if (operandType === FSDataType.Integer) {

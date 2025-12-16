@@ -19,6 +19,9 @@ class MultiplyFunction extends BaseFunction {
     for (let i = 0; i < parameters.count; i += 1) {
       const operand = assertTyped(parameters.getParameter(provider, i));
       const operandType = typeOf(operand);
+      if (operandType === FSDataType.Error) {
+        return operand;
+      }
 
       if (mode === null) {
         if (operandType === FSDataType.Integer) {
