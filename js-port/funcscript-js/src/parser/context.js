@@ -4,7 +4,7 @@ const { SyntaxErrorData, ParseNode } = require('./parse-node');
 
 // Mirrors FuncScript/Parser/FuncScriptParser.Models.cs :: FuncScriptParser.ParseContext
 class ParseContext {
-  constructor(provider, expression, errorsList) {
+  constructor(provider, expression, errorsList, options = null) {
     if (!expression && expression !== '') {
       throw new Error('expression is required');
     }
@@ -14,11 +14,16 @@ class ParseContext {
     this.Provider = provider;
     this.Expression = expression;
     this.ErrorsList = errorsList;
+    this.ReferenceFromParent = Boolean(options && options.referenceFromParent);
   }
 
-  createChild(expression, errorsList) {
+  createChild(expression, errorsList, options = null) {
     const childErrors = errorsList || [];
-    return new ParseContext(this.Provider, expression, childErrors);
+    const referenceFromParent =
+      options && Object.prototype.hasOwnProperty.call(options, 'referenceFromParent')
+        ? Boolean(options.referenceFromParent)
+        : this.ReferenceFromParent;
+    return new ParseContext(this.Provider, expression, childErrors, { referenceFromParent });
   }
 }
 

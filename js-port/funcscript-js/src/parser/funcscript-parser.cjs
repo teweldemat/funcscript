@@ -272,7 +272,10 @@ function getCallAndMemberAccess(context, siblings, index) {
     }
 
     const selectorChildren = [];
-    const selectorResult = getKvcExpression(context, selectorChildren, false, currentIndex);
+    const selectorContext = context.createChild(context.Expression, context.ErrorsList, {
+      referenceFromParent: true
+    });
+    const selectorResult = getKvcExpression(selectorContext, selectorChildren, false, currentIndex);
     if (selectorResult.hasProgress(currentIndex) && selectorResult.ExpressionBlock) {
       const selector = new SelectorExpression();
       selector.Source = expression;
@@ -580,7 +583,7 @@ function getKvcItem(context, siblings, nakedKvc, index) {
     const identifierIndex = iden.NextIndex;
     if (identifierIndex > index) {
       commitNodeBuffer(siblings, identifierBuffer);
-      const reference = new ReferenceBlock(iden.Iden, iden.StartIndex, iden.Length);
+      const reference = new ReferenceBlock(iden.Iden, iden.StartIndex, iden.Length, true);
       const item = new KeyValueExpression();
       item.Key = iden.Iden;
       item.KeyLower = iden.IdenLower;
@@ -594,7 +597,7 @@ function getKvcItem(context, siblings, nakedKvc, index) {
     if (stringResult.NextIndex > index) {
       commitNodeBuffer(siblings, stringBuffer);
       const key = stringResult.Value;
-      const reference = new ReferenceBlock(key, stringResult.StartIndex, stringResult.Length);
+      const reference = new ReferenceBlock(key, stringResult.StartIndex, stringResult.Length, true);
       const item = new KeyValueExpression();
       item.Key = key;
       item.KeyLower = key ? key.toLowerCase() : null;
@@ -986,7 +989,7 @@ function getIfThenElseExpression(context, siblings, index) {
   }
 
   const functionStart = keywordIndex - functionName.length;
-  const functionBlock = new ReferenceBlock(functionName);
+  const functionBlock = new ReferenceBlock(functionName, 0, 0, context.ReferenceFromParent);
   setCodeLocation(functionBlock, functionStart, functionName.length);
 
   let currentIndex = keywordIndex;
@@ -1727,7 +1730,12 @@ function getUnit(context, siblings, index) {
 
   const iden = getIdentifier(context, siblings, index, KEYWORDS);
   if (iden.NextIndex > index) {
-    const reference = new ReferenceBlock(iden.Iden, iden.StartIndex, iden.Length);
+    const reference = new ReferenceBlock(
+      iden.Iden,
+      iden.StartIndex,
+      iden.Length,
+      context.ReferenceFromParent
+    );
     return new ParseBlockResult(iden.NextIndex, reference);
   }
 

@@ -55,11 +55,21 @@ export class ParseNode {
 }
 
 export class ParseContext {
-  constructor(provider: unknown, expression: string, errors: SyntaxErrorData[]);
+  constructor(
+    provider: unknown,
+    expression: string,
+    errors: SyntaxErrorData[],
+    options?: { referenceFromParent?: boolean } | null
+  );
   readonly Provider: unknown;
   readonly Expression: string;
   readonly ErrorsList: SyntaxErrorData[];
-  createChild(expression: string, errorsList?: SyntaxErrorData[]): ParseContext;
+  readonly ReferenceFromParent: boolean;
+  createChild(
+    expression: string,
+    errorsList?: SyntaxErrorData[],
+    options?: { referenceFromParent?: boolean } | null
+  ): ParseContext;
 }
 
 export class ParseResult {
