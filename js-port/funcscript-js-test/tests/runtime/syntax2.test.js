@@ -77,6 +77,13 @@ describe('Syntax2', () => {
       expect(typeOf(result)).to.equal(FSDataType.String);
       expect(valueOf(result)).to.equal('test ');
     });
+
+    it('StringInterpolationUnicodeEscape', () => {
+      const expression = "f'test\\u0020'";
+      const result = evaluate(expression, builtinProvider());
+      expect(typeOf(result)).to.equal(FSDataType.String);
+      expect(valueOf(result)).to.equal('test ');
+    });
   });
 
   describe('Null-safe accessors', () => {
@@ -90,6 +97,12 @@ describe('Syntax2', () => {
       const result = evaluate('{ x:{y:5}; return x?.y}', builtinProvider());
       expect(typeOf(result)).to.equal(FSDataType.Integer);
       expect(valueOf(result)).to.equal(5);
+    });
+
+    it('MemberAccessMissingKeyReturnsNull', () => {
+      const result = evaluate('{ x:{y:5}; return x.z }', builtinProvider());
+      expect(typeOf(result)).to.equal(FSDataType.Null);
+      expect(valueOf(result)).to.equal(null);
     });
 
     it('NullSafeExpressionNullValue', () => {
@@ -109,6 +122,12 @@ describe('Syntax2', () => {
       const result = evaluate('[4,5,6][1]', builtinProvider());
       expect(typeOf(result)).to.equal(FSDataType.Integer);
       expect(valueOf(result)).to.equal(5);
+    });
+
+    it('PrefixOperatorBindsLooserThanIndexing', () => {
+      const result = evaluate('-[4,5,6][1]', builtinProvider());
+      expect(typeOf(result)).to.equal(FSDataType.Integer);
+      expect(valueOf(result)).to.equal(-5);
     });
 
     it('EmptyParameterList', () => {
@@ -198,6 +217,13 @@ describe('Syntax2', () => {
         }
       });
     }
+  });
+
+  describe('In operator', () => {
+    it('rejects non-list containers', () => {
+      const result = evaluate("'a' in 'abc'", builtinProvider());
+      expect(typeOf(result)).to.equal(FSDataType.Error);
+    });
   });
   describe('ListAddition', () => {
     const cases = [

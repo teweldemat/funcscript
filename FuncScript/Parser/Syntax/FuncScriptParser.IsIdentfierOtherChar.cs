@@ -4,7 +4,10 @@ namespace FuncScript.Core
     {
         static bool IsIdentfierOtherChar(char ch)
         {
-            return char.IsLetterOrDigit(ch) || ch == '_';
+            return (ch >= 'A' && ch <= 'Z')
+                   || (ch >= 'a' && ch <= 'z')
+                   || (ch >= '0' && ch <= '9')
+                   || ch == '_';
         }
     }
 }

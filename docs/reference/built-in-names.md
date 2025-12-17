@@ -9,20 +9,20 @@ FuncScript registers every built-in helper under the symbols documented below. S
 
 ## Comparison & Membership
 - `=`, `==`, `!=`, `<`, `<=`, `>`, `>=` – Comparisons returning `Boolean` values (`==` is an alias for `=`).
-- `value in listOrText` – Membership test for lists and strings.
+- `value in list` – Membership test for lists (for strings use `Contains(text, substring)`).
 
 ## Null & Safe Access Operators
 - `value ?? fallback` – Returns `fallback` when `value` is null.
-- `kvc?.key` – Safe member access; returns null when the target or key is missing.
+- `kvc?.key` – Safe member access; returns null when the target is null or the key is missing (errors when the target is not a record).
 - `test-val?!expr` – Evaluates `expr` if `test-val` is not null; otherwise, defaults to null. This is typically used when `expr` depends on a non-null `test-val`.
-- `kvc.key` – Direct member access (throws on missing keys or non-records).
+- `kvc.key` – Direct member access (returns null for missing keys; errors on null targets and non-records).
 
 ## Logical & Control Flow
 - `if condition then value else other` – Branching expression (keywords are required).
 - `a and b` / `a or b` – Logical conjunction/disjunction with short-circuit evaluation.
 - `! value` – Logical negation.
-- `switch selector, condition1: result1, condition2: result2, defaultCondition: defaultResult` – Switch over a selector; commas or semicolons separate branches.
-- `case condition: result` – Case helper written with `condition: result` pairs separated by commas or semicolons; add a `true: fallback` arm for defaults.
+- `switch selector, match1: result1, match2: result2, defaultResult` – Switch over a selector; each `match: result` arm is compared to the selector and the first match wins. Add an optional trailing default value (without `:`) to return when no match occurs.
+- `case condition: result` – Conditional helper written with `condition: result` pairs separated by commas or semicolons; add a `true: fallback` arm or a trailing default value (`case cond: value, fallback`) for defaults.
 
 ## Numeric Functions
 All numeric helpers belong to the `math` provider collection, so you can call them either directly (`Sqrt(9)`) or via the namespace-style accessor (`math.Sqrt(9)`). Aliases such as `Ceil` and `log` also work under the `math` scope.
@@ -56,9 +56,9 @@ All numeric helpers belong to the `math` provider collection, so you can call th
 - `Range(start, count)` (`Series`) – Produce `[start, start+1, ...]` with `count` elements; `start` may be any numeric type and controls the output element type, while `count` is coerced to an integer by truncating toward zero.
 - `Distinct(list)` – Remove duplicate values while preserving order.
 - `Any(list, predicate)` – Returns `true` when any element satisfies `predicate`.
-- `Contains(list, value)` – Returns `true` when `value` is present.
-- `First(list)` – First element (errors on empty lists).
-- `Length(list)` (`Len`) – Length of the list; strings return character count; `null` returns `0`; any other scalar returns `1`.
+- `Contains(listOrText, value)` – Returns `true` when `value` is present (lists) or `value` is a substring (strings, case-insensitive).
+- `First(list, predicate)` – Returns the first element that matches `predicate` (or null when none match).
+- `Len(value)` (`Length`) – Length of the list or string; `null` returns `0`; any other scalar returns `1`.
 - `Take(list, count)` / `Skip(list, count)` – Subset operators.
 - `Sort(list)` – Sort values using default comparison.
 - `Reverse(list)` – Reverse the order of elements.
@@ -70,8 +70,8 @@ All numeric helpers belong to the `math` provider collection, so you can call th
 - `text.upper(text)` – Convert `text` to uppercase (culture invariant).
 - `text.lower(text)` – Convert `text` to lowercase (culture invariant).
 - `join(list, separator)` – Concatenate list entries with `separator`.
-- `format(pattern, value1, value2, ...)` – Composite formatting using .NET format strings.
-- `find(text, value)` – Return the zero-based index of `value` or `-1` if not found.
+- `format(value, format?)` – Convert `value` to a string; `format` can be a numeric pattern like `"#,0.00"` or the special `"json"` mode.
+- `find(text, value, startIndex?)` – Return the zero-based index of `value` or `-1` if not found.
 - `regex(text, pattern, flags?)` – Returns `true` when `pattern` matches `text`; optional `flags` accepts characters such as `i`, `m`, `s`, or `x` to toggle regex options.
 - `substring(text, start, length?)` – Slice from `text` starting at `start` with optional `length`.
 - `endswith(text, suffix)` – Returns `true` when `text` ends with `suffix`.

@@ -98,7 +98,10 @@ because execution stops at the returned expression and only the bindings require
 ## JavaScript Binding
 FuncScript can delegate a value to embedded JavaScript by wrapping a snippet in a fenced block such as <code>```javascript ... ```</code>. The engine wraps that snippet in an immediately invoked function so that it runs inside an isolated scope and expects the function to `return` the value that should flow back into the FuncScript runtime. If you omit a `return` the JavaScript function resolves to `undefined`, which FuncScript normalizes to `null`, so always end the block by returning the final result.
 
-All bindings defined in the surrounding FuncScript scope are exposed as case-insensitive variables inside the JavaScript block, so you can reference them directly by name when calculating derived results to feed back into FuncScript:
+Bindings from the surrounding FuncScript scope are available in JavaScript in two ways:
+
+- When a binding name is a valid JavaScript identifier, it is exposed as a variable using the original FuncScript key casing.
+- A `provider` proxy is always available for case-insensitive lookup (and for non-identifier names) via `provider.someKey` / `provider["some-key"]`.
 
 ````funcscript
 {
@@ -179,7 +182,7 @@ Use the `case` keyword with `condition: value` pairs. Commas or semicolons separ
 ```
 
 ## Switch Expressions
-Switches evaluate `condition: value` arms in order. Provide a `true: value` branch for the default.
+Switches match a selector against `match: value` arms in order. Add an optional trailing default value (without a `:`) to return when no matches occur.
 
 ```funcscript
 {
@@ -187,6 +190,6 @@ Switches evaluate `condition: value` arms in order. Provide a `true: value` bran
   message: switch status,
     "new": "Queued",
     "processing": "Working",
-    true: "Unknown";
+    "Unknown";
 }
 ```

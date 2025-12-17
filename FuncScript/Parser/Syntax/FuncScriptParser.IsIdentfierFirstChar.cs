@@ -4,7 +4,9 @@ namespace FuncScript.Core
     {
         static bool IsIdentfierFirstChar(char ch)
         {
-            return char.IsLetter(ch) || ch == '_';
+            return (ch >= 'A' && ch <= 'Z')
+                   || (ch >= 'a' && ch <= 'z')
+                   || ch == '_';
         }
     }
 }

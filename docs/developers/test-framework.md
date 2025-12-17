@@ -4,15 +4,15 @@ The FuncScript Test Framework provides a lightweight way to validate FuncScript 
 
 ## Overview
 
-A FuncScript expression **A** can be tested using another FuncScript expression **T**. During a test run, the framework intercepts calls to `IFsDataProvider.Get` within **A** and replaces them with mock values supplied by **T**. This makes it possible to run repeatable tests without depending on upstream systems.
+A FuncScript expression **A** can be tested using a FuncScript test script **T**. During a test run, the framework evaluates **A** with a provider that overlays each case’s bindings on top of the base provider, making it possible to run repeatable tests without depending on upstream systems.
 
 ## Defining Tests
 
 Each test script returns one or more `testSuite` objects (analogous to test suites). A `testSuite` typically defines:
 
 - `name`: A description of what the suite validates.
-- `cases`: Mock variables that the expression refers to (ambient variables). Skip this when you want a single implicit case, which is handy for function targets you plan to call yourself.
-- `test`: A function that runs once per case and performs assertions against the evaluated result. The function returns the assertion outcome, and multiple assertions are combined into list.
+- `cases`: Case objects that define the bindings used when evaluating the expression under test. Skip this when you want a single implicit case, which is handy for function targets you plan to call yourself.
+- `test` (or `tests`): A function (or list of functions) that runs once per case and performs assertions against the evaluated result. Returning a list of assertions lets you report multiple failures at once.
 
 The `test` function receives two arguments:
 
@@ -53,7 +53,7 @@ Here the test gets `fn` as the first argument and decides how many times and wit
 
 When you prefer the framework to call the function for you, each case can describe:
 
-- `ambient` — Optional key/value collection of variables to inject while evaluating the function expression. This plays the same role as the case object in non-function tests.
+- `ambient` — Optional key/value collection of variables to inject while evaluating the expression under test (useful when the case object also includes `input`).
 - `input` — Optional list of positional arguments that will be passed to the function after evaluation. When `input` is omitted, the framework passes the unevaluated function into your `test` without calling it.
 
 Example:
@@ -128,7 +128,7 @@ Test script:
 
 In this example:
 
-- Each entry in `cases` defines a different input scenario for the intercepted symbols `a`, `b`, and `c`.
+- Each entry in `cases` defines a different input scenario by providing bindings for `a`, `b`, and `c`.
 - The `test` function runs once per case, receiving both the evaluated result (`resData`) and the case data (`caseData`) so it can assert the correct behavior for each scenario.
 - Naming the suites (`shouldBeOk`, `shouldBeError`) makes the reported output easy to interpret.
 
@@ -163,10 +163,10 @@ These predicates make it easy to validate both normal and exceptional results fr
 
 ## Execution Flow
 
-1. The framework intercepts `IFsDataProvider.Get` calls inside the tested expression **A**.
-2. For each mock case defined in `cases` (or a single implicit case when `cases` is omitted), the specified symbols are substituted with the provided mock values.
-3. Expression **A** executes with the substituted data.
-4. The resulting value is passed to the `test` function defined by each `testSuite`.
+1. The framework evaluates **T** to get a list of test suites.
+2. For each case in a suite’s `cases` list (or a single implicit case when `cases` is omitted), the case bindings are layered over the base provider.
+3. Expression **A** executes with those bindings available as variables.
+4. The resulting value is passed to the `test` (or `tests`) function(s) defined by each `testSuite`.
 5. Assertion outcomes are reported per case, letting you see which inputs triggered which results.
 
 ## Return Structure

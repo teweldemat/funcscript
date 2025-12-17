@@ -68,6 +68,14 @@ namespace FuncScript.Test
             var res = FuncScriptRuntime.Evaluate(exp);
             Assert.That(res,Is.EqualTo("test "));
         }
+
+        [Test]
+        public void StringInterpolationUnicodeEscape()
+        {
+            var exp = @"f'test\u0020'";
+            var res = FuncScriptRuntime.Evaluate(exp);
+            Assert.That(res, Is.EqualTo("test "));
+        }
         [Test]
         public void NullSafeGetMemberNullValue()
         {
@@ -82,6 +90,13 @@ namespace FuncScript.Test
             var p = new DefaultFsDataProvider();
             var res = FuncScriptRuntime.Evaluate(p, @"{ x:{y:5}; return x?.y}");
             Assert.AreEqual(5, res);
+        }
+
+        [Test]
+        public void MemberAccessMissingKeyReturnsNull()
+        {
+            var res = FuncScriptRuntime.Evaluate(@"{ x:{y:5}; return x.z }");
+            Assert.That(res, Is.Null);
         }
 
         [Test]
@@ -109,6 +124,21 @@ namespace FuncScript.Test
             var p = new DefaultFsDataProvider();
             var res = FuncScriptRuntime.Evaluate(p, @"[4,5,6][1]");
             Assert.AreEqual(5, res);
+        }
+
+        [Test]
+        public void PrefixOperatorBindsLooserThanIndexing()
+        {
+            var res = FuncScriptRuntime.Evaluate(@"-[4,5,6][1]");
+            Assert.That(res, Is.EqualTo(-5));
+        }
+
+        [Test]
+        public void InOperatorRejectsNonListContainers()
+        {
+            var result = FuncScriptRuntime.Evaluate("'a' in 'abc'");
+            Assert.That(result, Is.TypeOf<FsError>());
+            Assert.That(((FsError)result).ErrorType, Is.EqualTo(FsError.ERROR_TYPE_MISMATCH));
         }
         [Test]
         public void EmptyParameterList()

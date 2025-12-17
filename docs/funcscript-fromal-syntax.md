@@ -35,7 +35,7 @@
 <GeneralInfixCall> ::= <CallChain> [ <DualFunctionTail> ]
 <DualFunctionTail> ::= <Identifier> <CallChain> ( "~" <CallChain> )*
 
-- `Identifier` in `<DualFunctionTail>` must resolve to a dual-call (`CallType.Dual`) function. Otherwise the parser falls back to the `<CallChain>` that preceded it. When a matching dual function is found, `expr1 op expr2` desugars to `op(expr1, expr2)`, and each `~ exprN` appends another argument.
+- `Identifier` in `<DualFunctionTail>` must resolve to a dual-call (`CallType.Dual`) function. If it resolves to a known non-dual function name, the parser keeps the `<CallChain>` that preceded it; unknown identifiers in this position raise a syntax error. When a matching dual function is found, `expr1 op expr2` desugars to `op(expr1, expr2)`, and each `~ exprN` appends another argument.
 - All symbolic operators and keywords above are case-insensitive.
 
 --------------------------------------------------------------------------------
@@ -87,16 +87,19 @@
 <LineBreak> ::= "\r\n" | "\n" | "\r"
 
 <IfExpression> ::= "if" <Expression> "then" <Expression> "else" <Expression>
-<CaseExpression> ::= "case" <Expression> ":" <Expression>
-                      ( <EntrySeparator> <Expression> ":" <Expression> )*
-<SwitchExpression> ::= "switch" <Expression> <SwitchBranch> ( <SwitchBranch> )*
-<SwitchBranch> ::= <EntrySeparator> <Expression> ":" <Expression>
+<CaseExpression> ::= "case" <Expression>
+                     [ ":" <Expression>
+                       ( <EntrySeparator> <Expression> ":" <Expression> )*
+                       [ <EntrySeparator> <Expression> ] ]
+<SwitchExpression> ::= "switch" <Expression>
+                       ( <EntrySeparator> <Expression> ":" <Expression> )*
+                       [ <EntrySeparator> <Expression> ]
 
 - `<IdentifierList>` may be empty, and lambdas also allow a single bare identifier (`x => x + 1`).
-- `case condition: value` accepts multiple branches separated by `,` or `;`. `switch selector` requires at least one branch and uses the same separators.
+- `case` supports either a single default value (`case expr`) or one or more `condition: value` arms separated by `,`/`;`, plus an optional trailing default value (`case cond: val, defaultVal`). `switch` matches a selector against `match: value` arms and can include an optional trailing default (`switch x, 1: "one", "other"`).
 - List literals accept `,` or `;` separators and may trail the final value (`[1,2,]`).
 - Language bindings use fenced blocks that start with three backticks plus a language id on their own line and end with three backticks; escape the closing fence inside the body with a leading backslash.
-- Prefix operators currently resolve to the built-in logical NOT (`!`) and numeric negation (`-`). Both bind tighter than member access or calls because the operand is parsed as a full `<CallChain>`.
+- Prefix operators currently resolve to the built-in logical NOT (`!`) and numeric negation (`-`). Member access, indexing, and calls bind tighter because the operand is parsed as a full `<CallChain>` (e.g., `-[1,2][0]` parses as `-( [1,2][0] )`).
 
 --------------------------------------------------------------------------------
 
@@ -124,7 +127,7 @@
 <LetterOrDigitOrUnderscore> ::= /* ASCII letters, digits, or '_' */
 <Digit> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
 
-- Simple strings support the escapes `\n`, `\t`, `\\`, `\uXXXX`, and escaping the active delimiter via `\'`, `\"`, or `\"""`. Triple-quoted strings (`""" ... """`) optionally swallow a single leading newline right after the opener and otherwise preserve whitespace verbatim.
+- Simple strings support the escapes `\n`, `\t`, `\\`, `\uXXXX`, and escaping the active delimiter via `\'`, `\"`, or `\"""`. Triple-quoted strings (`""" ... """`) swallow at most one newline right after the opener and at most one newline right before the closer; otherwise they preserve whitespace verbatim.
 - String templates must start with `f` followed by a valid string delimiter (`f"..."`, `f'...'`, or `f"""..."""`). Literal segments share the same escape rules as `<StringLiteral>`. Any `{ <Expression> }` inside the template is evaluated and interpolated; `\{` injects a literal brace.
 - Number literals allow an optional leading `-`, underscore separators inside digits, an optional fractional part, an optional exponent (`E`/`e` plus an optional `-`), and an optional `l` suffix when no decimal point is present; positive integer exponents append zeros to the integer form, while decimals or negative exponents parse as floating point.
 - `<Identifier>` characters are restricted to `A-Z`, `a-z`, `_` for the first position, and `A-Z`, `a-z`, `0-9`, `_` thereafter.

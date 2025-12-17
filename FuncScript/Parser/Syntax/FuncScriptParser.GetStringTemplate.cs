@@ -90,6 +90,14 @@ namespace FuncScript.Core
                     continue;
                 }
 
+                (afterEscape, var unicodeChar) = GetHexUnicodeChar(context, currentIndex);
+                if (afterEscape > currentIndex)
+                {
+                    currentIndex = afterEscape;
+                    buffer.Append(unicodeChar);
+                    continue;
+                }
+
                 afterEscape = GetLiteralMatch(exp, currentIndex, $@"\{delimiter}");
                 if (afterEscape > currentIndex)
                 {
