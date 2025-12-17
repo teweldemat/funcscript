@@ -11,17 +11,6 @@ class KvcExpressionCollection extends KeyValueCollection {
     this.evaluating = new Set();
   }
 
-  _hasSelectorAncestor() {
-    let current = this.parent;
-    while (current) {
-      if (current.__fsSelectorProvider) {
-        return true;
-      }
-      current = current.parent || current.ParentProvider || null;
-    }
-    return false;
-  }
-
   get(name) {
     const lower = name.toLowerCase();
     const entry = this.expression._index.get(lower);
@@ -32,13 +21,6 @@ class KvcExpressionCollection extends KeyValueCollection {
       return this.cache.get(lower);
     }
     if (this.evaluating.has(lower)) {
-      const fallback = this.parent ? this.parent.get(name) : null;
-      if (fallback !== null && fallback !== undefined) {
-        return fallback;
-      }
-      if (this._hasSelectorAncestor()) {
-        return fallback;
-      }
       const overflowValue = createDepthOverflowValue();
       this.cache.set(lower, overflowValue);
       return overflowValue;
