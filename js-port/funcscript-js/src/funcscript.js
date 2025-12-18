@@ -471,14 +471,109 @@ function formatToJson(value) {
   return JSON.stringify(toPlain(typed));
 }
 
-const loadPackage = createPackageLoader({
+const loadPackageValue = createPackageLoader({
   evaluateExpression,
   DefaultFsDataProvider,
   MapDataProvider,
   normalize
 });
 const createPackageEvaluationProvider =
-  typeof loadPackage.createEvaluationProvider === 'function' ? loadPackage.createEvaluationProvider : null;
+  typeof loadPackageValue.createEvaluationProvider === 'function' ? loadPackageValue.createEvaluationProvider : null;
+
+function createCachedEvaluateExpression(parseCache) {
+  const cache = parseCache || new Map();
+
+  return function evaluateExpressionCached(expression, provider, traceState) {
+    const source = expression == null ? '' : String(expression);
+    attachExpressionSource(provider, source);
+    if (traceState) {
+      traceState.expression = source;
+      attachTraceState(provider, traceState);
+    }
+
+    let cached = cache.get(source);
+    if (!cached) {
+      const parseOutcome = FuncScriptParser.parse(provider, source);
+      const block = parseOutcome?.block;
+      if (!block) {
+        const firstError = Array.isArray(parseOutcome?.errors) && parseOutcome.errors.length > 0
+          ? parseOutcome.errors[0]
+          : null;
+        const message = firstError
+          ? `Failed to parse expression (pos ${firstError.Loc}): ${firstError.Message}`
+          : 'Failed to parse expression';
+        const err = new Error(message);
+        cache.set(source, { block: null, parseNodePos: null, error: err });
+        throw err;
+      }
+      const parseNodePos = typeof parseOutcome?.parseNode?.Pos === 'number' ? parseOutcome.parseNode.Pos : null;
+      cached = { block, parseNodePos, error: null };
+      cache.set(source, cached);
+    }
+
+    if (cached.error) {
+      throw cached.error;
+    }
+
+    try {
+      const typedResult = assertTyped(cached.block.evaluate(provider), 'Engine.evaluate expects typed output');
+      if (
+        typeOf(typedResult) === FSDataType.Error &&
+        cached.block instanceof FunctionCallExpression &&
+        cached.block.functionExpression instanceof ReferenceBlock
+      ) {
+        const err = valueOf(typedResult);
+        if (
+          err?.errorType === FsError.ERROR_DEFAULT &&
+          typeof err?.errorMessage === 'string' &&
+          err.errorMessage.includes('Function call target is not a function')
+        ) {
+          throw new Error(err?.errorMessage || 'Runtime error');
+        }
+      }
+      return typedResult;
+    } catch (error) {
+      if (error instanceof Error && error.message) {
+        const position = cached.parseNodePos;
+        if (typeof position === 'number') {
+          error.message = `${error.message} (at position ${position})`;
+        }
+      }
+      throw error;
+    }
+  };
+}
+
+function loadPackage(resolver, provider, traceHook, entryHook) {
+  const parseCache = new Map();
+  const evaluateExpressionCached = createCachedEvaluateExpression(parseCache);
+  const loader = createPackageLoader({
+    evaluateExpression: evaluateExpressionCached,
+    DefaultFsDataProvider,
+    MapDataProvider,
+    normalize
+  });
+
+  const defaults = {
+    provider: provider || null,
+    traceHook: typeof traceHook === 'function' ? traceHook : null,
+    entryHook: typeof entryHook === 'function' ? entryHook : null
+  };
+
+  const evaluator = (providerOverride, traceOverride, entryOverride) => {
+    const nextProvider = providerOverride || defaults.provider || undefined;
+    const nextTrace = typeof traceOverride === 'function' ? traceOverride : defaults.traceHook;
+    const nextEntry = typeof entryOverride === 'function' ? entryOverride : defaults.entryHook;
+    return loader(resolver, nextProvider, nextTrace, nextEntry);
+  };
+
+  evaluator.clearParsedCache = () => parseCache.clear();
+
+  return evaluator;
+}
+
+loadPackage.value = loadPackageValue;
+loadPackage.createEvaluationProvider = createPackageEvaluationProvider;
 
 function ensurePackageResolver(resolver) {
   if (!resolver || typeof resolver !== 'object') {
@@ -494,6 +589,81 @@ function ensurePackageResolver(resolver) {
 
 function formatPackagePath(pathSegments) {
   return formatResolverPath(pathSegments);
+}
+
+function createParsedResolver(resolver, parseProvider = new DefaultFsDataProvider()) {
+  ensurePackageResolver(resolver);
+  const parsingProvider = parseProvider || new DefaultFsDataProvider();
+  const cache = new Map();
+
+  const parseExpression = (source) => {
+    const parseOutcome = FuncScriptParser.parse(parsingProvider, source);
+    const block = parseOutcome?.block;
+    if (!block) {
+      const firstError = Array.isArray(parseOutcome?.errors) && parseOutcome.errors.length > 0
+        ? parseOutcome.errors[0]
+        : null;
+      const message = firstError
+        ? `Failed to parse expression (pos ${firstError.Loc}): ${firstError.Message}`
+        : 'Failed to parse expression';
+      throw new Error(message);
+    }
+    return block;
+  };
+
+  const normalizePathKey = (pathSegments) => {
+    const normalized = Array.isArray(pathSegments) ? pathSegments : [];
+    return normalized.length === 0 ? '<root>' : normalized.join('/');
+  };
+
+  const evalExpressionBlock = (contextKvc, pathSegments, traceState) => {
+    const cachedKey = normalizePathKey(pathSegments);
+    const descriptor = resolver.getExpression(Array.isArray(pathSegments) ? pathSegments : []);
+    if (descriptor == null) {
+      return null;
+    }
+
+    const source = wrapPackageExpressionByLanguage(descriptor) ?? '';
+    const cached = cache.get(cachedKey);
+    let block = cached?.source === source ? cached.block : null;
+    let parseError = cached?.source === source ? cached.error : null;
+
+    if (!block && !parseError) {
+      try {
+        block = parseExpression(source);
+      } catch (err) {
+        parseError = normalize(new FsError(FsError.ERROR_DEFAULT, err?.message || String(err)));
+      }
+      cache.set(cachedKey, { source, block, error: parseError });
+    }
+
+    if (parseError) {
+      return parseError;
+    }
+    if (!block) {
+      return normalize(new FsError(FsError.ERROR_DEFAULT, 'Failed to parse expression'));
+    }
+
+    attachExpressionSource(contextKvc, source);
+    if (traceState) {
+      traceState.expression = source;
+      attachTraceState(contextKvc, traceState);
+    }
+
+    try {
+      return assertTyped(block.evaluate(contextKvc));
+    } catch (err) {
+      return normalize(new FsError(FsError.ERROR_DEFAULT, err?.message || String(err)));
+    }
+  };
+
+  return {
+    ...resolver,
+    EvalExpressionBlock: evalExpressionBlock,
+    evalExpressionBlock: (pathSegments, contextKvc, traceState) =>
+      evalExpressionBlock(contextKvc, pathSegments, traceState),
+    clearParsedCache: () => cache.clear()
+  };
 }
 
 function createPackageProvider(resolver, provider) {
@@ -1051,6 +1221,7 @@ module.exports = {
   evaluateTemplate,
   FormatToJson: formatToJson,
   loadPackage,
+  createParsedResolver,
   test,
   testPackage,
   colorParseTree,

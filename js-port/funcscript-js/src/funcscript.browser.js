@@ -175,12 +175,95 @@ function trace(expression, providerOrHook, hookMaybe, entryHookMaybe) {
   return evaluateExpression(expression, provider, traceState);
 }
 
-const loadPackage = createPackageLoader({
+const loadPackageValue = createPackageLoader({
   evaluateExpression,
   DefaultFsDataProvider,
   MapDataProvider,
   normalize
 });
+const createPackageEvaluationProvider =
+  typeof loadPackageValue.createEvaluationProvider === 'function' ? loadPackageValue.createEvaluationProvider : null;
+
+function createCachedEvaluateExpression(parseCache) {
+  const cache = parseCache || new Map();
+
+  return function evaluateExpressionCached(expression, provider, traceState) {
+    const source = expression == null ? '' : String(expression);
+    attachExpressionSource(provider, source);
+    if (traceState) {
+      traceState.expression = source;
+      attachTraceState(provider, traceState);
+    }
+
+    let cached = cache.get(source);
+    if (!cached) {
+      const parseOutcome = FuncScriptParser.parse(provider, source);
+      const block = parseOutcome?.block;
+      if (!block) {
+        const firstError = Array.isArray(parseOutcome?.errors) && parseOutcome.errors.length > 0
+          ? parseOutcome.errors[0]
+          : null;
+        const message = firstError
+          ? `Failed to parse expression (pos ${firstError.Loc}): ${firstError.Message}`
+          : 'Failed to parse expression';
+        const err = new Error(message);
+        cache.set(source, { block: null, parseNodePos: null, error: err });
+        throw err;
+      }
+      const parseNodePos = typeof parseOutcome?.parseNode?.Pos === 'number' ? parseOutcome.parseNode.Pos : null;
+      cached = { block, parseNodePos, error: null };
+      cache.set(source, cached);
+    }
+
+    if (cached.error) {
+      throw cached.error;
+    }
+
+    try {
+      const typedResult = assertTyped(cached.block.evaluate(provider), 'Engine.evaluate expects typed output');
+      return typedResult;
+    } catch (error) {
+      if (error instanceof Error && error.message) {
+        const position = cached.parseNodePos;
+        if (typeof position === 'number') {
+          error.message = `${error.message} (at position ${position})`;
+        }
+      }
+      throw error;
+    }
+  };
+}
+
+function loadPackage(resolver, provider, traceHook, entryHook) {
+  const parseCache = new Map();
+  const evaluateExpressionCached = createCachedEvaluateExpression(parseCache);
+  const loader = createPackageLoader({
+    evaluateExpression: evaluateExpressionCached,
+    DefaultFsDataProvider,
+    MapDataProvider,
+    normalize
+  });
+
+  const defaults = {
+    provider: provider || null,
+    traceHook: typeof traceHook === 'function' ? traceHook : null,
+    entryHook: typeof entryHook === 'function' ? entryHook : null
+  };
+
+  const evaluator = (providerOverride, traceOverride, entryOverride) => {
+    const nextProvider = providerOverride || defaults.provider || undefined;
+    const nextTrace = typeof traceOverride === 'function' ? traceOverride : defaults.traceHook;
+    const nextEntry = typeof entryOverride === 'function' ? entryOverride : defaults.entryHook;
+    return loader(resolver, nextProvider, nextTrace, nextEntry);
+  };
+
+  evaluator.clearParsedCache = () => parseCache.clear();
+
+  return evaluator;
+}
+
+loadPackage.value = loadPackageValue;
+loadPackage.createEvaluationProvider = createPackageEvaluationProvider;
 
 function colorParseTree(node) {
   if (!node || typeof node.Length !== 'number' || node.Length <= 0) {

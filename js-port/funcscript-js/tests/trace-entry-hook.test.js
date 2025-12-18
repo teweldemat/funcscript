@@ -243,7 +243,8 @@ describe('LoadPackage_HierarchicalTracingAcrossExpressions', () => {
       }
     };
 
-    const result = loadPackage(resolver, undefined, harness.traceHook, harness.entryHook);
+    const evaluatePackage = loadPackage(resolver, undefined, harness.traceHook, harness.entryHook);
+    const result = evaluatePackage();
     harness.stack.pop();
 
     expect(valueOf(assertTyped(result))).toBe(12);
@@ -297,7 +298,8 @@ describe('LoadPackage_HierarchicalTracingAcrossExpressions', () => {
       }
     };
 
-    const result = loadPackage(resolver, undefined, traceHook, entryHook);
+    const evaluatePackage = loadPackage(resolver, undefined, traceHook, entryHook);
+    const result = evaluatePackage();
     stack.pop();
 
     expect(valueOf(assertTyped(result))).toBe(8);

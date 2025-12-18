@@ -37,7 +37,8 @@ describe('Lazy package loader', () => {
       }
     };
 
-    const root = loadPackage(resolver);
+    const evaluatePackage = loadPackage(resolver);
+    const root = evaluatePackage();
     const rootKvc = valueOf(root);
     const value = rootKvc.get('mod');
 
@@ -46,4 +47,3 @@ describe('Lazy package loader', () => {
     expect(requested).not.toEqual(expect.arrayContaining(['mod/b', 'mod/c']));
   });
 });
-

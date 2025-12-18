@@ -18,7 +18,7 @@ describe('Packages', () => {
       }
     });
 
-    const typed = loadPackage(resolver);
+    const typed = loadPackage(resolver)();
     expect(typeOf(typed)).to.equal(FSDataType.Float);
     expect(valueOf(typed)).to.be.closeTo(6.28, 0.01);
   });
@@ -46,7 +46,7 @@ describe('Packages', () => {
       { math: mathResolver }
     );
 
-    const typed = loadPackage(rootResolver);
+    const typed = loadPackage(rootResolver)();
     expect(typeOf(typed)).to.equal(FSDataType.Integer);
     expect(valueOf(typed)).to.equal(50);
   });
@@ -64,7 +64,7 @@ describe('Packages', () => {
       }
     });
 
-    const typed = loadPackage(resolver);
+    const typed = loadPackage(resolver)();
     expect(typeOf(typed)).to.equal(FSDataType.Integer);
     expect(valueOf(typed)).to.equal(42);
   });
@@ -78,7 +78,7 @@ describe('Packages', () => {
       }
     });
 
-    const typed = loadPackage(resolver);
+    const typed = loadPackage(resolver)();
     expect(typeOf(typed)).to.equal(FSDataType.Integer);
     expect(valueOf(typed)).to.equal(42);
   });
@@ -92,7 +92,7 @@ describe('Packages', () => {
       }
     });
 
-    const typed = loadPackage(resolver);
+    const typed = loadPackage(resolver)();
     expect(typeOf(typed)).to.equal(FSDataType.Integer);
     expect(valueOf(typed)).to.equal(2);
   });
@@ -105,7 +105,7 @@ describe('Packages', () => {
       }
     });
 
-    const typed = loadPackage(resolver);
+    const typed = loadPackage(resolver)();
     expect(typeOf(typed)).to.equal(FSDataType.KeyValueCollection);
 
     const kvc = valueOf(typed);
@@ -128,7 +128,7 @@ describe('Packages', () => {
 
     const typed = loadPackage(resolver, undefined, (path, info) => {
       traces.push({ path, info });
-    });
+    })();
 
     expect(typeOf(typed)).to.equal(FSDataType.Integer);
     expect(valueOf(typed)).to.equal(3);
@@ -148,7 +148,7 @@ describe('Packages', () => {
 
     const typed = loadPackage(resolver, undefined, (path, info) => {
       traces.push({ path, info });
-    });
+    })();
 
     expect(typeOf(typed)).to.equal(FSDataType.KeyValueCollection);
     expect(traces.length).to.equal(0);
@@ -179,7 +179,7 @@ describe('Packages', () => {
 
     const typed = loadPackage(resolver, undefined, (path, info) => {
       traces.push({ path, info });
-    });
+    })();
 
     expect(typeOf(typed)).to.equal(FSDataType.Error);
     expect(traces.length).to.be.greaterThan(0);
@@ -201,7 +201,7 @@ describe('Packages', () => {
 
     const typed = loadPackage(resolver, undefined, (path, info) => {
       traces.push({ path, info });
-    });
+    })();
 
     expect(typeOf(typed)).to.equal(FSDataType.Integer);
     expect(valueOf(typed)).to.equal(5);
@@ -235,7 +235,7 @@ describe('Packages', () => {
 
     const typed = loadPackage(resolver, undefined, (path, info) => {
       traces.push({ path, info });
-    });
+    })();
 
     expect(typeOf(typed)).to.equal(FSDataType.Integer);
     expect(valueOf(typed)).to.equal(5);
@@ -343,7 +343,7 @@ describe('Packages', () => {
       }
     });
 
-    const typed = loadPackage(resolver);
+    const typed = loadPackage(resolver)();
     expect(typeOf(typed)).to.equal(FSDataType.KeyValueCollection);
     const kvc = valueOf(typed);
     const first = kvc.get('first');
@@ -395,7 +395,7 @@ describe('Packages', () => {
       { lib: libResolver }
     );
 
-    const typed = loadPackage(rootResolver);
+    const typed = loadPackage(rootResolver)();
     expect(typeOf(typed)).to.equal(FSDataType.Null);
     expect(valueOf(typed)).to.equal(null);
   });

@@ -18,7 +18,7 @@ describe('Packages with ```javascript``` blocks', () => {
       }
     });
 
-    const typed = loadPackage(resolver);
+    const typed = loadPackage(resolver)();
     expect(typeOf(typed)).to.equal(FSDataType.Float);
     expect(valueOf(typed)).to.be.closeTo(6.28, 0.01);
   });
@@ -49,7 +49,7 @@ describe('Packages with ```javascript``` blocks', () => {
       { math: mathResolver }
     );
 
-    const typed = loadPackage(rootResolver);
+    const typed = loadPackage(rootResolver)();
     expect(typeOf(typed)).to.equal(FSDataType.Integer);
     expect(valueOf(typed)).to.equal(50);
   });
@@ -77,7 +77,7 @@ describe('Packages with ```javascript``` blocks', () => {
       }
     });
 
-    const typed = loadPackage(resolver);
+    const typed = loadPackage(resolver)();
     expect(typeOf(typed)).to.equal(FSDataType.Integer);
     expect(valueOf(typed)).to.equal(42);
   });
@@ -99,7 +99,7 @@ describe('Packages with ```javascript``` blocks', () => {
       }
     });
 
-    const typed = loadPackage(resolver);
+    const typed = loadPackage(resolver)();
     expect(typeOf(typed)).to.equal(FSDataType.Integer);
     expect(valueOf(typed)).to.equal(42);
   });
@@ -119,7 +119,7 @@ describe('Packages with ```javascript``` blocks', () => {
       }
     });
 
-    const typed = loadPackage(resolver);
+    const typed = loadPackage(resolver)();
     expect(typeOf(typed)).to.equal(FSDataType.Integer);
     expect(valueOf(typed)).to.equal(9);
   });
@@ -146,7 +146,7 @@ describe('Packages with ```javascript``` blocks', () => {
       }
     });
 
-    const typed = loadPackage(resolver);
+    const typed = loadPackage(resolver)();
     expect(typeOf(typed)).to.equal(FSDataType.Integer);
     expect(valueOf(typed)).to.equal(15);
   });
@@ -197,7 +197,7 @@ describe('Packages with ```javascript``` blocks', () => {
       }
     });
 
-    const typed = loadPackage(resolver);
+    const typed = loadPackage(resolver)();
     expect(typeOf(typed)).to.equal(FSDataType.Integer);
     expect(valueOf(typed)).to.equal(42);
   });

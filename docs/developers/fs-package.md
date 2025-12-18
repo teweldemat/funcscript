@@ -1,6 +1,8 @@
 # FuncScript Packages
 
-FuncScript packages compose a FuncScript program from separate expressions that are organized hierarchically (for example, files and folders in a repository).  A package is a tree of expressions—folders, helper bindings, and executable leaves—and the resolver simply serves that tree to the runtime.  `loadPackage(resolver, provider?, traceHook?)` walks that tree, generates a FuncScript program, and evaluates it with the same runtime used by `evaluate` and `test`. Omit the optional parameters to use the default data provider and skip tracing.
+FuncScript packages compose a FuncScript program from separate expressions that are organized hierarchically (for example, files and folders in a repository). A package is a tree of expressions—folders, helper bindings, and executable leaves—and the resolver simply serves that tree to the runtime.
+
+`loadPackage(resolver, provider?, traceHook?)` returns an **evaluator function**. Call the evaluator to evaluate the package. The evaluator keeps an internal parse cache so repeated evaluations can skip re-parsing unchanged expressions.
 
 ## Resolver Contract
 
@@ -78,7 +80,7 @@ Example (JS):
 
 ```javascript
 const traces = [];
-const typed = loadPackage(resolver, undefined, (path, info) => traces.push({ path, info }));
+const typed = loadPackage(resolver, undefined, (path, info) => traces.push({ path, info }))();
 console.log(traces.map(t => `${t.path}: ${t.info.snippet}`));
 ```
 
@@ -118,7 +120,7 @@ const sketchResolver = {
   }
 };
 
-const typed = loadPackage(sketchResolver);
+const typed = loadPackage(sketchResolver)();
 console.log(valueOf(typed)); // 42
 ```
 

@@ -88,7 +88,7 @@ describe('package loader traces', () => {
     });
 
     const traces: any[] = [];
-    const result = loadPackage(resolver, undefined, (path: string, info: any) => traces.push({ path, info }));
+    const result = loadPackage(resolver, undefined, (path: string, info: any) => traces.push({ path, info }))();
     const raw = valueOf(result);
 
     expect((raw as any)?.__fsKind).toBe('KeyValueCollection');
@@ -109,7 +109,7 @@ describe('package loader traces', () => {
     const traceHook: any = (path: string, info: any) => traces.push({ path, info });
     traceHook.__fsStepInto = true;
 
-    const result = loadPackage(resolver, undefined, traceHook);
+    const result = loadPackage(resolver, undefined, traceHook)();
     const rawResult = valueOf(result);
 
     expect((rawResult as any)?.__fsKind).toBe('FsError');
@@ -145,7 +145,7 @@ describe('package loader traces', () => {
     const traceHook: any = (path: string, info: any) => traces.push({ path, info });
     traceHook.__fsStepInto = true;
 
-    const result = loadPackage(resolver, undefined, traceHook);
+    const result = loadPackage(resolver, undefined, traceHook)();
     const rawResult = valueOf(result);
 
     expect((rawResult as any)?.__fsKind).toBe('FsError');
@@ -186,7 +186,7 @@ describe('package loader traces', () => {
     const traceHook: any = (path: string, info: any) => traces.push({ path, info });
     traceHook.__fsStepInto = true;
 
-    const result = loadPackage(resolver, undefined, traceHook);
+    const result = loadPackage(resolver, undefined, traceHook)();
     const rawResult = valueOf(result);
 
     expect((rawResult as any)?.__fsKind).toBe('FsError');
@@ -222,7 +222,7 @@ describe('package loader traces', () => {
     };
     traceHook.__fsStepInto = true;
 
-    const result = loadPackage(resolver, undefined, traceHook, entryHook);
+    const result = loadPackage(resolver, undefined, traceHook, entryHook)();
     expect(valueOf(result)).toBe(1);
     expect(entries.length).toBeGreaterThan(0);
     expect(exits.length).toBeGreaterThan(0);

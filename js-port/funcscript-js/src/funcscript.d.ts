@@ -292,12 +292,28 @@ export declare function FormatToJson(value: FuncScriptInput): string;
 
 export type PackageTraceHook = (path: string, info: TraceInfo, entryState?: unknown) => void;
 export type PackageTraceEntryHook = (path: string, info: TraceInfo | null) => unknown;
+export type PackageEvaluator = (
+  provider?: FsDataProvider,
+  traceHook?: PackageTraceHook,
+  entryHook?: PackageTraceEntryHook
+) => TypedValue;
 export declare function loadPackage(
   resolver: PackageResolver,
   provider?: FsDataProvider,
   traceHook?: PackageTraceHook,
   entryHook?: PackageTraceEntryHook
-): TypedValue;
+): PackageEvaluator;
+
+export interface ParsedResolver extends PackageResolver {
+  EvalExpressionBlock(context: FsDataProvider, path: string[], traceState?: unknown): TypedValue | null;
+  evalExpressionBlock(path: string[], context: FsDataProvider, traceState?: unknown): TypedValue | null;
+  clearParsedCache(): void;
+}
+
+export declare function createParsedResolver(
+  resolver: PackageResolver,
+  parseProvider?: FsDataProvider
+): ParsedResolver;
 
 export declare function assertTyped(value: FuncScriptInput): TypedValue;
 export declare function assertTyped(value: FuncScriptInput, message?: string): TypedValue;
@@ -345,6 +361,7 @@ export declare const Engine: {
   evaluateTemplate: typeof evaluateTemplate;
   FormatToJson: typeof FormatToJson;
   loadPackage: typeof loadPackage;
+  createParsedResolver: typeof createParsedResolver;
   test: typeof test;
   testPackage: typeof testPackage;
   colorParseTree: typeof colorParseTree;
