@@ -72,7 +72,7 @@ Inside a JavaScript block, use the same helper (`return package('stickman').help
 Both runtimes accept an optional trace hook on `loadPackage`:
 
  - **JS**: `loadPackage(resolver, provider?, (path, traceInfo) => { ... })`
-- **.NET**: `PackageLoader.LoadPackage(resolver, provider?, (path, info, entry) => { ... }, (path, info) => { ... })`
+- **.NET**: `PackageLoader.LoadPackage(resolver, provider?, (path, info, entry) => { ... }, (path, info) => { ... })` returns a `PackageEvaluator` (expression block); call `.Evaluate(provider?, traceOverride?, entryTraceOverride?)` to run it.
 
 The hook receives the package path being evaluated (for example, `eval`, `helpers/doubler`, or `x`), plus a trace payload with start/end line/column data, a snippet, and the evaluation result. Hooks fire for successful evaluations and for failures (syntax errors and exceptions are wrapped as `FsError`/`FsError` instances and delivered through the hook). Lazy member evaluations also invoke the hook when accessed, so you can observe deferred errors without breaking package load.
 
