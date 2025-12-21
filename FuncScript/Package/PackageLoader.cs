@@ -9,6 +9,7 @@ using FuncScript.Error;
 using FuncScript.Functions;
 using FuncScript.Model;
 using System.Diagnostics;
+using System.Threading;
 
 namespace FuncScript.Package
 {
@@ -17,6 +18,51 @@ namespace FuncScript.Package
     {
         public delegate void PackageLoaderTraceDelegate(string path,Engine.TraceInfo info, object entryState = null);
         public delegate object PackageLoaderEntryTraceDelegate(string path, Engine.TraceInfo info);
+
+        public sealed class PackageEvaluationProfile
+        {
+            private readonly Dictionary<string, PackageEvaluationEntry> _entries =
+                new(StringComparer.OrdinalIgnoreCase);
+
+            public void Record(string path, long ticks)
+            {
+                var key = string.IsNullOrWhiteSpace(path) ? "<root>" : path;
+                if (_entries.TryGetValue(key, out var entry))
+                {
+                    entry.TotalTicks += ticks;
+                    entry.Count += 1;
+                }
+                else
+                {
+                    _entries[key] = new PackageEvaluationEntry { Path = key, TotalTicks = ticks, Count = 1 };
+                }
+            }
+
+            public IReadOnlyList<(string Path, long TotalTicks, int Count)> GetTopEntries(int max = 10)
+            {
+                return _entries.Values
+                    .OrderByDescending(entry => entry.TotalTicks)
+                    .Take(Math.Max(1, max))
+                    .Select(entry => (entry.Path, entry.TotalTicks, entry.Count))
+                    .ToArray();
+            }
+
+            private sealed class PackageEvaluationEntry
+            {
+                public string Path { get; init; }
+                public long TotalTicks { get; set; }
+                public int Count { get; set; }
+            }
+        }
+
+        private static readonly AsyncLocal<PackageEvaluationProfile> s_profile = new();
+
+        public static PackageEvaluationProfile CurrentProfile
+        {
+            get => s_profile.Value;
+            set => s_profile.Value = value;
+        }
+
         public static PackageEvaluator LoadPackage(
             IFsPackageResolver resolver,
             KeyValueCollection provider = null,
@@ -44,6 +90,10 @@ namespace FuncScript.Package
             ExpressionBlock.DepthCounter depth = null)
         {
             var source = expression?.AsExpString() ?? string.Empty;
+            var profiler = CurrentProfile;
+            var startTicks = profiler != null ? Stopwatch.GetTimestamp() : 0;
+            var needsPath = profiler != null || trace != null || entryTrace != null;
+            var pathString = needsPath ? FormatPath(path) : string.Empty;
             try
             {
                 var evaluationProvider = provider ?? new DefaultFsDataProvider();
@@ -51,7 +101,6 @@ namespace FuncScript.Package
                 {
                     return EvaluateExpressionBlock(expression, source, evaluationProvider, depth);
                 }
-                var pathString = FormatPath(path);
                 var lineStarts = Engine.BuildLineStarts(source);
                 var depthCounter = new ExpressionBlock.DepthCounter(block =>
                 {
@@ -75,7 +124,6 @@ namespace FuncScript.Package
                 var ret = new FsError(FsError.ERROR_SYNTAX_ERROR, syntaxError.Message);
                 if (trace != null)
                 {
-                    var pathString = FormatPath(path);
                     var info = BuildExceptionTraceInfo(source, 0, source.Length, ret);
                     trace(pathString, info, null);
                 }
@@ -86,13 +134,19 @@ namespace FuncScript.Package
                 var ret = new FsError(FsError.ERROR_UNKNOWN_ERROR, ex.Message);
                 if (trace != null)
                 {
-                    var pathString = FormatPath(path);
                     var locationLen = ex is Error.EvaluationException evalEx ? evalEx.Len : source.Length;
                     var locationPos = ex is Error.EvaluationException evaluationException ? evaluationException.Pos : 0;
                     var info = BuildExceptionTraceInfo(source, locationPos, locationLen, ret);
                     trace(pathString, info, null);
                 }
                 return ret;
+            }
+            finally
+            {
+                if (profiler != null)
+                {
+                    profiler.Record(pathString, Stopwatch.GetTimestamp() - startTicks);
+                }
             }
         }
 

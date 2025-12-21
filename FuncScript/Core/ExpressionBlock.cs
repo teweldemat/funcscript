@@ -33,6 +33,8 @@ namespace FuncScript.Core
             {
                 if (Count > MaxEvaluationDepth)
                     throw new Error.EvaluationTooDeepTimeException();
+                var nextDepth = Count + 1;
+                FuncScript.Instrumentation.RecordBlockEvaluate(nextDepth);
                 var entryState = _entryHook?.Invoke(block);
                 _entries[Count] = entryState;
                 Count++;

@@ -769,32 +769,44 @@ namespace FuncScript
         }
         private static object EvaluateInternal(string expression, KeyValueCollection provider, object vars, ParseMode mode, ExpressionBlock.DepthCounter depth)
         {
+            var scopeLabel = $"mode={mode.ToString().ToLowerInvariant()} len={(expression == null ? 0 : expression.Length)}";
+            var scope = Instrumentation.BeginScope(scopeLabel);
             if (vars != null)
             {
                 provider = new KvcProvider(new ObjectKvc(vars), provider);
             }
             var serrors = new List<FuncScriptParser.SyntaxErrorData>();
             ExpressionBlock exp;
-            switch (mode)
+            try
             {
-                case ParseMode.Standard:
-                    exp = FuncScriptParser.Parse(provider, expression, serrors);
-                    break;
-                case ParseMode.SpaceSeparatedList:
-                    return FuncScriptParser.ParseSpaceSeparatedList(provider, expression, serrors);
-                case ParseMode.FsTemplate:
-                    var res = FuncScriptParser.ParseFsTemplate(provider, expression);
-                    exp = res.ExpressionBlock;
-                    serrors.AddRange(res.Errors);
-                    break;
-                default:    
-                    exp = null;
-                    break;
-            }
+                switch (mode)
+                {
+                    case ParseMode.Standard:
+                        Instrumentation.RecordParse();
+                        exp = FuncScriptParser.Parse(provider, expression, serrors);
+                        break;
+                    case ParseMode.SpaceSeparatedList:
+                        Instrumentation.RecordParse();
+                        return FuncScriptParser.ParseSpaceSeparatedList(provider, expression, serrors);
+                    case ParseMode.FsTemplate:
+                        Instrumentation.RecordParse();
+                        var res = FuncScriptParser.ParseFsTemplate(provider, expression);
+                        exp = res.ExpressionBlock;
+                        serrors.AddRange(res.Errors);
+                        break;
+                    default:
+                        exp = null;
+                        break;
+                }
 
-            if (exp == null)
-                throw new Error.SyntaxError(expression,serrors);
-            return EvaluateInternal(exp, expression, provider, vars, depth);
+                if (exp == null)
+                    throw new Error.SyntaxError(expression, serrors);
+                return EvaluateInternal(exp, expression, provider, vars, depth);
+            }
+            finally
+            {
+                scope?.Dispose();
+            }
         }
         public static object Evaluate(ExpressionBlock exp, string expression, KeyValueCollection provider, object vars)
         {
@@ -806,6 +818,12 @@ namespace FuncScript
                 throw new System.ArgumentNullException(nameof(exp));
 
             depth ??= new ExpressionBlock.DepthCounter();
+            IDisposable? scope = null;
+            if (Instrumentation.Enabled && !Instrumentation.HasScope)
+            {
+                var scopeLabel = $"mode=compiled len={(expression == null ? 0 : expression.Length)}";
+                scope = Instrumentation.BeginScope(scopeLabel);
+            }
             object ret = null;
             try
             {
@@ -845,6 +863,7 @@ namespace FuncScript
             }
             finally
             {
+                scope?.Dispose();
             }
         }
 
