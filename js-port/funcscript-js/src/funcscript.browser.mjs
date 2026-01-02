@@ -13,6 +13,7 @@ import * as testRunnerModuleRaw from './test-runner.js';
 import * as languageBindingRegistryModuleRaw from './core/language-binding-registry.js';
 import * as javascriptBindingModuleRaw from './bindings/javascript-language-binding.js';
 import * as packageLoaderModuleRaw from './core/package-loader.js';
+import * as expressionBlockModuleRaw from './block/expression-block.js';
 
 const interopDefault = (mod) => (mod && 'default' in mod ? mod.default : mod);
 
@@ -31,6 +32,7 @@ const createTestRunner = interopDefault(testRunnerModuleRaw);
 const languageBindingRegistry = interopDefault(languageBindingRegistryModuleRaw);
 const javascriptBindingModule = interopDefault(javascriptBindingModuleRaw);
 const packageLoaderModule = interopDefault(packageLoaderModuleRaw);
+const expressionBlockModule = interopDefault(expressionBlockModuleRaw);
 
 const { FuncScriptParser } = parserModule;
 const { MapDataProvider, FsDataProvider, KvcProvider } = dataProviders;
@@ -39,6 +41,7 @@ const { assertTyped, normalize, makeValue, typeOf, valueOf, typedNull, expectTyp
 const { registerLanguageBinding, tryGetLanguageBinding, clearLanguageBindings } = languageBindingRegistry;
 const { ensureJavaScriptLanguageBinding } = javascriptBindingModule;
 const { createPackageLoader } = packageLoaderModule;
+const { nextCacheToken } = expressionBlockModule;
 const { FSDataType, getTypeName } = fstypesModule;
 const { CallType, BaseFunction, ParameterList } = functionBaseModule;
 const { ExpressionFunction } = expressionFunctionModule;
@@ -142,6 +145,9 @@ const test = createTestRunner({
 function evaluateExpression(expression, provider, traceState) {
   const source = expression == null ? '' : String(expression);
   attachExpressionSource(provider, source);
+  if (provider && typeof provider === 'object') {
+    provider.__fsCacheToken = nextCacheToken();
+  }
   if (traceState) {
     traceState.expression = source;
     attachTraceState(provider, traceState);
@@ -215,6 +221,9 @@ function createCachedEvaluateExpression(parseCache) {
   return function evaluateExpressionCached(expression, provider, traceState) {
     const source = expression == null ? '' : String(expression);
     attachExpressionSource(provider, source);
+    if (provider && typeof provider === 'object') {
+      provider.__fsCacheToken = nextCacheToken();
+    }
     if (traceState) {
       traceState.expression = source;
       attachTraceState(provider, traceState);

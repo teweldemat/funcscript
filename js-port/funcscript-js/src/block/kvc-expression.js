@@ -9,6 +9,7 @@ class KvcExpressionCollection extends KeyValueCollection {
     this.expression = expression;
     this.cache = new Map();
     this.evaluating = new Set();
+    this.__fsCacheToken = parent && parent.__fsCacheToken != null ? parent.__fsCacheToken : null;
   }
 
   get(name) {

@@ -9,6 +9,7 @@ const { KeyValueCollection, SimpleKeyValueCollection } = require('./model/key-va
 const { FsError } = require('./model/fs-error');
 const buildBuiltinMap = require('./funcs');
 const { ReferenceBlock } = require('./block/reference-block');
+const { nextCacheToken } = require('./block/expression-block');
 const { FunctionCallExpression } = require('./block/function-call-expression');
 const {
   registerLanguageBinding,
@@ -203,6 +204,9 @@ const test = createTestRunner({
 function evaluateExpression(expression, provider, traceState) {
   const source = expression == null ? '' : String(expression);
   attachExpressionSource(provider, source);
+  if (provider && typeof provider === 'object') {
+    provider.__fsCacheToken = nextCacheToken();
+  }
   if (traceState) {
     traceState.expression = source;
     attachTraceState(provider, traceState);
@@ -486,6 +490,9 @@ function createCachedEvaluateExpression(parseCache) {
   return function evaluateExpressionCached(expression, provider, traceState) {
     const source = expression == null ? '' : String(expression);
     attachExpressionSource(provider, source);
+    if (provider && typeof provider === 'object') {
+      provider.__fsCacheToken = nextCacheToken();
+    }
     if (traceState) {
       traceState.expression = source;
       attachTraceState(provider, traceState);

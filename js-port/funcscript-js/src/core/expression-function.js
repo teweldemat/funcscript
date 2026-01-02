@@ -1,6 +1,7 @@
 const { BaseFunction, CallType } = require('./function-base');
 const { KvcProvider, FsDataProvider } = require('./data-provider');
 const { assertTyped } = require('./value');
+const { nextCacheToken } = require('../block/expression-block');
 
 class ParameterProvider extends FsDataProvider {
   constructor(expressionFunction, parentProvider, parameterList) {
@@ -58,6 +59,7 @@ class ExpressionFunction extends BaseFunction {
     }
     const parentChain = new KvcProvider(this.context, provider);
     const parameterProvider = new ParameterProvider(this, parentChain, parameterList);
+    parameterProvider.__fsCacheToken = nextCacheToken();
     const traceState = this.context && this.context.__fsTrace ? this.context.__fsTrace : null;
     if (traceState) {
       if (!parentChain.__fsTrace) {

@@ -13,6 +13,7 @@
     <mapping directory="$PROJECT_DIR$/../../fft_nn" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../../fmm" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/.." vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../funcdraw-share" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../../funcscript-1" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../../intaps-erp" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../../intaps-website" vcs="Git" />

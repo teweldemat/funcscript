@@ -183,16 +183,27 @@ function ensureResolver(resolver) {
       (resolvedTraceHook && resolvedTraceHook.__fsStepInto) ||
       (resolvedEntryHook && resolvedEntryHook.__fsStepInto)
     );
+    const profileBlocks = Boolean(
+      (resolvedTraceHook && resolvedTraceHook.__fsProfileBlocks) ||
+      (resolvedEntryHook && resolvedEntryHook.__fsProfileBlocks)
+    );
+    const blockProfile = profileBlocks
+      ? (resolvedTraceHook && resolvedTraceHook.__fsBlockProfile) ||
+        (resolvedEntryHook && resolvedEntryHook.__fsBlockProfile) ||
+        { totalMs: 0, totalCount: 0, byType: {} }
+      : null;
 
-    const traceState = stepInto
+    const traceState = stepInto || profileBlocks
       ? {
-          entryHook: resolvedEntryHook
+          entryHook: stepInto && resolvedEntryHook
             ? (info) => resolvedEntryHook(pathString, info)
             : null,
-          hook: resolvedTraceHook
+          hook: stepInto && resolvedTraceHook
             ? (result, info, entryState) => resolvedTraceHook(pathString, info, entryState)
             : null,
-          logToConsole: false
+          logToConsole: false,
+          blockProfile,
+          path: pathString
         }
       : null;
 

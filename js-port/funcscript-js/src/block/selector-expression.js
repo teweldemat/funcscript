@@ -1,4 +1,4 @@
-const { ExpressionBlock } = require('./expression-block');
+const { ExpressionBlock, nextCacheToken } = require('./expression-block');
 const { FsDataProvider } = require('../core/data-provider');
 const { assertTyped, typeOf, valueOf, makeValue, typedNull } = require('../core/value');
 const { FSDataType } = require('../core/fstypes');
@@ -56,6 +56,7 @@ class SelectorExpression extends ExpressionBlock {
       for (let i = 0; i < list.length; i += 1) {
         const item = list.get(i) ?? typedNull();
         const selectorProvider = new SelectorProvider(provider);
+        selectorProvider.__fsCacheToken = nextCacheToken();
         selectorProvider.setSource(item);
         const result = assertTyped(this.Selector.evaluate(selectorProvider));
         results.push(result);
@@ -64,6 +65,7 @@ class SelectorExpression extends ExpressionBlock {
     }
 
     const selectorProvider = new SelectorProvider(provider);
+    selectorProvider.__fsCacheToken = nextCacheToken();
     selectorProvider.setSource(sourceTyped);
     return assertTyped(this.Selector.evaluate(selectorProvider));
   }

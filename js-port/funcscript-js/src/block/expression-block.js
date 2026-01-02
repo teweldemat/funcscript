@@ -3,9 +3,22 @@ const { FSDataType } = require('../core/fstypes');
 const { FsError } = require('../model/fs-error');
 
 const DEFAULT_CODE_LOCATION = Object.freeze({ Position: 0, Length: 0 });
-const MAX_EVALUATION_DEPTH = 2048;
+const MAX_EVALUATION_DEPTH = 1024;
 let currentEvaluationDepth = 0;
 const MAX_SNIPPET_LENGTH = 200;
+let cacheTokenCounter = 1;
+
+function now() {
+  if (typeof performance !== 'undefined' && performance && typeof performance.now === 'function') {
+    return performance.now();
+  }
+  return Date.now();
+}
+
+function nextCacheToken() {
+  cacheTokenCounter += 1;
+  return cacheTokenCounter;
+}
 
 function createDepthOverflowValue() {
   const errorMessage = `Maximum evaluation depth of ${MAX_EVALUATION_DEPTH} exceeded.`;
@@ -50,6 +63,60 @@ function getTraceState(provider) {
     current = current.parent || current.ParentProvider || null;
   }
   return null;
+}
+
+function ensureBlockProfile(traceState) {
+  if (!traceState || !traceState.blockProfile) {
+    return null;
+  }
+  const profile = traceState.blockProfile;
+  if (!profile.byType || typeof profile.byType !== 'object') {
+    profile.byType = {};
+  }
+  if (profile.byLocation && typeof profile.byLocation !== 'object') {
+    profile.byLocation = {};
+  }
+  if (profile.byLocation && !Number.isFinite(profile.locationCount)) {
+    profile.locationCount = 0;
+  }
+  if (!Number.isFinite(profile.totalMs)) {
+    profile.totalMs = 0;
+  }
+  if (!Number.isFinite(profile.totalCount)) {
+    profile.totalCount = 0;
+  }
+  return profile;
+}
+
+function recordBlockProfile(profile, block, elapsed) {
+  if (!profile) {
+    return;
+  }
+  const name = block && block.constructor && block.constructor.name ? block.constructor.name : 'ExpressionBlock';
+  const entry = profile.byType[name] || { count: 0, ms: 0 };
+  entry.count += 1;
+  entry.ms += elapsed;
+  profile.byType[name] = entry;
+  profile.totalCount += 1;
+  profile.totalMs += elapsed;
+}
+
+function recordLocationProfile(profile, traceState, block, elapsed) {
+  if (!profile || !profile.byLocation) {
+    return;
+  }
+  const path = traceState && traceState.path ? traceState.path : '';
+  const location = block && block.CodeLocation ? block.CodeLocation : DEFAULT_CODE_LOCATION;
+  const index = Number(location && location.Position !== undefined ? location.Position : block?.position ?? 0) || 0;
+  const key = `${path}:${index}`;
+  let entry = profile.byLocation[key];
+  if (!entry) {
+    entry = { count: 0, ms: 0, path, index };
+    profile.byLocation[key] = entry;
+    profile.locationCount += 1;
+  }
+  entry.count += 1;
+  entry.ms += elapsed;
 }
 
 function buildLineStarts(expression) {
@@ -148,6 +215,8 @@ function logTraceInfo(traceState, info) {
 class ExpressionBlock {
   constructor(position = 0, length = 0) {
     this._codeLocation = createCodeLocation(position, length);
+    this.__fsCachedToken = null;
+    this.__fsCachedValue = null;
   }
 
   get CodeLocation() {
@@ -176,12 +245,18 @@ class ExpressionBlock {
 
   evaluate(provider) {
     const previousDepth = currentEvaluationDepth;
-    const traceState = getTraceState(provider);
     currentEvaluationDepth += 1;
     try {
       if (currentEvaluationDepth > MAX_EVALUATION_DEPTH) {
         return createDepthOverflowValue();
       }
+      const cacheToken = provider && provider.__fsCacheToken != null ? provider.__fsCacheToken : null;
+      if (cacheToken !== null && this.__fsCachedToken === cacheToken) {
+        return this.__fsCachedValue;
+      }
+      const traceState = getTraceState(provider);
+      const blockProfile = ensureBlockProfile(traceState);
+      const evalStart = blockProfile ? now() : 0;
       const entryInfo =
         traceState && typeof traceState.entryHook === 'function'
           ? buildTraceInfo(traceState, this, null)
@@ -193,6 +268,16 @@ class ExpressionBlock {
 
       const result = this.evaluateInternal(provider);
       const typedResult = assertTyped(result, 'Expression blocks must return typed values');
+
+      if (cacheToken !== null) {
+        this.__fsCachedValue = typedResult;
+        this.__fsCachedToken = cacheToken;
+      }
+      if (blockProfile) {
+        const elapsed = now() - evalStart;
+        recordBlockProfile(blockProfile, this, elapsed);
+        recordLocationProfile(blockProfile, traceState, this, elapsed);
+      }
 
       if (traceState) {
         const info = buildTraceInfo(traceState, this, typedResult);
@@ -213,6 +298,25 @@ class ExpressionBlock {
     throw new Error('ExpressionBlock.evaluateInternal not implemented');
   }
 
+  resetCache(visited) {
+    const seen = visited || new Set();
+    if (seen.has(this)) {
+      return;
+    }
+    seen.add(this);
+    this.__fsCachedToken = null;
+    this.__fsCachedValue = null;
+    const children = this.getChilds();
+    if (!Array.isArray(children)) {
+      return;
+    }
+    for (const child of children) {
+      if (child && typeof child.resetCache === 'function') {
+        child.resetCache(seen);
+      }
+    }
+  }
+
   getChilds() {
     return [];
   }
@@ -225,5 +329,6 @@ class ExpressionBlock {
 module.exports = {
   MAX_EVALUATION_DEPTH,
   ExpressionBlock,
-  createDepthOverflowValue
+  createDepthOverflowValue,
+  nextCacheToken
 };

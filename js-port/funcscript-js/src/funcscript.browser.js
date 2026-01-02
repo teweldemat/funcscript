@@ -17,6 +17,7 @@ const {
 } = require('./core/language-binding-registry');
 const { ensureJavaScriptLanguageBinding } = require('./bindings/javascript-language-binding');
 const { createPackageLoader } = require('./core/package-loader');
+const { nextCacheToken } = require('./block/expression-block');
 
 const { MapDataProvider, FsDataProvider, KvcProvider } = dataProviders;
 const { assertTyped, normalize, makeValue, typeOf, valueOf, typedNull, expectType, convertToCommonNumericType } =
@@ -117,6 +118,9 @@ const test = createTestRunner({
 function evaluateExpression(expression, provider, traceState) {
   const source = expression == null ? '' : String(expression);
   attachExpressionSource(provider, source);
+  if (provider && typeof provider === 'object') {
+    provider.__fsCacheToken = nextCacheToken();
+  }
   if (traceState) {
     traceState.expression = source;
     attachTraceState(provider, traceState);
@@ -190,6 +194,9 @@ function createCachedEvaluateExpression(parseCache) {
   return function evaluateExpressionCached(expression, provider, traceState) {
     const source = expression == null ? '' : String(expression);
     attachExpressionSource(provider, source);
+    if (provider && typeof provider === 'object') {
+      provider.__fsCacheToken = nextCacheToken();
+    }
     if (traceState) {
       traceState.expression = source;
       attachTraceState(provider, traceState);
