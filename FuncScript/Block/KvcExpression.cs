@@ -18,6 +18,7 @@ namespace FuncScript.Block
             private readonly KvcExpression thisKvc;
             protected DepthCounter _depth;
             private readonly Dictionary<string, object> _evaluatedValues = new Dictionary<string, object>(StringComparer.Ordinal);
+            private readonly HashSet<string> _evaluatingKeys = new HashSet<string>(StringComparer.Ordinal);
             public KvcExpressionCollection(KeyValueCollection provider, KvcExpression thisKvc,DepthCounter depth)
             {
                 this.provider = provider;
@@ -34,7 +35,11 @@ namespace FuncScript.Block
 
                 var lookupKey = key.ToLower();
                 if (thisKvc.index.TryGetValue(lookupKey, out var exp) && exp.ValueExpression != null)
+                {
+                    if (_evaluatingKeys.Contains(lookupKey) && ParentProvider != null)
+                        return ParentProvider.Get(key);
                     return EvaluateKeyValue(exp);
+                }
 
                 if (ParentProvider != null)
                     return ParentProvider.Get(key);
@@ -96,13 +101,25 @@ namespace FuncScript.Block
                 if (!string.IsNullOrEmpty(cacheKey) && _evaluatedValues.TryGetValue(cacheKey, out var cached))
                     return cached;
 
-                var block = expression.ValueExpression;
-                var value = block?.Evaluate(this, _depth);
-
+                var added = false;
                 if (!string.IsNullOrEmpty(cacheKey))
-                    _evaluatedValues[cacheKey] = value;
+                    added = _evaluatingKeys.Add(cacheKey);
 
-                return value;
+                try
+                {
+                    var block = expression.ValueExpression;
+                    var value = block?.Evaluate(this, _depth);
+
+                    if (!string.IsNullOrEmpty(cacheKey))
+                        _evaluatedValues[cacheKey] = value;
+
+                    return value;
+                }
+                finally
+                {
+                    if (added)
+                        _evaluatingKeys.Remove(cacheKey);
+                }
             }
         }
         public class KeyValueExpression

@@ -36,6 +36,16 @@ describe('KvcTests', () => {
     expect(toPlain(result)).to.equal(15);
   });
 
+  it('resolves eval projection', () => {
+    const result = evaluate('{x:4;y:5; eval {x,y}}', provider);
+    expect(toPlain(result)).to.deep.equal({ x: 4, y: 5 });
+  });
+
+  it('resolves eval projection with expressions', () => {
+    const result = evaluate('{x:4;y:5; eval {x:x+2,y}}', provider);
+    expect(toPlain(result)).to.deep.equal({ x: 6, y: 5 });
+  });
+
   it('selector expression keeps references', () => {
     const result = evaluate('{a:4,b:5,c:6}{a,c}', provider);
     expect(toPlain(result)).to.deep.equal({ a: 4, c: 6 });

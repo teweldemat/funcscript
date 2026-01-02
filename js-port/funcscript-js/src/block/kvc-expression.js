@@ -22,6 +22,9 @@ class KvcExpressionCollection extends KeyValueCollection {
       return this.cache.get(lower);
     }
     if (this.evaluating.has(lower)) {
+      if (this.parent) {
+        return this.parent.get(name);
+      }
       const overflowValue = createDepthOverflowValue();
       this.cache.set(lower, overflowValue);
       return overflowValue;

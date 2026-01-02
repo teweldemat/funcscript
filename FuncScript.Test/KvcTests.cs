@@ -59,6 +59,24 @@ namespace FuncScript.Test
         }
 
         [Test]
+        public void TestKvcEvalProjection()
+        {
+            var g = new DefaultFsDataProvider();
+            var res = FuncScriptRuntime.Evaluate(g, "{x:4;y:5; eval {x,y}}");
+            var expected = new ObjectKvc(new { x = 4, y = 5 });
+            Assert.AreEqual(FuncScriptRuntime.FormatToJson(expected), FuncScriptRuntime.FormatToJson(res));
+        }
+
+        [Test]
+        public void TestKvcEvalProjectionWithExpression()
+        {
+            var g = new DefaultFsDataProvider();
+            var res = FuncScriptRuntime.Evaluate(g, "{x:4;y:5; eval {x:x+2,y}}");
+            var expected = new ObjectKvc(new { x = 6, y = 5 });
+            Assert.AreEqual(FuncScriptRuntime.FormatToJson(expected), FuncScriptRuntime.FormatToJson(res));
+        }
+
+        [Test]
         public void NestedEvalDoesNotLeakOuterMembers()
         {
             var exp =

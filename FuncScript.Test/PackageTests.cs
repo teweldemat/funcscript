@@ -18,6 +18,15 @@ namespace FuncScript.Test
     [TestFixture]
     public class PackageTests
     {
+        private static object LoadPackage(
+            IFsPackageResolver resolver,
+            KeyValueCollection provider = null,
+            PackageLoader.PackageLoaderTraceDelegate trace = null,
+            PackageLoader.PackageLoaderEntryTraceDelegate entryTrace = null)
+        {
+            return PackageLoader.LoadPackage(resolver, provider, trace, entryTrace).Evaluate();
+        }
+
         [Test]
         public void LoadPackage_ReturnsNestedValues()
         {
@@ -31,7 +40,7 @@ namespace FuncScript.Test
                 eval = "constants.tau"
             });
 
-            var result = PackageLoader.LoadPackage(resolver).Evaluate();
+            var result = LoadPackage(resolver);
             Assert.That(result, Is.TypeOf<double>());
             Assert.That((double)result, Is.EqualTo(6.28).Within(0.01));
         }
@@ -44,7 +53,7 @@ namespace FuncScript.Test
                 eval = "5"
             });
 
-            var result = PackageLoader.LoadPackage(resolver).Evaluate();
+            var result = LoadPackage(resolver);
             Assert.That(result, Is.EqualTo(5));
         }
 
@@ -57,7 +66,7 @@ namespace FuncScript.Test
                 y = "2"
             });
 
-            var result = PackageLoader.LoadPackage(resolver).Evaluate();
+            var result = LoadPackage(resolver);
             Assert.That(result, Is.InstanceOf<KeyValueCollection>());
 
             var kvc = (KeyValueCollection)result;
@@ -79,10 +88,10 @@ namespace FuncScript.Test
                 eval = "y+1"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) =>
+            var result = LoadPackage(resolver, trace: (path, info, entryState) =>
             {
                 traces.Add((path, info));
-            }).Evaluate();
+            });
 
             foreach (var trace in traces)
             {
@@ -105,10 +114,10 @@ namespace FuncScript.Test
                 eval = "{theOne,theTwo}"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) =>
+            var result = LoadPackage(resolver, trace: (path, info, entryState) =>
             {
                 traces.Add((path, info));
-            }).Evaluate();
+            });
 
             var kvc=result as KeyValueCollection;
             Assert.NotNull(kvc);
@@ -126,10 +135,10 @@ namespace FuncScript.Test
                 y = "1+1"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) =>
+            var result = LoadPackage(resolver, trace: (path, info, entryState) =>
             {
                 traces.Add((path, info));
-            }).Evaluate();
+            });
 
             Assert.That(result, Is.InstanceOf<KeyValueCollection>());
             Assert.That(traces, Is.Empty);
@@ -160,7 +169,7 @@ namespace FuncScript.Test
                 eval = "3+x"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); }).Evaluate();
+            var result = LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); });
 
             
             foreach (var trace in traces)
@@ -188,7 +197,7 @@ namespace FuncScript.Test
                 eval = "3+h.f"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); }).Evaluate();
+            var result = LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); });
 
             
             foreach (var trace in traces)
@@ -215,7 +224,7 @@ namespace FuncScript.Test
                 eval = "3+h.f(-4)"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); }).Evaluate();
+            var result = LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); });
 
             
             foreach (var trace in traces)
@@ -249,7 +258,7 @@ namespace FuncScript.Test
                 eval = "squareFn(3)"
             }, imports);
 
-            var result = PackageLoader.LoadPackage(resolver).Evaluate();
+            var result = LoadPackage(resolver);
             Assert.That(result, Is.Not.InstanceOf<FsError>(), "lib.square should resolve and evaluate");
             Assert.That(result, Is.EqualTo(4));
         }
@@ -278,7 +287,7 @@ namespace FuncScript.Test
                 eval = @"package(""lib"").bugexp.piOverTwo"
             }, imports);
 
-            var result = PackageLoader.LoadPackage(resolver).Evaluate();
+            var result = LoadPackage(resolver);
 
             Assert.That(result, Is.Null, "Expected hidden intermediate member to be null");
         }
@@ -301,7 +310,7 @@ namespace FuncScript.Test
                 squareFn = "lib.square"
             }, imports);
 
-            var package = PackageLoader.LoadPackage(resolver, new DefaultFsDataProvider(),(p, info, _) =>
+            var package = LoadPackage(resolver, new DefaultFsDataProvider(),(p, info, _) =>
             {
                 Console.WriteLine("Exit :"+info.Snippet);
                 if(info.Result is string or FsError or int)
@@ -316,7 +325,7 @@ namespace FuncScript.Test
             {
                 Console.WriteLine("Entry :"+info.Snippet);
                 return null;
-            }).Evaluate();
+            });
             Assert.That(package, Is.InstanceOf<KeyValueCollection>(), "Root package should be a KVC");
 
             var kvc = (KeyValueCollection)package;
@@ -347,7 +356,7 @@ namespace FuncScript.Test
                 eval = "lib.f(0)"
             }, imports);
 
-            var package = PackageLoader.LoadPackage(resolver, new DefaultFsDataProvider(),(p, info, _) =>
+            var package = LoadPackage(resolver, new DefaultFsDataProvider(),(p, info, _) =>
             {
                 Console.WriteLine("Exit :"+info.Snippet);
                 if(info.Result is string or FsError or int)
@@ -362,7 +371,7 @@ namespace FuncScript.Test
             {
                 Console.WriteLine("Entry :"+info.Snippet);
                 return null;
-            }).Evaluate();
+            });
 
             Assert.That(package,Is.EqualTo(Math.Sin(1)).Within(1e-6));
         }
@@ -402,7 +411,7 @@ namespace FuncScript.Test
 }"
             }, imports);
 
-            var root = PackageLoader.LoadPackage(resolver).Evaluate();
+            var root = LoadPackage(resolver);
             Assert.That(root, Is.InstanceOf<KeyValueCollection>(), "Root package should be a KVC");
 
             var rootKvc = (KeyValueCollection)root;
@@ -442,7 +451,7 @@ namespace FuncScript.Test
                 eval = "h.g+h.f"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); }).Evaluate();
+            var result = LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); });
 
 
             foreach (var trace in traces)
@@ -473,7 +482,7 @@ namespace FuncScript.Test
                 eval = "h.g+h.f"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); }).Evaluate();
+            var result = LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); });
 
 
             foreach (var trace in traces)
@@ -503,7 +512,7 @@ namespace FuncScript.Test
                 eval = "2+h.f(1)"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); }).Evaluate();
+            var result = LoadPackage(resolver, trace: (path, info, entryState) => { traces.Add((path, info)); });
 
 
             foreach (var trace in traces)
@@ -534,7 +543,7 @@ namespace FuncScript.Test
                 eval = "1+2"
             });
 
-            var result = PackageLoader.LoadPackage(
+            var result = LoadPackage(
                 resolver,
                 trace: (path, info, entryState) =>
                 {
@@ -545,7 +554,7 @@ namespace FuncScript.Test
                     var state = (path, info?.Snippet);
                     entries.Add(state);
                     return state;
-                }).Evaluate();
+                });
 
             Assert.That(result, Is.EqualTo(3));
             Assert.That(entries, Is.Not.Empty);
@@ -566,7 +575,7 @@ namespace FuncScript.Test
                 eval = "left+right"
             });
 
-            var result = PackageLoader.LoadPackage(
+            var result = LoadPackage(
                 resolver,
                 trace: (path, info, entryState) =>
                 {
@@ -581,7 +590,7 @@ namespace FuncScript.Test
                     var node = new TraceNode { Path = path, Snippet = info?.Snippet ?? string.Empty };
                     stack.Push(node);
                     return node;
-                }).Evaluate();
+                });
             
             stack.Pop();
             
@@ -614,7 +623,7 @@ namespace FuncScript.Test
                 eval = "right+left"
             });
 
-            var result = PackageLoader.LoadPackage(
+            var result = LoadPackage(
                 resolver,
                 trace: (path, info, entryState) =>
                 {
@@ -629,7 +638,7 @@ namespace FuncScript.Test
                     var node = new TraceNode { Path = path, Snippet = info?.Snippet ?? string.Empty };
                     stack.Push(node);
                     return node;
-                }).Evaluate();
+                });
             
             stack.Pop();
             
@@ -660,7 +669,7 @@ namespace FuncScript.Test
                 eval = "3+constants.x"
             });
 
-            var result = PackageLoader.LoadPackage(
+            var result = LoadPackage(
                 resolver,
                 trace: (path, info, entryState) =>
                 {
@@ -675,7 +684,7 @@ namespace FuncScript.Test
                     var node = new TraceNode { Path = path, Snippet = info?.Snippet ?? string.Empty };
                     stack.Push(node);
                     return node;
-                }).Evaluate();
+                });
             
             stack.Pop();
             
@@ -717,7 +726,7 @@ namespace FuncScript.Test
                 eval = "\"this is a \" + helpers.z+ f\"\\n{constants.c1}\""
             });
 
-            var result = PackageLoader.LoadPackage(
+            var result = LoadPackage(
                 resolver,
                 trace: (path, info, entryState) =>
                 {
@@ -732,7 +741,7 @@ namespace FuncScript.Test
                     var node = new TraceNode { Path = path, Snippet = info?.Snippet ?? string.Empty, Result = info?.Result };
                     stack.Push(node);
                     return node;
-                }).Evaluate();
+                });
 
            
 
@@ -763,7 +772,7 @@ namespace FuncScript.Test
                 eval = "f(5.6)"
             });
 
-            var result = PackageLoader.LoadPackage(
+            var result = LoadPackage(
                 resolver,
                 trace: (path, info, entryState) =>
                 {
@@ -778,7 +787,7 @@ namespace FuncScript.Test
                     var node = new TraceNode { Path = path, Snippet = info?.Snippet ?? string.Empty, Result = info?.Result };
                     stack.Push(node);
                     return node;
-                }).Evaluate();
+                });
 
            
             stack.Pop();
@@ -826,10 +835,10 @@ namespace FuncScript.Test
                 eval = "1+\n{"
             });
 
-            var result = PackageLoader.LoadPackage(resolver, trace: (path, info, entryState) =>
+            var result = LoadPackage(resolver, trace: (path, info, entryState) =>
             {
                 traces.Add((path, info));
-            }).Evaluate();
+            });
 
             Assert.That(result, Is.InstanceOf<FsError>());
             Assert.That(traces, Is.Not.Empty);
@@ -866,7 +875,7 @@ namespace FuncScript.Test
                 eval = "total"
             }, imports);
 
-            var result = PackageLoader.LoadPackage(resolver).Evaluate();
+            var result = LoadPackage(resolver);
             Assert.That(result, Is.TypeOf<double>());
             Assert.That((double)result, Is.EqualTo(50).Within(0.01));
         }
@@ -884,7 +893,7 @@ namespace FuncScript.Test
                 eval = "consumer"
             });
 
-            var result = PackageLoader.LoadPackage(resolver).Evaluate();
+            var result = LoadPackage(resolver);
             Assert.That(result, Is.TypeOf<int>());
             Assert.That((int)result, Is.EqualTo(42));
         }
@@ -1300,7 +1309,7 @@ return coord[0] * 2;
                 eval = "cartoon.stickman.leg"
             });
 
-            var result = PackageLoader.LoadPackage(resolver).Evaluate();
+            var result = LoadPackage(resolver);
             Assert.That(result, Is.TypeOf<double>());
             Assert.That((double)result, Is.EqualTo(42).Within(0.0001));
         }
