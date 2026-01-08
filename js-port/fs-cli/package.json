@@ -18,6 +18,6 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@tewelde/funcscript": "^0.2.50"
+    "@tewelde/funcscript": "file:../funcscript-js"
   }
 }
