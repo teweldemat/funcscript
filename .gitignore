@@ -287,6 +287,10 @@ node_modules/
 site/
 public/
 
+# Rust
+**/target/
+**/*.rs.bk
+
 # Visual Studio 6 build log
 *.plg
 
