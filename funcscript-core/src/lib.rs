@@ -3,6 +3,7 @@
 pub mod chunk;
 pub mod compiler;
 pub mod ffi;
+pub mod host;
 pub mod native;
 pub mod obj;
 pub mod scanner;

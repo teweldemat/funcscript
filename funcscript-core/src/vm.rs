@@ -6,12 +6,15 @@
 //! - Many operations return `Value::Error` instead of panicking to keep scripts safe.
 
 use crate::chunk::OpCode;
-use crate::value::Value;
+use crate::value::{FsError, Value};
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
+use base64::{engine::general_purpose, Engine as _};
 
 #[derive(Debug)]
 pub enum InterpretResult {
-    CompileError,
-    RuntimeError,
+    CompileError(FsError),
+    RuntimeError(FsError),
 }
 
 use std::collections::HashMap;
@@ -41,6 +44,8 @@ pub struct VM {
     stack: Vec<Value>,
     globals: HashMap<String, Value>,
     providers: Vec<Value>,
+    values: Vec<Option<Value>>,
+    free_value_ids: Vec<u64>,
 }
 
 impl VM {
@@ -53,7 +58,154 @@ impl VM {
             stack: Vec::with_capacity(STACK_MAX),
             globals,
             providers: Vec::new(),
+            values: Vec::new(),
+            free_value_ids: Vec::new(),
         }
+    }
+
+    pub fn store_value(&mut self, v: Value) -> u64 {
+        if let Some(id) = self.free_value_ids.pop() {
+            let idx = (id - 1) as usize;
+            if idx < self.values.len() {
+                self.values[idx] = Some(v);
+                return id;
+            }
+        }
+        self.values.push(Some(v));
+        self.values.len() as u64
+    }
+
+    pub fn get_value(&self, id: u64) -> Option<&Value> {
+        if id == 0 {
+            return None;
+        }
+        let idx = (id - 1) as usize;
+        self.values.get(idx).and_then(|v| v.as_ref())
+    }
+
+    pub fn clone_value(&self, id: u64) -> Option<Value> {
+        self.get_value(id).cloned()
+    }
+
+    pub fn free_value(&mut self, id: u64) -> bool {
+        if id == 0 {
+            return false;
+        }
+        let idx = (id - 1) as usize;
+        if idx >= self.values.len() {
+            return false;
+        }
+        if self.values[idx].take().is_some() {
+            self.free_value_ids.push(id);
+            return true;
+        }
+        false
+    }
+
+    pub fn call_value_direct(&mut self, callee: Value, args: Vec<Value>) -> Result<Value, InterpretResult> {
+        self.frames.clear();
+        self.stack.clear();
+        self.providers.clear();
+
+        self.stack.push(callee);
+        for a in args {
+            self.stack.push(a);
+        }
+
+        let arg_count = self.stack.len() - 1;
+        self.call_value(arg_count)?;
+        if self.frames.is_empty() {
+            return Ok(self.pop());
+        }
+        self.run()
+    }
+
+    pub fn value_get_prop(&mut self, receiver: &Value, key: &str) -> Value {
+        self.provider_get(receiver, key)
+    }
+
+    pub fn value_index(&mut self, receiver: &Value, index: i64) -> Value {
+        if let Value::Error(e) = receiver {
+            return Value::Error(e.clone());
+        }
+        match receiver {
+            Value::Obj(o) => match &**o {
+                Obj::List(items) => {
+                    if index < 0 {
+                        return Value::Nil;
+                    }
+                    items.get(index as usize).cloned().unwrap_or(Value::Nil)
+                }
+                Obj::Range(r) => {
+                    if index < 0 {
+                        return Value::Nil;
+                    }
+                    let idx = index as usize;
+                    if idx >= r.count {
+                        Value::Nil
+                    } else {
+                        Value::Int(r.start + idx as i64)
+                    }
+                }
+                Obj::Bytes(b) => {
+                    if index < 0 {
+                        return Value::Nil;
+                    }
+                    let idx = index as usize;
+                    if idx >= b.len() {
+                        Value::Nil
+                    } else {
+                        Value::Int(b[idx] as i64)
+                    }
+                }
+                Obj::Kvc(k) => {
+                    if index < 0 {
+                        return Value::Nil;
+                    }
+                    let idx = index as usize;
+                    let key_l = {
+                        let b = k.borrow();
+                        b.order.get(idx).cloned()
+                    };
+                    if let Some(key_l) = key_l {
+                        let display = {
+                            let b = k.borrow();
+                            b.display_names.get(&key_l).cloned().unwrap_or_else(|| key_l.clone())
+                        };
+                        self.kvc_get(Rc::clone(k), &key_l, &display)
+                    } else {
+                        Value::Nil
+                    }
+                }
+                _ => Value::Nil,
+            },
+            _ => Value::Nil,
+        }
+    }
+
+    pub fn value_len(&mut self, v: &Value) -> Value {
+        if let Value::Error(e) = v {
+            return Value::Error(e.clone());
+        }
+        match v {
+            Value::Obj(o) => match &**o {
+                Obj::String(s) => Value::Int(s.len() as i64),
+                Obj::List(l) => Value::Int(l.len() as i64),
+                Obj::Range(r) => Value::Int(r.count as i64),
+                Obj::Bytes(b) => Value::Int(b.len() as i64),
+                Obj::Kvc(k) => Value::Int(k.borrow().order.len() as i64),
+                _ => Value::Nil,
+            },
+            _ => Value::Nil,
+        }
+    }
+
+    pub fn kvc_keys(&self, k: Rc<RefCell<KvcObject>>) -> Vec<String> {
+        let b = k.borrow();
+        b.order
+            .iter()
+            .map(|key_l| b.display_names.get(key_l).cloned().unwrap_or_else(|| key_l.clone()))
+            .collect()
     }
 
     fn current_provider(&self) -> Option<Value> {
@@ -115,7 +267,30 @@ impl VM {
                         (Value::Nil, Value::Nil) => self.stack.push(Value::Nil),
                         (Value::Nil, other) => self.stack.push(other),
                         (other, Value::Nil) => self.stack.push(other),
-                        (Value::Number(a), Value::Number(b)) => self.stack.push(Value::Number(a + b)),
+                        (a, b) if VM::is_numeric(&a) && VM::is_numeric(&b) => {
+                            let v = self.numeric_add(a, b)?;
+                            self.stack.push(v);
+                        }
+                        (Value::Obj(a), b)
+                            if matches!(&*a, crate::obj::Obj::String(_)) && VM::is_numeric(&b) =>
+                        {
+                            let s1 = match &*a {
+                                crate::obj::Obj::String(s) => s,
+                                _ => unreachable!(),
+                            };
+                            let s = format!("{s1}{b}");
+                            self.stack.push(Value::Obj(Rc::new(Obj::String(s))));
+                        }
+                        (a, Value::Obj(b))
+                            if matches!(&*b, crate::obj::Obj::String(_)) && VM::is_numeric(&a) =>
+                        {
+                            let s2 = match &*b {
+                                crate::obj::Obj::String(s) => s,
+                                _ => unreachable!(),
+                            };
+                            let s = format!("{a}{s2}");
+                            self.stack.push(Value::Obj(Rc::new(Obj::String(s))));
+                        }
                         (Value::Obj(a), Value::Obj(b)) => {
                             match (&*a, &*b) {
                                 (crate::obj::Obj::String(s1), crate::obj::Obj::String(s2)) => {
@@ -145,20 +320,22 @@ impl VM {
                                     let merged = self.merge_kvc(Rc::clone(k1), Rc::clone(k2));
                                     self.stack.push(merged);
                                 }
-                                _ => return Err(InterpretResult::RuntimeError),
+                                _ => return Err(self.runtime_error()),
                             }
                         },
-                        _ => return Err(InterpretResult::RuntimeError),
+                        _ => return Err(self.runtime_error()),
                     }
                 }
-                OpCode::OpSubtract => self.binary_op(|a, b| a - b)?,
-                OpCode::OpMultiply => self.binary_op(|a, b| a * b)?,
-                OpCode::OpDivide => self.binary_op(|a, b| a / b)?,
+                OpCode::OpSubtract => self.numeric_subtract()?,
+                OpCode::OpMultiply => self.numeric_multiply()?,
+                OpCode::OpDivide => self.numeric_divide()?,
+                OpCode::OpIntDiv => self.numeric_int_divide()?,
+                OpCode::OpModulo => self.numeric_modulo()?,
+                OpCode::OpPow => self.numeric_pow()?,
                 OpCode::OpNegate => {
-                     match self.pop() {
-                        Value::Number(n) => self.stack.push(Value::Number(-n)),
-                         _ => return Err(InterpretResult::RuntimeError),
-                    }
+                    let popped = self.pop();
+                    let v = self.numeric_negate(popped)?;
+                    self.stack.push(v);
                 }
                 OpCode::OpJump(offset) => {
                     self.frames[frame_idx].ip += offset;
@@ -169,6 +346,12 @@ impl VM {
                          self.frames[frame_idx].ip += offset;
                      }
                 }
+                OpCode::OpJumpIfNil(offset) => {
+                    let v = self.peek(0);
+                    if matches!(v, Value::Nil) {
+                        self.frames[frame_idx].ip += offset;
+                    }
+                }
                 OpCode::OpPop => {
                     self.pop();
                 }
@@ -178,14 +361,19 @@ impl VM {
             }
             OpCode::OpSwap => {
                 if self.stack.len() < 2 {
-                    return Err(InterpretResult::RuntimeError);
+                    return Err(self.runtime_error());
                 }
                 let len = self.stack.len();
                 self.stack.swap(len - 1, len - 2);
             }
                 OpCode::OpNot => {
                     let value = self.pop();
-                    self.stack.push(Value::Bool(self.is_falsey(&value)));
+                    match value {
+                        Value::Bool(b) => self.stack.push(Value::Bool(!b)),
+                        Value::Error(e) => self.stack.push(Value::Error(e)),
+                        Value::Nil => return Err(self.runtime_error_with(2011, "not: bool expected (got nil)")),
+                        _ => return Err(self.runtime_error_with(2011, "not: bool expected")),
+                    }
                 }
                 OpCode::OpEqual => {
                     let b = self.pop();
@@ -196,18 +384,14 @@ impl VM {
                 OpCode::OpGreater => {
                     let b = self.pop();
                     let a = self.pop();
-                    match (a, b) {
-                        (Value::Number(n1), Value::Number(n2)) => self.stack.push(Value::Bool(n1 > n2)),
-                        _ => return Err(InterpretResult::RuntimeError),
-                    }
+                    let gt = self.numeric_compare_gt(&a, &b)?;
+                    self.stack.push(Value::Bool(gt));
                 }
                 OpCode::OpLess => {
                     let b = self.pop();
                     let a = self.pop();
-                    match (a, b) {
-                        (Value::Number(n1), Value::Number(n2)) => self.stack.push(Value::Bool(n1 < n2)),
-                        _ => return Err(InterpretResult::RuntimeError),
-                    }
+                    let lt = self.numeric_compare_lt(&a, &b)?;
+                    self.stack.push(Value::Bool(lt));
                 }
                 OpCode::OpBuildList(count) => {
                     let start_idx = self.stack.len() - count;
@@ -226,17 +410,17 @@ impl VM {
                         let key = match key {
                             Value::Obj(o) => match &*o {
                                 Obj::String(s) => s.clone(),
-                                _ => return Err(InterpretResult::RuntimeError),
+                                _ => return Err(self.runtime_error()),
                             },
-                            _ => return Err(InterpretResult::RuntimeError),
+                            _ => return Err(self.runtime_error()),
                         };
 
                         let thunk = match thunk {
                             Value::Obj(o) => match &*o {
                                 Obj::Function(f) => Rc::clone(f),
-                                _ => return Err(InterpretResult::RuntimeError),
+                                _ => return Err(self.runtime_error()),
                             },
-                            _ => return Err(InterpretResult::RuntimeError),
+                            _ => return Err(self.runtime_error()),
                         };
 
                         let k = key.to_lowercase();
@@ -245,7 +429,38 @@ impl VM {
                         order.push(k);
                     }
 
-                    let parent = self.current_provider();
+                    
+                    let mut parent = self.current_provider();
+                    if !self.frames.is_empty() {
+                        let f = &self.frames[frame_idx].function;
+                        let frame_slots = self.frames[frame_idx].slots;
+                        let mut cache: HashMap<String, Value> = HashMap::new();
+                        let mut scope_order: Vec<String> = Vec::new();
+                        let mut scope_display_names: HashMap<String, String> = HashMap::new();
+
+                        for (i, name) in f.slot_names.iter().enumerate() {
+                            if name.is_empty() { continue; }
+                            let stack_idx = frame_slots + i;
+                            if stack_idx >= self.stack.len() { continue; }
+                            let key_l = name.to_ascii_lowercase();
+                            if cache.contains_key(&key_l) { continue; }
+                            cache.insert(key_l.clone(), self.stack[stack_idx].clone());
+                            scope_order.push(key_l.clone());
+                            scope_display_names.insert(key_l, name.clone());
+                        }
+
+                        if !cache.is_empty() {
+                            let scope_kvc = KvcObject {
+                                entries: HashMap::new(),
+                                cache,
+                                evaluating: std::collections::HashSet::new(),
+                                parent,
+                                order: scope_order,
+                                display_names: scope_display_names,
+                            };
+                            parent = Some(Value::Obj(Rc::new(Obj::Kvc(Rc::new(RefCell::new(scope_kvc))))));
+                        }
+                    }
                     let kvc = KvcObject {
                         entries,
                         cache: HashMap::new(),
@@ -262,8 +477,8 @@ impl VM {
                          f.function.chunk.constants[idx].clone()
                      };
                      let name = if let Value::Obj(o) = name_val {
-                         if let crate::obj::Obj::String(s) = &*o { s.clone() } else { return Err(InterpretResult::RuntimeError); }
-                     } else { return Err(InterpretResult::RuntimeError); };
+                         if let crate::obj::Obj::String(s) = &*o { s.clone() } else { return Err(self.runtime_error()); }
+                     } else { return Err(self.runtime_error()); };
 
                      let receiver = self.peek(0);
                      let val = self.provider_get(&receiver, &name);
@@ -280,16 +495,31 @@ impl VM {
                         return Ok(None);
                     }
 
+                    let arity = match &fn_val {
+                        Value::Obj(o) => match &**o {
+                            Obj::Function(f) => f.arity,
+                            Obj::NativeFn(_) => 2,
+                            _ => return Err(self.runtime_error()),
+                        },
+                        _ => return Err(self.runtime_error()),
+                    };
+                    if arity != 1 && arity != 2 {
+                        return Err(self.runtime_error_with(2015, "map: expected function of arity 1 or 2"));
+                    }
+
                     let mut out: Vec<Value> = Vec::new();
                     match &list_val {
                         Value::Obj(o) => match &**o {
                             Obj::List(items) => {
                                 out.reserve(items.len());
-                                for item in items.iter().cloned() {
+                                for (i, item) in items.iter().cloned().enumerate() {
                                     let before = self.frames.len();
                                     self.stack.push(fn_val.clone());
                                     self.stack.push(item);
-                                    self.call_value(1)?;
+                                    if arity == 2 {
+                                        self.stack.push(Value::Int(i as i64));
+                                    }
+                                    self.call_value(arity)?;
                                     let v = if self.frames.len() > before {
                                         self.run_nested(before)?
                                     } else {
@@ -301,11 +531,14 @@ impl VM {
                             Obj::Range(r) => {
                                 out.reserve(r.count);
                                 for i in 0..r.count {
-                                    let item = Value::Number((r.start + i as i64) as f64);
+                                    let item = Value::Int(r.start + i as i64);
                                     let before = self.frames.len();
                                     self.stack.push(fn_val.clone());
                                     self.stack.push(item);
-                                    self.call_value(1)?;
+                                    if arity == 2 {
+                                        self.stack.push(Value::Int(i as i64));
+                                    }
+                                    self.call_value(arity)?;
                                     let v = if self.frames.len() > before {
                                         self.run_nested(before)?
                                     } else {
@@ -314,11 +547,303 @@ impl VM {
                                     out.push(v);
                                 }
                             }
-                            _ => return Err(InterpretResult::RuntimeError),
+                            _ => return Err(self.runtime_error()),
                         },
-                        _ => return Err(InterpretResult::RuntimeError),
+                        _ => return Err(self.runtime_error()),
                     }
                     self.stack.push(Value::Obj(Rc::new(Obj::List(out))));
+                }
+                OpCode::OpFilter => {
+                    let fn_val = self.pop();
+                    let list_val = self.pop();
+
+                    if matches!(list_val, Value::Nil) {
+                        self.stack.push(Value::Nil);
+                        return Ok(None);
+                    }
+
+                    let arity = match &fn_val {
+                        Value::Obj(o) => match &**o {
+                            Obj::Function(f) => f.arity,
+                            Obj::NativeFn(_) => 2,
+                            _ => return Err(self.runtime_error()),
+                        },
+                        _ => return Err(self.runtime_error()),
+                    };
+                    if arity != 1 && arity != 2 {
+                        return Err(self.runtime_error_with(2016, "filter: expected function of arity 1 or 2"));
+                    }
+
+                    let mut out: Vec<Value> = Vec::new();
+                    match &list_val {
+                        Value::Obj(o) => match &**o {
+                            Obj::List(items) => {
+                                for (i, item) in items.iter().cloned().enumerate() {
+                                    let before = self.frames.len();
+                                    self.stack.push(fn_val.clone());
+                                    self.stack.push(item.clone());
+                                    if arity == 2 {
+                                        self.stack.push(Value::Int(i as i64));
+                                    }
+                                    self.call_value(arity)?;
+                                    let pred = if self.frames.len() > before {
+                                        self.run_nested(before)?
+                                    } else {
+                                        self.pop()
+                                    };
+                                    if let Value::Error(e) = pred {
+                                        return Err(InterpretResult::RuntimeError(e));
+                                    }
+                                    if matches!(pred, Value::Bool(true)) {
+                                        out.push(item);
+                                    }
+                                }
+                            }
+                            Obj::Range(r) => {
+                                for i in 0..r.count {
+                                    let item = Value::Int(r.start + i as i64);
+                                    let before = self.frames.len();
+                                    self.stack.push(fn_val.clone());
+                                    self.stack.push(item.clone());
+                                    if arity == 2 {
+                                        self.stack.push(Value::Int(i as i64));
+                                    }
+                                    self.call_value(arity)?;
+                                    let pred = if self.frames.len() > before {
+                                        self.run_nested(before)?
+                                    } else {
+                                        self.pop()
+                                    };
+                                    if let Value::Error(e) = pred {
+                                        return Err(InterpretResult::RuntimeError(e));
+                                    }
+                                    if matches!(pred, Value::Bool(true)) {
+                                        out.push(item);
+                                    }
+                                }
+                            }
+                            _ => return Err(self.runtime_error()),
+                        },
+                        _ => return Err(self.runtime_error()),
+                    }
+                    self.stack.push(Value::Obj(Rc::new(Obj::List(out))));
+                }
+                OpCode::OpAny => {
+                    let fn_val = self.pop();
+                    let list_val = self.pop();
+
+                    if matches!(list_val, Value::Nil) {
+                        self.stack.push(Value::Bool(false));
+                        return Ok(None);
+                    }
+
+                    let arity = match &fn_val {
+                        Value::Obj(o) => match &**o {
+                            Obj::Function(f) => f.arity,
+                            Obj::NativeFn(_) => 2,
+                            _ => return Err(self.runtime_error()),
+                        },
+                        _ => return Err(self.runtime_error()),
+                    };
+                    if arity != 1 && arity != 2 {
+                        return Err(self.runtime_error_with(2017, "Any: expected function of arity 1 or 2"));
+                    }
+
+                    let mut any = false;
+                    match &list_val {
+                        Value::Obj(o) => match &**o {
+                            Obj::List(items) => {
+                                for (i, item) in items.iter().cloned().enumerate() {
+                                    let before = self.frames.len();
+                                    self.stack.push(fn_val.clone());
+                                    self.stack.push(item);
+                                    if arity == 2 {
+                                        self.stack.push(Value::Int(i as i64));
+                                    }
+                                    self.call_value(arity)?;
+                                    let pred = if self.frames.len() > before {
+                                        self.run_nested(before)?
+                                    } else {
+                                        self.pop()
+                                    };
+                                    if let Value::Error(e) = pred {
+                                        return Err(InterpretResult::RuntimeError(e));
+                                    }
+                                    if matches!(pred, Value::Bool(true)) {
+                                        any = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            Obj::Range(r) => {
+                                for i in 0..r.count {
+                                    let item = Value::Int(r.start + i as i64);
+                                    let before = self.frames.len();
+                                    self.stack.push(fn_val.clone());
+                                    self.stack.push(item);
+                                    if arity == 2 {
+                                        self.stack.push(Value::Int(i as i64));
+                                    }
+                                    self.call_value(arity)?;
+                                    let pred = if self.frames.len() > before {
+                                        self.run_nested(before)?
+                                    } else {
+                                        self.pop()
+                                    };
+                                    if let Value::Error(e) = pred {
+                                        return Err(InterpretResult::RuntimeError(e));
+                                    }
+                                    if matches!(pred, Value::Bool(true)) {
+                                        any = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            _ => return Err(self.runtime_error()),
+                        },
+                        _ => return Err(self.runtime_error()),
+                    }
+                    self.stack.push(Value::Bool(any));
+                }
+                OpCode::OpFirstWhere => {
+                    let fn_val = self.pop();
+                    let list_val = self.pop();
+
+                    if matches!(list_val, Value::Nil) {
+                        self.stack.push(Value::Nil);
+                        return Ok(None);
+                    }
+
+                    let arity = match &fn_val {
+                        Value::Obj(o) => match &**o {
+                            Obj::Function(f) => f.arity,
+                            Obj::NativeFn(_) => 2,
+                            _ => return Err(self.runtime_error()),
+                        },
+                        _ => return Err(self.runtime_error()),
+                    };
+                    if arity != 1 && arity != 2 {
+                        return Err(self.runtime_error_with(2018, "First: expected function of arity 1 or 2"));
+                    }
+
+                    let mut found: Option<Value> = None;
+                    match &list_val {
+                        Value::Obj(o) => match &**o {
+                            Obj::List(items) => {
+                                for (i, item) in items.iter().cloned().enumerate() {
+                                    let before = self.frames.len();
+                                    self.stack.push(fn_val.clone());
+                                    self.stack.push(item.clone());
+                                    if arity == 2 {
+                                        self.stack.push(Value::Int(i as i64));
+                                    }
+                                    self.call_value(arity)?;
+                                    let pred = if self.frames.len() > before {
+                                        self.run_nested(before)?
+                                    } else {
+                                        self.pop()
+                                    };
+                                    if let Value::Error(e) = pred {
+                                        return Err(InterpretResult::RuntimeError(e));
+                                    }
+                                    if matches!(pred, Value::Bool(true)) {
+                                        found = Some(item);
+                                        break;
+                                    }
+                                }
+                            }
+                            Obj::Range(r) => {
+                                for i in 0..r.count {
+                                    let item = Value::Int(r.start + i as i64);
+                                    let before = self.frames.len();
+                                    self.stack.push(fn_val.clone());
+                                    self.stack.push(item.clone());
+                                    if arity == 2 {
+                                        self.stack.push(Value::Int(i as i64));
+                                    }
+                                    self.call_value(arity)?;
+                                    let pred = if self.frames.len() > before {
+                                        self.run_nested(before)?
+                                    } else {
+                                        self.pop()
+                                    };
+                                    if let Value::Error(e) = pred {
+                                        return Err(InterpretResult::RuntimeError(e));
+                                    }
+                                    if matches!(pred, Value::Bool(true)) {
+                                        found = Some(item);
+                                        break;
+                                    }
+                                }
+                            }
+                            _ => return Err(self.runtime_error()),
+                        },
+                        _ => return Err(self.runtime_error()),
+                    }
+                    self.stack.push(found.unwrap_or(Value::Nil));
+                }
+                OpCode::OpSort => {
+                    let fn_val = self.pop();
+                    let list_val = self.pop();
+
+                    if matches!(list_val, Value::Nil) {
+                        self.stack.push(Value::Nil);
+                        return Ok(None);
+                    }
+
+                    let arity = match &fn_val {
+                        Value::Obj(o) => match &**o {
+                            Obj::Function(f) => f.arity,
+                            Obj::NativeFn(_) => 2,
+                            _ => return Err(self.runtime_error()),
+                        },
+                        _ => return Err(self.runtime_error()),
+                    };
+                    if arity != 2 {
+                        return Err(self.runtime_error_with(2019, "Sort: expected function of arity 2"));
+                    }
+
+                    let mut items: Vec<Value> = match &list_val {
+                        Value::Obj(o) => match &**o {
+                            Obj::List(items) => items.clone(),
+                            Obj::Range(r) => (0..r.count).map(|i| Value::Int(r.start + i as i64)).collect(),
+                            _ => return Err(self.runtime_error()),
+                        },
+                        _ => return Err(self.runtime_error()),
+                    };
+                    let mut cmp = |a: &Value, b: &Value| -> Result<std::cmp::Ordering, InterpretResult> {
+                        let before = self.frames.len();
+                        self.stack.push(fn_val.clone());
+                        self.stack.push(a.clone());
+                        self.stack.push(b.clone());
+                        self.call_value(2)?;
+                        let v = if self.frames.len() > before {
+                            self.run_nested(before)?
+                        } else {
+                            self.pop()
+                        };
+                        let sign = match v {
+                            Value::Int(i) => i,
+                            Value::BigInt(bi) => bi.to_i64().ok_or_else(|| self.runtime_error_with(2020, "Sort: comparator result out of range"))?,
+                            Value::Error(e) => return Err(InterpretResult::RuntimeError(e)),
+                            _ => return Err(self.runtime_error_with(2020, "Sort: comparator must return an integer")),
+                        };
+                        Ok(if sign < 0 { std::cmp::Ordering::Less } else if sign > 0 { std::cmp::Ordering::Greater } else { std::cmp::Ordering::Equal })
+                    };
+
+                    for i in 1..items.len() {
+                        let mut j = i;
+                        while j > 0 {
+                            let ord = cmp(&items[j - 1], &items[j])?;
+                            if ord == std::cmp::Ordering::Greater {
+                                items.swap(j - 1, j);
+                                j -= 1;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                    self.stack.push(Value::Obj(Rc::new(Obj::List(items))));
                 }
                 OpCode::OpReduce(has_seed) => {
                     let seed = if has_seed { Some(self.pop()) } else { None };
@@ -333,13 +858,13 @@ impl VM {
                     let arity = match &fn_val {
                         Value::Obj(o) => match &**o {
                             Obj::Function(f) => f.arity,
-                            Obj::NativeFn(_) => 2, // not expected
-                            _ => return Err(InterpretResult::RuntimeError),
+                            Obj::NativeFn(_) => 2,
+                            _ => return Err(self.runtime_error()),
                         },
-                        _ => return Err(InterpretResult::RuntimeError),
+                        _ => return Err(self.runtime_error()),
                     };
                     if arity != 2 && arity != 3 {
-                        return Err(InterpretResult::RuntimeError);
+                        return Err(self.runtime_error());
                     }
 
                     let mut total = seed.unwrap_or(Value::Nil);
@@ -352,7 +877,7 @@ impl VM {
                                     self.stack.push(total);
                                     self.stack.push(item);
                                     if arity == 3 {
-                                        self.stack.push(Value::Number(i as f64));
+                                        self.stack.push(Value::Int(i as i64));
                                     }
                                     self.call_value(arity)?;
                                     total = if self.frames.len() > before {
@@ -364,13 +889,13 @@ impl VM {
                             }
                             Obj::Range(r) => {
                                 for i in 0..r.count {
-                                    let item = Value::Number((r.start + i as i64) as f64);
+                                    let item = Value::Int(r.start + i as i64);
                                     let before = self.frames.len();
                                     self.stack.push(fn_val.clone());
                                     self.stack.push(total);
                                     self.stack.push(item);
                                     if arity == 3 {
-                                        self.stack.push(Value::Number(i as f64));
+                                        self.stack.push(Value::Int(i as i64));
                                     }
                                     self.call_value(arity)?;
                                     total = if self.frames.len() > before {
@@ -380,9 +905,9 @@ impl VM {
                                     };
                                 }
                             }
-                            _ => return Err(InterpretResult::RuntimeError),
+                            _ => return Err(self.runtime_error()),
                         },
-                        _ => return Err(InterpretResult::RuntimeError),
+                        _ => return Err(self.runtime_error()),
                     }
 
                     self.stack.push(total);
@@ -409,8 +934,9 @@ impl VM {
                          f.function.chunk.constants[idx].clone()
                      };
                      let name = if let Value::Obj(o) = name_val {
-                         if let crate::obj::Obj::String(s) = &*o { s.clone() } else { return Err(InterpretResult::RuntimeError); }
-                     } else { return Err(InterpretResult::RuntimeError); };
+                         if let crate::obj::Obj::String(s) = &*o { s.clone() } else { return Err(self.runtime_error()); }
+                     } else { return Err(self.runtime_error()); };
+                     let name_l = name.to_ascii_lowercase();
 
                      if let Some(p) = self.current_provider() {
                         if self.provider_is_defined(&p, &name) {
@@ -420,7 +946,7 @@ impl VM {
                         }
                      }
                      
-                     if let Some(val) = self.globals.get(&name) {
+                     if let Some(val) = self.globals.get(&name_l) {
                          self.stack.push(val.clone());
                      } else {
                         self.stack.push(Value::Nil);
@@ -433,8 +959,8 @@ impl VM {
                         f.function.chunk.constants[idx].clone()
                     };
                     let name = if let Value::Obj(o) = name_val {
-                        if let crate::obj::Obj::String(s) = &*o { s.clone() } else { return Err(InterpretResult::RuntimeError); }
-                    } else { return Err(InterpretResult::RuntimeError); };
+                        if let crate::obj::Obj::String(s) = &*o { s.clone() } else { return Err(self.runtime_error()); }
+                    } else { return Err(self.runtime_error()); };
 
                     if let Some(p) = self.current_provider() {
                         let parent = self.provider_parent(&p);
@@ -461,26 +987,36 @@ impl VM {
                         return Ok(None);
                     }
                     match (receiver, index) {
-                        (Value::Obj(o), Value::Number(n)) => match &*o {
-                            Obj::List(items) => {
-                                let i = n as isize;
-                                if i < 0 || i as usize >= items.len() {
-                                    self.stack.push(Value::Nil);
-                                } else {
-                                    self.stack.push(items[i as usize].clone());
+                        (Value::Obj(o), idx) => {
+                            let i64_idx: Option<i64> = match idx {
+                                Value::Int(i) => Some(i),
+                                Value::Number(n) if n.is_finite() && n.fract() == 0.0 => Some(n as i64),
+                                Value::BigInt(b) => b.to_i64(),
+                                _ => None,
+                            };
+                            if let Some(i64_idx) = i64_idx {
+                                let i = i64_idx as isize;
+                                match &*o {
+                                    Obj::List(items) => {
+                                        if i < 0 || i as usize >= items.len() {
+                                            self.stack.push(Value::Nil);
+                                        } else {
+                                            self.stack.push(items[i as usize].clone());
+                                        }
+                                    }
+                                    Obj::Range(r) => {
+                                        if i < 0 || i as usize >= r.count {
+                                            self.stack.push(Value::Nil);
+                                        } else {
+                                            self.stack.push(Value::Int(r.start + i64_idx));
+                                        }
+                                    }
+                                    _ => self.stack.push(Value::Nil),
                                 }
+                            } else {
+                                self.stack.push(Value::Nil);
                             }
-                            Obj::Range(r) => {
-                                let i = n as isize;
-                                if i < 0 || i as usize >= r.count {
-                                    self.stack.push(Value::Nil);
-                                } else {
-                                    let v = r.start + i as i64;
-                                    self.stack.push(Value::Number(v as f64));
-                                }
-                            }
-                            _ => self.stack.push(Value::Nil),
-                        },
+                        }
                         (recv, Value::Obj(o)) => match &*o {
                             Obj::String(s) => {
                                 let v = self.provider_get(&recv, s);
@@ -518,9 +1054,9 @@ impl VM {
                     let selector_func = match selector_val {
                         Value::Obj(o) => match &*o {
                             Obj::Function(f) => Rc::clone(f),
-                            _ => return Err(InterpretResult::RuntimeError),
+                            _ => return Err(self.runtime_error()),
                         },
-                        _ => return Err(InterpretResult::RuntimeError),
+                        _ => return Err(self.runtime_error()),
                     };
 
                     match receiver {
@@ -594,7 +1130,13 @@ impl VM {
             Value::Obj(o) => match &**o {
                 Obj::Kvc(k) => {
                     let k = k.borrow();
-                    k.entries.contains_key(&key_l) || k.cache.contains_key(&key_l)
+                    if k.entries.contains_key(&key_l) || k.cache.contains_key(&key_l) {
+                        true
+                    } else if let Some(parent) = &k.parent {
+                        self.provider_is_defined(parent, key)
+                    } else {
+                        false
+                    }
                 }
                 Obj::Provider(p) => {
                     if self.provider_is_defined(&p.current, key) {
@@ -794,19 +1336,280 @@ impl VM {
     }
 
 
-    fn binary_op<F>(&mut self, op: F) -> Result<(), InterpretResult>
-    where
-        F: Fn(f64, f64) -> f64,
-    {
+    fn is_numeric(v: &Value) -> bool {
+        matches!(v, Value::Int(_) | Value::BigInt(_) | Value::Number(_))
+    }
+
+    fn bigint_to_value(n: BigInt) -> Value {
+        match n.to_i64() {
+            Some(i) => Value::Int(i),
+            None => Value::BigInt(n),
+        }
+    }
+
+    fn numeric_to_bigint(v: &Value) -> Option<BigInt> {
+        match v {
+            Value::Int(n) => Some(BigInt::from(*n)),
+            Value::BigInt(n) => Some(n.clone()),
+            _ => None,
+        }
+    }
+
+    fn numeric_to_f64(v: &Value) -> Option<f64> {
+        match v {
+            Value::Number(n) => Some(*n),
+            Value::Int(n) => Some(*n as f64),
+            Value::BigInt(n) => n.to_f64(),
+            _ => None,
+        }
+    }
+
+    fn numeric_add(&self, a: Value, b: Value) -> Result<Value, InterpretResult> {
+        match (a, b) {
+            (Value::Int(a), Value::Int(b)) => match a.checked_add(b) {
+                Some(v) => Ok(Value::Int(v)),
+                None => Ok(VM::bigint_to_value(BigInt::from(a) + BigInt::from(b))),
+            },
+            (Value::BigInt(a), Value::BigInt(b)) => Ok(VM::bigint_to_value(a + b)),
+            (Value::BigInt(a), Value::Int(b)) => Ok(VM::bigint_to_value(a + BigInt::from(b))),
+            (Value::Int(a), Value::BigInt(b)) => Ok(VM::bigint_to_value(BigInt::from(a) + b)),
+            (Value::Number(a), b) => {
+                let bf = VM::numeric_to_f64(&b).ok_or_else(|| self.runtime_error())?;
+                Ok(Value::Number(a + bf))
+            }
+            (a, Value::Number(b)) => {
+                let af = VM::numeric_to_f64(&a).ok_or_else(|| self.runtime_error())?;
+                Ok(Value::Number(af + b))
+            }
+            _ => Err(self.runtime_error()),
+        }
+    }
+
+    fn numeric_subtract(&mut self) -> Result<(), InterpretResult> {
         let b = self.pop();
         let a = self.pop();
-        match (a, b) {
-            (Value::Number(a), Value::Number(b)) => {
-                self.stack.push(Value::Number(op(a, b)));
-                Ok(())
+        let out = match (a, b) {
+            (Value::Int(a), Value::Int(b)) => match a.checked_sub(b) {
+                Some(v) => Value::Int(v),
+                None => VM::bigint_to_value(BigInt::from(a) - BigInt::from(b)),
+            },
+            (Value::BigInt(a), Value::BigInt(b)) => VM::bigint_to_value(a - b),
+            (Value::BigInt(a), Value::Int(b)) => VM::bigint_to_value(a - BigInt::from(b)),
+            (Value::Int(a), Value::BigInt(b)) => VM::bigint_to_value(BigInt::from(a) - b),
+            (Value::Number(a), b) => {
+                let bf = VM::numeric_to_f64(&b).ok_or_else(|| self.runtime_error())?;
+                Value::Number(a - bf)
             }
-            _ => Err(InterpretResult::RuntimeError),
+            (a, Value::Number(b)) => {
+                let af = VM::numeric_to_f64(&a).ok_or_else(|| self.runtime_error())?;
+                Value::Number(af - b)
+            }
+            _ => return Err(self.runtime_error()),
+        };
+        self.stack.push(out);
+        Ok(())
+    }
+
+    fn numeric_multiply(&mut self) -> Result<(), InterpretResult> {
+        let b = self.pop();
+        let a = self.pop();
+        let out = match (a, b) {
+            (Value::Int(a), Value::Int(b)) => match a.checked_mul(b) {
+                Some(v) => Value::Int(v),
+                None => VM::bigint_to_value(BigInt::from(a) * BigInt::from(b)),
+            },
+            (Value::BigInt(a), Value::BigInt(b)) => VM::bigint_to_value(a * b),
+            (Value::BigInt(a), Value::Int(b)) => VM::bigint_to_value(a * BigInt::from(b)),
+            (Value::Int(a), Value::BigInt(b)) => VM::bigint_to_value(BigInt::from(a) * b),
+            (Value::Number(a), b) => {
+                let bf = VM::numeric_to_f64(&b).ok_or_else(|| self.runtime_error())?;
+                Value::Number(a * bf)
+            }
+            (a, Value::Number(b)) => {
+                let af = VM::numeric_to_f64(&a).ok_or_else(|| self.runtime_error())?;
+                Value::Number(af * b)
+            }
+            _ => return Err(self.runtime_error()),
+        };
+        self.stack.push(out);
+        Ok(())
+    }
+
+    fn numeric_divide(&mut self) -> Result<(), InterpretResult> {
+        let b = self.pop();
+        let a = self.pop();
+        let out = match (a, b) {
+            (Value::Int(a), Value::Int(b)) => {
+                if b == 0 {
+                    return Err(self.runtime_error_with(2009, "Division by zero"));
+                }
+                if a % b == 0 {
+                    Value::Int(a / b)
+                } else {
+                    Value::Number(a as f64 / b as f64)
+                }
+            }
+            (Value::BigInt(a), Value::BigInt(b)) => {
+                if b == BigInt::from(0) {
+                    return Err(self.runtime_error_with(2009, "Division by zero"));
+                }
+                let r = &a % &b;
+                if r == BigInt::from(0) {
+                    VM::bigint_to_value(a / b)
+                } else {
+                    let af = a.to_f64().ok_or_else(|| self.runtime_error_with(2010, "Division result not representable as float"))?;
+                    let bf = b.to_f64().ok_or_else(|| self.runtime_error_with(2010, "Division result not representable as float"))?;
+                    Value::Number(af / bf)
+                }
+            }
+            (Value::BigInt(a), Value::Int(b)) => {
+                if b == 0 {
+                    return Err(self.runtime_error_with(2009, "Division by zero"));
+                }
+                let bb = BigInt::from(b);
+                let r = &a % &bb;
+                if r == BigInt::from(0) {
+                    VM::bigint_to_value(a / bb)
+                } else {
+                    let af = a.to_f64().ok_or_else(|| self.runtime_error_with(2010, "Division result not representable as float"))?;
+                    Value::Number(af / (b as f64))
+                }
+            }
+            (Value::Int(a), Value::BigInt(b)) => {
+                if b == BigInt::from(0) {
+                    return Err(self.runtime_error_with(2009, "Division by zero"));
+                }
+                let aa = BigInt::from(a);
+                let r = &aa % &b;
+                if r == BigInt::from(0) {
+                    VM::bigint_to_value(aa / b)
+                } else {
+                    let bf = b.to_f64().ok_or_else(|| self.runtime_error_with(2010, "Division result not representable as float"))?;
+                    Value::Number((a as f64) / bf)
+                }
+            }
+            (Value::Number(a), b) => {
+                let bf = VM::numeric_to_f64(&b).ok_or_else(|| self.runtime_error())?;
+                Value::Number(a / bf)
+            }
+            (a, Value::Number(b)) => {
+                let af = VM::numeric_to_f64(&a).ok_or_else(|| self.runtime_error())?;
+                Value::Number(af / b)
+            }
+            _ => return Err(self.runtime_error()),
+        };
+        self.stack.push(out);
+        Ok(())
+    }
+
+    fn numeric_int_divide(&mut self) -> Result<(), InterpretResult> {
+        let b = self.pop();
+        let a = self.pop();
+        let out = match (a, b) {
+            (Value::Int(a), Value::Int(b)) => {
+                if b == 0 {
+                    return Err(self.runtime_error_with(2009, "Division by zero"));
+                }
+                Value::Int(a / b)
+            }
+            (Value::BigInt(a), Value::BigInt(b)) => {
+                if b == BigInt::from(0) {
+                    return Err(self.runtime_error_with(2009, "Division by zero"));
+                }
+                VM::bigint_to_value(a / b)
+            }
+            (Value::BigInt(a), Value::Int(b)) => {
+                if b == 0 {
+                    return Err(self.runtime_error_with(2009, "Division by zero"));
+                }
+                VM::bigint_to_value(a / BigInt::from(b))
+            }
+            (Value::Int(a), Value::BigInt(b)) => {
+                if b == BigInt::from(0) {
+                    return Err(self.runtime_error_with(2009, "Division by zero"));
+                }
+                VM::bigint_to_value(BigInt::from(a) / b)
+            }
+            (Value::Number(_), _) | (_, Value::Number(_)) => {
+                return Err(self.runtime_error_with(2012, "div: integer parameters expected"));
+            }
+            _ => return Err(self.runtime_error_with(2012, "div: integer parameters expected")),
+        };
+        self.stack.push(out);
+        Ok(())
+    }
+
+    fn numeric_modulo(&mut self) -> Result<(), InterpretResult> {
+        let b = self.pop();
+        let a = self.pop();
+        let out = match (a, b) {
+            (Value::Int(a), Value::Int(b)) => {
+                if b == 0 { return Err(self.runtime_error_with(2013, "Modulo by zero")); }
+                Value::Int(a % b)
+            }
+            (Value::BigInt(a), Value::BigInt(b)) => {
+                if b == BigInt::from(0) { return Err(self.runtime_error_with(2013, "Modulo by zero")); }
+                VM::bigint_to_value(a % b)
+            }
+            (Value::BigInt(a), Value::Int(b)) => {
+                if b == 0 { return Err(self.runtime_error_with(2013, "Modulo by zero")); }
+                VM::bigint_to_value(a % BigInt::from(b))
+            }
+            (Value::Int(a), Value::BigInt(b)) => {
+                if b == BigInt::from(0) { return Err(self.runtime_error_with(2013, "Modulo by zero")); }
+                VM::bigint_to_value(BigInt::from(a) % b)
+            }
+            (Value::Number(a), b) => {
+                let bf = VM::numeric_to_f64(&b).ok_or_else(|| self.runtime_error())?;
+                Value::Number(a % bf)
+            }
+            (a, Value::Number(b)) => {
+                let af = VM::numeric_to_f64(&a).ok_or_else(|| self.runtime_error())?;
+                Value::Number(af % b)
+            }
+            _ => return Err(self.runtime_error_with(2014, "%: number expected")),
+        };
+        self.stack.push(out);
+        Ok(())
+    }
+
+    fn numeric_pow(&mut self) -> Result<(), InterpretResult> {
+        let b = self.pop();
+        let a = self.pop();
+        let af = VM::numeric_to_f64(&a).ok_or_else(|| self.runtime_error_with(2021, "^: number expected"))?;
+        let bf = VM::numeric_to_f64(&b).ok_or_else(|| self.runtime_error_with(2021, "^: number expected"))?;
+        self.stack.push(Value::Number(af.powf(bf)));
+        Ok(())
+    }
+
+    fn numeric_negate(&self, v: Value) -> Result<Value, InterpretResult> {
+        match v {
+            Value::Int(n) => match n.checked_neg() {
+                Some(v) => Ok(Value::Int(v)),
+                None => Ok(Value::BigInt(-BigInt::from(n))),
+            },
+            Value::BigInt(n) => Ok(Value::BigInt(-n)),
+            Value::Number(n) => Ok(Value::Number(-n)),
+            _ => Err(self.runtime_error()),
         }
+    }
+
+    fn numeric_compare_gt(&self, a: &Value, b: &Value) -> Result<bool, InterpretResult> {
+        if let (Some(ai), Some(bi)) = (VM::numeric_to_bigint(a), VM::numeric_to_bigint(b)) {
+            return Ok(ai > bi);
+        }
+        let af = VM::numeric_to_f64(a).ok_or_else(|| self.runtime_error())?;
+        let bf = VM::numeric_to_f64(b).ok_or_else(|| self.runtime_error())?;
+        Ok(af > bf)
+    }
+
+    fn numeric_compare_lt(&self, a: &Value, b: &Value) -> Result<bool, InterpretResult> {
+        if let (Some(ai), Some(bi)) = (VM::numeric_to_bigint(a), VM::numeric_to_bigint(b)) {
+            return Ok(ai < bi);
+        }
+        let af = VM::numeric_to_f64(a).ok_or_else(|| self.runtime_error())?;
+        let bf = VM::numeric_to_f64(b).ok_or_else(|| self.runtime_error())?;
+        Ok(af < bf)
     }
 
     fn call_value(&mut self, arg_count: usize) -> Result<(), InterpretResult> {
@@ -816,9 +1619,6 @@ impl VM {
         if let Value::Obj(obj) = function_val {
             match &*obj {
                 crate::obj::Obj::NativeFn(native) => {
-                    if std::env::var("FS_TRACE_CALL").is_ok() {
-                        eprintln!("[call] native arg_count={}", arg_count);
-                    }
                     let start_idx = self.stack.len() - arg_count;
                     let args = &self.stack[start_idx..];
                     let result = native(args);
@@ -827,21 +1627,25 @@ impl VM {
                     Ok(())
                 },
                 crate::obj::Obj::Function(func) => {
-                    if std::env::var("FS_TRACE_CALL").is_ok() {
-                        eprintln!(
-                            "[call] fn='{}' arity={} arg_count={}",
-                            func.name, func.arity, arg_count
-                        );
-                    }
                     if self.frames.len() == FRAMES_MAX {
-                        return Err(InterpretResult::RuntimeError); 
+                        return Err(self.runtime_error()); 
                     }
-                    if arg_count != func.arity {
-                        println!(
-                            "Call arity mismatch for '{}': expected {} arguments but got {}.",
-                            func.name, func.arity, arg_count
-                        );
-                        return Err(InterpretResult::RuntimeError);
+                    if arg_count > func.arity {
+                        return Err(self.runtime_error_with(
+                            2004,
+                            format!(
+                                "Call arity mismatch for '{}': expected {} arguments but got {}",
+                                func.name, func.arity, arg_count
+                            ),
+                        ));
+                    }
+
+                    // C# parity: allow calling with fewer args; missing parameters evaluate as nil/null.
+                    // This is important for examples like `(name) => "Hello " + name` being invoked as `f()`.
+                    if arg_count < func.arity {
+                        for _ in arg_count..func.arity {
+                            self.stack.push(Value::Nil);
+                        }
                     }
                     
                     let slots = function_val_idx;
@@ -849,19 +1653,36 @@ impl VM {
                     Ok(())
                 },
                 _ => {
-                    println!("Can only call functions and classes.");
-                    Err(InterpretResult::RuntimeError)
+                    Err(self.runtime_error_with(2005, "Can only call functions"))
                 },
             }
         } else {
-            println!("Can only call functions and classes.");
-            Err(InterpretResult::RuntimeError)
+            Err(self.runtime_error_with(2005, "Can only call functions"))
         }
     }
 
     fn values_equal(&mut self, a: &Value, b: &Value) -> bool {
         match (a, b) {
+             (Value::Int(a), Value::Int(b)) => a == b,
+             (Value::BigInt(a), Value::BigInt(b)) => a == b,
+             (Value::Int(a), Value::BigInt(b)) => BigInt::from(*a) == *b,
+             (Value::BigInt(a), Value::Int(b)) => *a == BigInt::from(*b),
              (Value::Number(n1), Value::Number(n2)) => (n1 - n2).abs() < f64::EPSILON,
+             (Value::Int(i), Value::Number(n)) | (Value::Number(n), Value::Int(i)) => {
+                 if !n.is_finite() || n.fract() != 0.0 { return false; }
+                 if *n < (i64::MIN as f64) || *n > (i64::MAX as f64) { return false; }
+                 *i == (*n as i64)
+             }
+             (Value::BigInt(bi), Value::Number(n)) | (Value::Number(n), Value::BigInt(bi)) => {
+                 if !n.is_finite() || n.fract() != 0.0 { return false; }
+                 match bi.to_i64() {
+                     Some(i) => {
+                         if *n < (i64::MIN as f64) || *n > (i64::MAX as f64) { return false; }
+                         i == (*n as i64)
+                     }
+                     None => false,
+                 }
+             }
              (Value::Bool(b1), Value::Bool(b2)) => b1 == b2,
              (Value::Nil, Value::Nil) => true,
              (Value::Error(e1), Value::Error(e2)) => e1 == e2,
@@ -925,13 +1746,17 @@ impl VM {
     }
 
     pub fn interpret(&mut self, source: &str) -> Result<Value, InterpretResult> {
+        self.frames.clear();
+        self.stack.clear();
+        self.providers.clear();
         let mut compiler = Compiler::new(source);
-        if let Some(function) = compiler.compile() {
+        match compiler.compile() {
+            Ok(function) => {
             let func = Rc::new(function);
             self.frames.push(CallFrame::new(func, 0));
             self.run()
-        } else {
-            Err(InterpretResult::CompileError)
+            }
+            Err(e) => Err(InterpretResult::CompileError(e)),
         }
     }
 
@@ -941,12 +1766,14 @@ impl VM {
                 "{{\"ok\":true,\"value\":{},\"error\":null}}",
                 self.value_to_json(&v)
             ),
-            Err(InterpretResult::CompileError) => {
-                "{\"ok\":false,\"value\":null,\"error\":\"CompileError\"}".to_string()
-            }
-            Err(InterpretResult::RuntimeError) => {
-                "{\"ok\":false,\"value\":null,\"error\":\"RuntimeError\"}".to_string()
-            }
+            Err(InterpretResult::CompileError(e)) => format!(
+                "{{\"ok\":false,\"value\":null,\"error\":{}}}",
+                self.error_to_json(&e, "compile")
+            ),
+            Err(InterpretResult::RuntimeError(e)) => format!(
+                "{{\"ok\":false,\"value\":null,\"error\":{}}}",
+                self.error_to_json(&e, "runtime")
+            ),
         }
     }
 
@@ -970,14 +1797,12 @@ impl VM {
         match v {
             Value::Nil => "null".to_string(),
             Value::Bool(b) => if *b { "true".to_string() } else { "false".to_string() },
+            Value::Int(n) => n.to_string(),
+            Value::BigInt(n) => n.to_string(),
             Value::Number(n) => {
                 if n.is_finite() { n.to_string() } else { "null".to_string() }
             }
-            Value::Error(e) => format!(
-                "{{\"type\":\"error\",\"code\":{},\"message\":\"{}\"}}",
-                e.code,
-                VM::json_escape(&e.message)
-            ),
+            Value::Error(e) => self.error_to_json(e, "value"),
             Value::Obj(o) => match &**o {
                 Obj::String(s) => format!("\"{}\"", VM::json_escape(s)),
                 Obj::List(items) => {
@@ -988,6 +1813,35 @@ impl VM {
                     "{{\"type\":\"range\",\"start\":{},\"count\":{}}}",
                     r.start, r.count
                 ),
+                Obj::Bytes(b) => {
+                    let s = general_purpose::STANDARD.encode(b);
+                    format!("{{\"type\":\"bytes\",\"base64\":\"{}\"}}", VM::json_escape(&s))
+                }
+                Obj::Guid(g) => format!("{{\"type\":\"guid\",\"value\":\"{}\"}}", VM::json_escape(&g.to_string())),
+                Obj::DateTimeTicks(ticks) => {
+                    // Provide ticks always; iso is best-effort conversion (UTC) for convenience.
+                    const UNIX_EPOCH_TICKS: i64 = 621_355_968_000_000_000;
+                    const TICKS_PER_SEC: i64 = 10_000_000;
+                    let iso = if *ticks >= UNIX_EPOCH_TICKS {
+                        let dt_ticks = ticks - UNIX_EPOCH_TICKS;
+                        let secs = dt_ticks / TICKS_PER_SEC;
+                        let rem = dt_ticks % TICKS_PER_SEC;
+                        let nanos = (rem * 100) as u32;
+                        match time::OffsetDateTime::from_unix_timestamp(secs)
+                            .and_then(|d| d.replace_nanosecond(nanos))
+                        {
+                            Ok(d) => d.format(&time::format_description::well_known::Rfc3339).ok(),
+                            Err(_) => None,
+                        }
+                    } else {
+                        None
+                    };
+                    if let Some(iso) = iso {
+                        format!("{{\"type\":\"datetime\",\"ticks\":{},\"iso\":\"{}\"}}", ticks, VM::json_escape(&iso))
+                    } else {
+                        format!("{{\"type\":\"datetime\",\"ticks\":{}}}", ticks)
+                    }
+                }
                 Obj::Kvc(k) => self.kvc_to_json(Rc::clone(k)),
                 Obj::Provider(p) => {
                     self.value_to_json(&p.current)
@@ -1000,6 +1854,34 @@ impl VM {
                 Obj::NativeFn(_) => "{\"type\":\"native\"}".to_string(),
             }
         }
+    }
+
+    pub fn value_to_json_string(&mut self, v: &Value) -> String {
+        self.value_to_json(v)
+    }
+
+    fn error_to_json(&self, e: &FsError, kind: &str) -> String {
+        format!(
+            "{{\"kind\":\"{}\",\"code\":{},\"message\":\"{}\",\"line\":{},\"column\":{}}}",
+            VM::json_escape(kind),
+            e.code,
+            VM::json_escape(&e.message),
+            e.line,
+            e.column
+        )
+    }
+
+    fn runtime_error(&self) -> InterpretResult {
+        self.runtime_error_with(2000, "Runtime error")
+    }
+
+    fn runtime_error_with(&self, code: u32, message: impl Into<String>) -> InterpretResult {
+        InterpretResult::RuntimeError(FsError {
+            code,
+            message: message.into(),
+            line: -1,
+            column: -1,
+        })
     }
 
     fn kvc_to_json(&mut self, k: Rc<RefCell<KvcObject>>) -> String {

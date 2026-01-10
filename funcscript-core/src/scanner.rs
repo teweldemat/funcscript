@@ -7,12 +7,15 @@
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TokenType {
-    Plus, Minus, Star, Slash,
+    Plus, Minus, Star, Slash, Percent,
+    Caret,
     LeftBracket, RightBracket, Comma,
     LeftParen, RightParen,
     LeftBrace, RightBrace, Colon, Dot,
     Semicolon,
     SafeDot,
+    QuestionQuestion,
+    QuestionBang,
     Tilde,
     
     Bang, BangEqual,
@@ -35,6 +38,7 @@ pub struct Token<'a> {
     pub start: &'a str,
     pub length: usize,
     pub line: usize,
+    pub column: usize,
 }
 
 #[derive(Clone)]
@@ -172,9 +176,15 @@ impl<'a> Scanner<'a> {
             '-' => self.make_token(TokenType::Minus),
             '*' => self.make_token(TokenType::Star),
             '/' => self.make_token(TokenType::Slash),
+            '%' => self.make_token(TokenType::Percent),
+            '^' => self.make_token(TokenType::Caret),
             '?' => {
                 if self.match_char('.') {
                     self.make_token(TokenType::SafeDot)
+                } else if self.match_char('?') {
+                    self.make_token(TokenType::QuestionQuestion)
+                } else if self.match_char('!') {
+                    self.make_token(TokenType::QuestionBang)
                 } else {
                     self.error_token("Unexpected character.")
                 }
@@ -363,11 +373,13 @@ impl<'a> Scanner<'a> {
     }
 
     fn number(&mut self) -> Token<'a> {
+        let mut is_float_like = false;
         while self.peek().is_digit(10) {
             self.advance();
         }
 
         if self.peek() == '.' && self.peek_next().is_digit(10) {
+            is_float_like = true;
             self.advance(); 
 
             while self.peek().is_digit(10) {
@@ -375,7 +387,33 @@ impl<'a> Scanner<'a> {
             }
         }
 
+        // Exponent part: e.g. 1e9, 1E-3
+        if (self.peek() == 'e' || self.peek() == 'E')
+            && (self.peek_next().is_digit(10)
+                || ((self.peek_next() == '+' || self.peek_next() == '-') && self.peek_next_next().is_digit(10)))
+        {
+            is_float_like = true;
+            self.advance(); // e/E
+            if self.peek() == '+' || self.peek() == '-' {
+                self.advance();
+            }
+            while self.peek().is_digit(10) {
+                self.advance();
+            }
+        }
+
+        // Integer suffix: allow `l`/`L` for long-style ticks literals (C#-compat)
+        if !is_float_like && (self.peek() == 'l' || self.peek() == 'L') {
+            self.advance();
+        }
+
         self.make_token(TokenType::Number)
+    }
+
+    fn peek_next_next(&self) -> char {
+        let mut iter = self.source[self.current..].chars();
+        iter.next();
+        iter.next().unwrap_or('\0')
     }
 
     fn make_token(&self, kind: TokenType) -> Token<'a> {
@@ -384,6 +422,7 @@ impl<'a> Scanner<'a> {
             start: &self.source[self.start..self.current],
             length: self.current - self.start,
             line: self.line,
+            column: self.compute_column(),
         }
     }
 
@@ -393,6 +432,13 @@ impl<'a> Scanner<'a> {
             start: message,
             length: message.len(),
             line: self.line,
+            column: 0,
         }
+    }
+
+    fn compute_column(&self) -> usize {
+        let before = &self.source[..self.start];
+        let line_start = before.rfind('\n').map(|i| i + 1).unwrap_or(0);
+        before[line_start..].chars().count() + 1
     }
 }

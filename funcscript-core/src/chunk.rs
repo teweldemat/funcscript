@@ -9,6 +9,9 @@ pub enum OpCode {
     OpSubtract,
     OpMultiply,
     OpDivide,
+    OpIntDiv,
+    OpModulo,
+    OpPow,
     OpNegate,
     OpReturn,
     OpBuildList(usize),
@@ -17,6 +20,7 @@ pub enum OpCode {
     OpGetParent(usize),
     OpJump(usize),
     OpJumpIfFalse(usize),
+    OpJumpIfNil(usize),
     OpPop,
     OpDup,
     OpSwap,
@@ -34,6 +38,10 @@ pub enum OpCode {
     OpPopProvider,
     OpSelect(usize),
     OpMap,
+    OpFilter,
+    OpAny,
+    OpFirstWhere,
+    OpSort,
     OpReduce(bool),
 }
 

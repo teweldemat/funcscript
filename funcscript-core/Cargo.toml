@@ -8,6 +8,12 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 wasm-bindgen = "0.2"
+num-bigint = "0.4"
+num-traits = "0.2"
+base64 = "0.22"
+uuid = { version = "1", features = ["std"] }
+time = { version = "0.3", features = ["parsing", "formatting", "macros"] }
+regex = "1.11"
 
 [features]
 debug_print_code = []

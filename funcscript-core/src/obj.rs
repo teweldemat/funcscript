@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
+use uuid::Uuid;
 
 use crate::chunk::Chunk;
 
@@ -13,6 +14,9 @@ pub struct FsFunction {
     pub arity: usize,
     pub chunk: Chunk,
     pub name: String,
+    // Names for stack slots (locals + parameters). Slot 0 is reserved and typically empty.
+    // Used to allow lazy KVC key thunks to still resolve lexical variables via provider lookup.
+    pub slot_names: Vec<String>,
 }
 
 impl PartialEq for FsFunction {
@@ -26,6 +30,9 @@ pub enum Obj {
     String(String),
     List(Vec<Value>),
     Range(RangeObject),
+    Bytes(Vec<u8>),
+    Guid(Uuid),
+    DateTimeTicks(i64),
 
     Kvc(Rc<RefCell<KvcObject>>),
    
@@ -63,6 +70,9 @@ impl PartialEq for Obj {
             (Obj::String(a), Obj::String(b)) => a == b,
             (Obj::List(a), Obj::List(b)) => a == b,
             (Obj::Range(a), Obj::Range(b)) => a == b,
+            (Obj::Bytes(a), Obj::Bytes(b)) => a == b,
+            (Obj::Guid(a), Obj::Guid(b)) => a == b,
+            (Obj::DateTimeTicks(a), Obj::DateTimeTicks(b)) => a == b,
             (Obj::Kvc(_), Obj::Kvc(_)) => false,
             (Obj::Provider(_), Obj::Provider(_)) => false,
             (Obj::NativeFn(a), Obj::NativeFn(b)) => {
@@ -82,6 +92,9 @@ impl std::fmt::Display for Obj {
                 write!(f, "[{}]", s.join(", "))
             },
             Obj::Range(r) => write!(f, "<range start={} count={}>", r.start, r.count),
+            Obj::Bytes(b) => write!(f, "<bytes len={}>", b.len()),
+            Obj::Guid(g) => write!(f, "{}", g),
+            Obj::DateTimeTicks(ticks) => write!(f, "<datetime ticks={}>", ticks),
             Obj::Kvc(kvc) => {
                 let kvc = kvc.borrow();
                 write!(f, "{{ ")?;

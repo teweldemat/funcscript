@@ -5,7 +5,7 @@
 
 use crate::chunk::{Chunk, OpCode};
 use crate::scanner::{Scanner, Token, TokenType};
-use crate::value::Value;
+use crate::value::{FsError, Value};
 use crate::obj::FsFunction;
 use std::rc::Rc;
 
@@ -21,6 +21,7 @@ pub struct Compiler<'a> {
     scanner: Scanner<'a>,
 
     compilers: Vec<FunctionCompiler>,
+    last_error: Option<FsError>,
 }
 
 pub struct FunctionCompiler {
@@ -41,6 +42,7 @@ impl FunctionCompiler {
                 arity: 0,
                 chunk: Chunk::new(),
                 name,
+                slot_names: Vec::new(),
             },
             chunk: Chunk::new(),
             locals: Vec::new(),
@@ -55,17 +57,18 @@ impl<'a> Compiler<'a> {
         
         Compiler {
             parser: Parser {
-                current: Token { kind: TokenType::Error, start: "", length: 0, line: 0 },
-                previous: Token { kind: TokenType::Error, start: "", length: 0, line: 0 },
+                current: Token { kind: TokenType::Error, start: "", length: 0, line: 0, column: 0 },
+                previous: Token { kind: TokenType::Error, start: "", length: 0, line: 0, column: 0 },
                 had_error: false,
                 panic_mode: false,
             },
             scanner,
             compilers: vec![main_compiler],
+            last_error: None,
         }
     }
 
-    pub fn compile(&mut self) -> Option<FsFunction> {
+    pub fn compile(&mut self) -> Result<FsFunction, FsError> {
         self.advance();
         if self.is_naked_kvc_start() {
             self.kvc_naked_root();
@@ -76,11 +79,15 @@ impl<'a> Compiler<'a> {
             }
         }
         let function = self.end_compiler();
-        if self.parser.had_error {
-            None
-        } else {
-            Some(function)
+        if !self.parser.had_error {
+            return Ok(function);
         }
+        Err(self.last_error.clone().unwrap_or(FsError {
+            code: 1000,
+            message: "Compile error".to_string(),
+            line: -1,
+            column: -1,
+        }))
     }
 
     fn is_naked_kvc_start(&self) -> bool {
@@ -136,7 +143,9 @@ impl<'a> Compiler<'a> {
         if !self.parser.had_error {
         }
         
-        compiler.function
+        let mut f = compiler.function;
+        f.slot_names = compiler.locals.into_iter().map(|l| l.name).collect();
+        f
     }
 
     fn check_is_lambda(&self) -> bool {
@@ -193,17 +202,12 @@ impl<'a> Compiler<'a> {
     fn error_at(&mut self, token: Token, message: &str) {
         if self.parser.had_error { return; } 
         self.parser.had_error = true;
-
-        eprint!("[line {}] Error", token.line);
-
-        if token.kind == TokenType::Eof {
-            eprint!(" at end");
-        } else if token.kind == TokenType::Error {
-        } else {
-            eprint!(" at '{}'", token.start);
-        }
-
-        eprintln!(": {}", message);
+        self.last_error = Some(FsError {
+            code: 1000,
+            message: message.to_string(),
+            line: token.line as i32,
+            column: token.column as i32,
+        });
     }
 
     fn expression(&mut self) {
@@ -254,10 +258,18 @@ impl<'a> Compiler<'a> {
 
     fn map_expression(&mut self) {
         self.reduce_expression();
-        while self.check(TokenType::Identifier) && self.parser.current.start == "map" {
+        while self.check(TokenType::Identifier)
+            && (self.parser.current.start.eq_ignore_ascii_case("map")
+                || self.parser.current.start.eq_ignore_ascii_case("filter"))
+        {
+            let op = self.parser.current.start;
             self.advance();
-            self.reduce_expression(); 
-            self.emit_byte(OpCode::OpMap);
+            self.reduce_expression();
+            if op.eq_ignore_ascii_case("map") {
+                self.emit_byte(OpCode::OpMap);
+            } else {
+                self.emit_byte(OpCode::OpFilter);
+            }
         }
     }
 
@@ -284,16 +296,47 @@ impl<'a> Compiler<'a> {
         while self.match_token(TokenType::BangEqual)
             || self.match_token(TokenType::EqualEqual)
             || self.match_token(TokenType::Equal)
+            || self.match_token(TokenType::QuestionQuestion)
+            || self.match_token(TokenType::QuestionBang)
         {
             let operator_type = self.parser.previous.kind;
-            self.comparison();
             match operator_type {
-                 TokenType::BangEqual => {
-                     self.emit_byte(OpCode::OpEqual);
-                     self.emit_byte(OpCode::OpNot);
-                 },
-                 TokenType::EqualEqual | TokenType::Equal => self.emit_byte(OpCode::OpEqual),
-                 _ => {}
+                TokenType::QuestionQuestion => {
+                    // `a ?? b`: if a is nil, evaluate b; otherwise keep a.
+                    self.emit_byte(OpCode::OpDup);
+                    let jump_to_rhs = self.emit_jump(OpCode::OpJumpIfNil);
+                    // not-nil path
+                    self.emit_byte(OpCode::OpPop); // pop duplicate
+                    let jump_end = self.emit_jump(OpCode::OpJump);
+                    // rhs path
+                    self.patch_jump(jump_to_rhs);
+                    self.emit_byte(OpCode::OpPop); // pop duplicate (nil)
+                    self.emit_byte(OpCode::OpPop); // pop original (nil)
+                    self.comparison();
+                    self.patch_jump(jump_end);
+                }
+                TokenType::QuestionBang => {
+                    self.emit_byte(OpCode::OpDup);
+                    let jump_nil = self.emit_jump(OpCode::OpJumpIfNil);
+                    self.emit_byte(OpCode::OpPop); // pop duplicate
+                    self.emit_byte(OpCode::OpPop); // pop original
+                    self.comparison();
+                    let jump_end = self.emit_jump(OpCode::OpJump);
+                    self.patch_jump(jump_nil);
+                    self.emit_byte(OpCode::OpPop);
+                    self.patch_jump(jump_end);
+                }
+                _ => {
+                    self.comparison();
+                    match operator_type {
+                         TokenType::BangEqual => {
+                             self.emit_byte(OpCode::OpEqual);
+                             self.emit_byte(OpCode::OpNot);
+                         },
+                         TokenType::EqualEqual | TokenType::Equal => self.emit_byte(OpCode::OpEqual),
+                         _ => {}
+                    }
+                }
             }
         }
     }
@@ -322,32 +365,63 @@ impl<'a> Compiler<'a> {
 
     fn term(&mut self) {
         self.factor();
-        while self.match_token(TokenType::Plus) || self.match_token(TokenType::Minus) {
-            let operator_type = self.parser.previous.kind;
-             self.factor();
-            match operator_type {
-                TokenType::Plus => self.emit_byte(OpCode::OpAdd),
-                TokenType::Minus => self.emit_byte(OpCode::OpSubtract),
-                _ => {}
+        loop {
+            if self.match_token(TokenType::Plus) || self.match_token(TokenType::Minus) {
+                let operator_type = self.parser.previous.kind;
+                self.factor();
+                match operator_type {
+                    TokenType::Plus => self.emit_byte(OpCode::OpAdd),
+                    TokenType::Minus => self.emit_byte(OpCode::OpSubtract),
+                    _ => {}
+                }
+                continue;
             }
+            if self.check(TokenType::Identifier) && self.parser.current.start.eq_ignore_ascii_case("join") {
+                self.advance();
+                let name_obj = crate::obj::Obj::String("join".to_string());
+                let name_val = Value::Obj(std::rc::Rc::new(name_obj));
+                let idx = self.current_chunk().add_constant(name_val);
+                self.emit_byte(OpCode::OpGetGlobal(idx));
+                self.emit_byte(OpCode::OpSwap);
+                self.factor();
+                self.emit_byte(OpCode::OpCall(2));
+                continue;
+            }
+            break;
         }
     }
     
     fn factor(&mut self) {
         self.unary();
-        while self.match_token(TokenType::Star) || self.match_token(TokenType::Slash) {
-            let operator_type = self.parser.previous.kind;
-            self.unary();
-            match operator_type {
-                TokenType::Star => self.emit_byte(OpCode::OpMultiply),
-                TokenType::Slash => self.emit_byte(OpCode::OpDivide),
-                _ => {}
+        loop {
+            if self.match_token(TokenType::Star) || self.match_token(TokenType::Slash) || self.match_token(TokenType::Percent) || self.match_token(TokenType::Caret) {
+                let operator_type = self.parser.previous.kind;
+                self.unary();
+                match operator_type {
+                    TokenType::Star => self.emit_byte(OpCode::OpMultiply),
+                    TokenType::Slash => self.emit_byte(OpCode::OpDivide),
+                    TokenType::Percent => self.emit_byte(OpCode::OpModulo),
+                    TokenType::Caret => self.emit_byte(OpCode::OpPow),
+                    _ => {}
+                }
+                continue;
             }
+            if self.check(TokenType::Identifier) && self.parser.current.start.eq_ignore_ascii_case("div") {
+                self.advance();
+                self.unary();
+                self.emit_byte(OpCode::OpIntDiv);
+                continue;
+            }
+            break;
         }
     }
 
     fn unary(&mut self) {
          if self.match_token(TokenType::Bang) {
+             self.unary();
+             self.emit_byte(OpCode::OpNot);
+         } else if self.check(TokenType::Identifier) && self.parser.current.start.eq_ignore_ascii_case("not") {
+             self.advance();
              self.unary();
              self.emit_byte(OpCode::OpNot);
          } else if self.match_token(TokenType::Minus) {
@@ -443,10 +517,27 @@ impl<'a> Compiler<'a> {
     fn primary(&mut self) {
         if self.match_token(TokenType::Number) {
             let lexeme = self.parser.previous.start;
-            if let Ok(value) = lexeme.parse::<f64>() {
-                self.emit_constant(Value::Number(value));
+            let (lexeme, force_i64) = if lexeme.ends_with('l') || lexeme.ends_with('L') {
+                (&lexeme[..lexeme.len() - 1], true)
             } else {
-                self.error_at(self.parser.previous, "Invalid number format.");
+                (lexeme, false)
+            };
+            let is_float_like = lexeme.contains('.') || lexeme.contains('e') || lexeme.contains('E');
+            if is_float_like && !force_i64 {
+                if let Ok(value) = lexeme.parse::<f64>() {
+                    self.emit_constant(Value::Number(value));
+                } else {
+                    self.error_at(self.parser.previous, "Invalid number format.");
+                }
+            } else {
+                if let Ok(n) = lexeme.parse::<i64>() {
+                    self.emit_constant(Value::Int(n));
+                } else {
+                    match num_bigint::BigInt::parse_bytes(lexeme.as_bytes(), 10) {
+                        Some(bi) => self.emit_constant(Value::BigInt(bi)),
+                        None => self.error_at(self.parser.previous, "Invalid integer format."),
+                    }
+                }
             }
         } else if self.match_token(TokenType::String) {
             let s = self.parser.previous.start;
@@ -512,6 +603,91 @@ impl<'a> Compiler<'a> {
                          };
                          self.consume(TokenType::RightParen, "Expect ')' after reduce call.");
                          self.emit_byte(OpCode::OpReduce(has_seed));
+                         return;
+                     }
+                 }
+
+                 if name.eq_ignore_ascii_case("map") {
+                     let mut look = self.scanner.clone();
+                     if look.scan_token().kind == TokenType::LeftParen {
+                         self.advance();
+                         self.consume(TokenType::LeftParen, "Expect '(' after Map.");
+                         self.expression();
+                         self.consume(TokenType::Comma, "Expect ',' after list.");
+                         self.expression();
+                         self.consume(TokenType::RightParen, "Expect ')' after Map call.");
+                         self.emit_byte(OpCode::OpMap);
+                         return;
+                     }
+                 }
+
+                 if name.eq_ignore_ascii_case("filter") {
+                     let mut look = self.scanner.clone();
+                     if look.scan_token().kind == TokenType::LeftParen {
+                         self.advance();
+                         self.consume(TokenType::LeftParen, "Expect '(' after Filter.");
+                         self.expression();
+                         self.consume(TokenType::Comma, "Expect ',' after list.");
+                         self.expression();
+                         self.consume(TokenType::RightParen, "Expect ')' after Filter call.");
+                         self.emit_byte(OpCode::OpFilter);
+                         return;
+                     }
+                 }
+
+                 if name.eq_ignore_ascii_case("any") {
+                     let mut look = self.scanner.clone();
+                     if look.scan_token().kind == TokenType::LeftParen {
+                         self.advance();
+                         self.consume(TokenType::LeftParen, "Expect '(' after Any.");
+                         self.expression();
+                         self.consume(TokenType::Comma, "Expect ',' after list.");
+                         self.expression();
+                         self.consume(TokenType::RightParen, "Expect ')' after Any call.");
+                         self.emit_byte(OpCode::OpAny);
+                         return;
+                     }
+                 }
+
+                 if name.eq_ignore_ascii_case("first") {
+                     let mut look = self.scanner.clone();
+                     if look.scan_token().kind == TokenType::LeftParen {
+
+                         let mut depth: i32 = 1;
+                         let mut has_comma = false;
+                         while depth > 0 {
+                             let t = look.scan_token();
+                             match t.kind {
+                                 TokenType::Eof => break,
+                                 TokenType::LeftParen | TokenType::LeftBracket | TokenType::LeftBrace => depth += 1,
+                                 TokenType::RightParen | TokenType::RightBracket | TokenType::RightBrace => depth -= 1,
+                                 TokenType::Comma if depth == 1 => { has_comma = true; break; }
+                                 _ => {}
+                             }
+                         }
+                         if has_comma {
+                             self.advance();
+                             self.consume(TokenType::LeftParen, "Expect '(' after First.");
+                             self.expression();
+                             self.consume(TokenType::Comma, "Expect ',' after list.");
+                             self.expression();
+                             self.consume(TokenType::RightParen, "Expect ')' after First call.");
+                             self.emit_byte(OpCode::OpFirstWhere);
+                             return;
+                         }
+                     }
+                 }
+
+                 if name.eq_ignore_ascii_case("sort") {
+                     let mut look = self.scanner.clone();
+                     if look.scan_token().kind == TokenType::LeftParen {
+                         self.advance();
+                         self.consume(TokenType::LeftParen, "Expect '(' after Sort.");
+                         self.expression();
+                         self.consume(TokenType::Comma, "Expect ',' after list.");
+                         self.expression();
+                         self.consume(TokenType::RightParen, "Expect ')' after Sort call.");
+                         self.emit_byte(OpCode::OpSort);
                          return;
                      }
                  }
@@ -812,25 +988,25 @@ impl<'a> Compiler<'a> {
     }
 
     fn switch_expression(&mut self) {
-        self.expression(); // selector (kept on stack)
+        self.expression();
         self.consume(TokenType::Comma, "Expect ',' after switch selector.");
 
         let mut end_jumps: Vec<usize> = Vec::new();
         loop {
-            self.emit_byte(OpCode::OpDup); // duplicate selector for comparison
-            self.expression(); // match
+            self.emit_byte(OpCode::OpDup);
+            self.expression();
             if self.match_token(TokenType::Colon) {
                 self.emit_byte(OpCode::OpEqual);
                 let jump_if_false = self.emit_jump(OpCode::OpJumpIfFalse);
-                self.emit_byte(OpCode::OpPop); // pop condition
+                self.emit_byte(OpCode::OpPop);
 
-                self.expression(); // value; stack: selector, value
+                self.expression();
                 self.emit_byte(OpCode::OpSwap);
-                self.emit_byte(OpCode::OpPop); // pop selector, leave value
+                self.emit_byte(OpCode::OpPop);
                 end_jumps.push(self.emit_jump(OpCode::OpJump));
 
                 self.patch_jump(jump_if_false);
-                self.emit_byte(OpCode::OpPop); // pop condition
+                self.emit_byte(OpCode::OpPop);
 
                 self.consume_kvc_separator();
                 if self.check(TokenType::Eof) || self.check(TokenType::RightBrace) || self.check(TokenType::RightParen) {
@@ -838,10 +1014,10 @@ impl<'a> Compiler<'a> {
                 }
                 continue;
             } else {
-                self.emit_byte(OpCode::OpSwap); // selector, defaultValue, selectorDup
-                self.emit_byte(OpCode::OpPop);  // selector, defaultValue
-                self.emit_byte(OpCode::OpSwap); // defaultValue, selector
-                self.emit_byte(OpCode::OpPop);  // defaultValue
+                self.emit_byte(OpCode::OpSwap);
+                self.emit_byte(OpCode::OpPop);
+                self.emit_byte(OpCode::OpSwap);
+                self.emit_byte(OpCode::OpPop);
                 break;
             }
         }
@@ -927,6 +1103,9 @@ impl<'a> Compiler<'a> {
         match self.current_chunk().code[offset] {
             OpCode::OpJumpIfFalse(_) => {
                 self.current_chunk().code[offset] = OpCode::OpJumpIfFalse(jump);
+            }
+            OpCode::OpJumpIfNil(_) => {
+                self.current_chunk().code[offset] = OpCode::OpJumpIfNil(jump);
             }
             OpCode::OpJump(_) => {
                 self.current_chunk().code[offset] = OpCode::OpJump(jump);
