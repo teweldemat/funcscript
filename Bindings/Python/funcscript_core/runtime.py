@@ -62,10 +62,10 @@ def _default_lib_candidates() -> list[Path]:
     root = _project_root()
     base = root / "funcscript-core" / "target" / "release"
     return [
-        base / "libfuncscript_core.dylib",
-        base / "libfuncscript_core.so",
-        base / "funcscript_core.dll",
-        base / "funcscript-core.dll",
+        base / "libfuncscript.dylib",
+        base / "libfuncscript.so",
+        base / "funcscript.dll",
+        base / "funcscript.exe",
     ]
 
 

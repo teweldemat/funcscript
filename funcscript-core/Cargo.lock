@@ -45,7 +45,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "funcscript-core"
+name = "funcscript"
 version = "0.1.0"
 dependencies = [
  "base64",

@@ -1,10 +1,30 @@
 [package]
-name = "funcscript-core"
+name = "funcscript"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+autobins = false
+description = "FuncScript universal core runtime (Rust VM) with C ABI and CLI"
+license = "MIT"
+homepage = "https://funcscript.org"
+repository = "https://github.com/teweldemat/funcscript"
+readme = "README.md"
+keywords = ["expression-language", "scripting", "interpreter", "vm", "ffi"]
+categories = ["compilers", "command-line-utilities", "api-bindings"]
+include = [
+  "src/**",
+  "include/**",
+  "tests/**",
+  "Cargo.toml",
+  "README.md",
+]
 
 [lib]
+name = "funcscript"
 crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "funcscript"
+path = "src/main.rs"
 
 [dependencies]
 wasm-bindgen = "0.2"

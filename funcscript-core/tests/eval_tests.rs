@@ -1,7 +1,7 @@
-use funcscript_core::vm::VM;
-use funcscript_core::value::Value;
-use funcscript_core::obj::Obj;
-use funcscript_core::host;
+use funcscript::vm::VM;
+use funcscript::value::Value;
+use funcscript::obj::Obj;
+use funcscript::host;
 use std::rc::Rc;
 use uuid::Uuid;
 use std::path::PathBuf;

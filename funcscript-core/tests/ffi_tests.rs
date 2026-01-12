@@ -1,7 +1,7 @@
 use std::ffi::{CStr, CString};
 use std::ptr;
 
-use funcscript_core::ffi::{
+use funcscript::ffi::{
     fs_error_free, fs_free_string, fs_vm_eval, fs_vm_eval_value, fs_vm_free, fs_vm_new, fs_vm_value_call,
     fs_vm_value_free, fs_vm_value_to_json, FsErrorC, FsValue,
 };

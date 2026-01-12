@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  rust-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Rust tests (funcscript-core)
+        working-directory: funcscript-core
+        run: cargo test
+
+      - name: Build release (for Python binding tests)
+        working-directory: funcscript-core
+        run: cargo build --release
+
+      - name: Python binding tests
+        working-directory: Bindings/Python
+        run: |
+          python3 -m pip install --upgrade pip
+          PYTHONPATH=. python3 -m unittest discover -s tests -p 'test_*.py' -q
+

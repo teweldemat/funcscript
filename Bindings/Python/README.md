@@ -7,7 +7,7 @@ cd funcscript-core
 cargo build --release
 ```
 
-On macOS this produces `funcscript-core/target/release/libfuncscript_core.dylib`.
+On macOS this produces `funcscript-core/target/release/libfuncscript.dylib`.
 
 ### Run Python tests
 
