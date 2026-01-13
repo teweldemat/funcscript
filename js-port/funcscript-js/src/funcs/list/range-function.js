@@ -1,5 +1,5 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
-const { ArrayFsList } = require('../../model/fs-list');
+const { ArrayFsList, RangeFsList } = require('../../model/fs-list');
 const helpers = require('../helpers');
 const { FSDataType } = require('../../core/fstypes');
 
@@ -37,23 +37,15 @@ class RangeFunction extends BaseFunction {
     }
 
     const count = Math.trunc(countNumber);
+    if (count < -2147483648 || count > 2147483647) {
+      return helpers.makeError(helpers.FsError.ERROR_TYPE_INVALID_PARAMETER, `${this.symbol}: count is out of range`);
+    }
     if (count <= 0) {
       return helpers.makeValue(FSDataType.List, new ArrayFsList([]));
     }
 
-    const startType = helpers.typeOf(startTyped);
-    const start = helpers.valueOf(startTyped);
-    const values = [];
-    for (let i = 0; i < count; i += 1) {
-      if (startType === FSDataType.BigInteger) {
-        values.push(helpers.makeValue(FSDataType.BigInteger, start + BigInt(i)));
-      } else if (startType === FSDataType.Float) {
-        values.push(helpers.makeValue(FSDataType.Float, start + i));
-      } else {
-        values.push(helpers.makeValue(FSDataType.Integer, start + i));
-      }
-    }
-    return helpers.makeValue(FSDataType.List, new ArrayFsList(values));
+    // NOTE: Return a lazy list to avoid pre-allocating huge ranges (Node/V8 heap OOM).
+    return helpers.makeValue(FSDataType.List, new RangeFsList(startTyped, count));
   }
 }
 

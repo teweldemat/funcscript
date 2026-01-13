@@ -1,4 +1,5 @@
 const { assertTyped, valueOf } = require('../core/value');
+const { FSDataType } = require('../core/fstypes');
 
 class FsList {
   constructor() {
@@ -84,7 +85,41 @@ class ArrayFsList extends FsList {
   }
 }
 
+/**
+ * Lazy range list to avoid materializing huge arrays in memory.
+ * Items are generated on-demand via get(index).
+ */
+class RangeFsList extends FsList {
+  constructor(startTyped, count) {
+    super();
+    this._startTyped = assertTyped(startTyped);
+    this._count = count;
+
+    const [t, v] = this._startTyped;
+    this._startType = t;
+    this._startValue = v;
+  }
+
+  get length() {
+    return this._count;
+  }
+
+  get(index) {
+    if (!Number.isInteger(index) || index < 0 || index >= this._count) {
+      return null;
+    }
+    if (this._startType === FSDataType.BigInteger) {
+      return [FSDataType.BigInteger, this._startValue + BigInt(index)];
+    }
+    if (this._startType === FSDataType.Float) {
+      return [FSDataType.Float, this._startValue + index];
+    }
+    return [FSDataType.Integer, this._startValue + index];
+  }
+}
+
 module.exports = {
   FsList,
-  ArrayFsList
+  ArrayFsList,
+  RangeFsList
 };
