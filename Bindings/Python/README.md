@@ -1,4 +1,4 @@
-### FuncScript core Python binding (ctypes)
+### FuncScript Python binding (ctypes)
 
 ### Build the Rust shared library
 
@@ -19,7 +19,7 @@ PYTHONPATH=. python3 -m unittest discover -s tests -p 'test_*.py' -q
 ### Usage
 
 ```python
-from funcscript_core import eval, FsVm, FsError
+from funcscript import eval, FsVm, FsError
 
 print(eval("1+2"))
 
@@ -34,6 +34,15 @@ except FsError as e:
     print(e.code, e.message, e.line, e.column)
 finally:
     vm.close()
+```
+
+### Install with pip (builds the Rust core and bundles the shared library)
+
+From the repo root:
+
+```bash
+cd Bindings/Python
+python3 -m pip install .
 ```
 
 ### Custom library path

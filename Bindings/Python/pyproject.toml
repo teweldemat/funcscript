@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "funcscript"
+version = "0.1.0"
+description = "FuncScript core Python binding (ctypes) backed by the Rust funcscript shared library"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "FuncScript Contributors" }]
+keywords = ["funcscript", "scripting", "expression", "ffi", "ctypes"]
+
+[tool.setuptools]
+packages = ["funcscript", "funcscript_core"]
+
+[tool.setuptools.package-data]
+funcscript = ["native/*"]
+

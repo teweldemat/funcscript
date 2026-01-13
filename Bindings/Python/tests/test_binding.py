@@ -2,7 +2,7 @@ import unittest
 import uuid
 import datetime
 
-from funcscript_core import FsError, FsFunction, FsObject, FsList, FsRange, FsVm, eval as fs_eval, to_fs_literal
+from funcscript import FsError, FsFunction, FsObject, FsList, FsRange, FsVm, eval as fs_eval, to_fs_literal
 
 
 class FuncScriptCorePythonBindingTests(unittest.TestCase):

@@ -1,3 +1,9 @@
+"""
+FuncScript Python binding (ctypes) backed by the Rust shared library.
+
+This is intentionally small: it loads libfuncscript.* and exposes a thin Pythonic API.
+"""
+
 import base64
 import ctypes
 import datetime as _dt
@@ -35,6 +41,7 @@ class _FsErrorC(ctypes.Structure):
 class _FsValueC(ctypes.Structure):
     _fields_ = [("id", ctypes.c_uint64)]
 
+
 _FsHostWriteFn = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint8), ctypes.c_uint64)
 _FsHostFileReadFn = ctypes.CFUNCTYPE(ctypes.c_int32, ctypes.c_void_p, ctypes.c_char_p, ctypes.c_void_p, _FsHostWriteFn, ctypes.POINTER(_FsErrorC))
 _FsHostFileExistsFn = ctypes.CFUNCTYPE(ctypes.c_int32, ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(_FsErrorC))
@@ -55,13 +62,16 @@ class _FsHostCallbacksC(ctypes.Structure):
 
 
 def _project_root() -> Path:
+    # Bindings/Python/funcscript/runtime.py -> funcscript -> Python -> Bindings -> repo root
     return Path(__file__).resolve().parents[3]
 
 
 def _default_lib_candidates() -> list[Path]:
+    # 1) Prefer a library shipped inside the Python package (pip install use-case)
     pkg = Path(__file__).resolve().parent
     shipped = pkg / "native"
 
+    # 2) Fallback to repo build output (developer workflow)
     root = _project_root()
     base = root / "funcscript-core" / "target" / "release"
     return [
@@ -111,8 +121,8 @@ _LIB.fs_vm_eval.restype = ctypes.c_int32
 _LIB.fs_vm_eval.argtypes = [
     ctypes.c_void_p,
     ctypes.c_char_p,
-    ctypes.POINTER(ctypes.c_void_p),  
-    ctypes.POINTER(_FsErrorC),      
+    ctypes.POINTER(ctypes.c_void_p),  # out_json (char*)
+    ctypes.POINTER(_FsErrorC),        # out_error
 ]
 
 _LIB.fs_vm_eval_value.restype = ctypes.c_int32
@@ -219,6 +229,7 @@ def _take_c_string(ptr: int) -> str:
         return s.decode("utf-8") if s is not None else ""
     finally:
         _LIB.fs_free_string(ctypes.c_void_p(ptr))
+
 
 def _peek_c_string(ptr: int) -> str:
     if not ptr:
@@ -614,7 +625,17 @@ class FsVm:
 
     def _wrap_value(self, h: _FsValueC) -> Any:
         t = int(_LIB.fs_vm_value_type(self._vm, h))
-        if t in (FS_VALUE_NIL, FS_VALUE_BOOL, FS_VALUE_NUMBER, FS_VALUE_INT, FS_VALUE_BIGINT, FS_VALUE_STRING, FS_VALUE_BYTES, FS_VALUE_GUID, FS_VALUE_DATETIME):
+        if t in (
+            FS_VALUE_NIL,
+            FS_VALUE_BOOL,
+            FS_VALUE_NUMBER,
+            FS_VALUE_INT,
+            FS_VALUE_BIGINT,
+            FS_VALUE_STRING,
+            FS_VALUE_BYTES,
+            FS_VALUE_GUID,
+            FS_VALUE_DATETIME,
+        ):
             s = self._value_to_json(h)
             _LIB.fs_vm_value_free(self._vm, h)
             return _convert_value(json.loads(s))
@@ -645,13 +666,6 @@ class FsVm:
         return self._wrap_value(h)
 
     def call(self, fn_expr: str, *args: Any) -> Any:
-        callee = self._eval_handle(fn_expr)
-        try:
-            return self._call_handle(callee, args)
-        finally:
-            _LIB.fs_vm_value_free(self._vm, callee)
-
-    def call(self, fn_expr: str, *args: Any) -> Any:
         arg_src = ",".join(to_fs_literal(a) for a in args)
         return self.eval(f"({fn_expr})({arg_src})")
 
@@ -672,6 +686,7 @@ def eval_json(source: str) -> str:
 
 def eval(source: str) -> Any:
     return _default_vm().eval(source)
+
 
 def call(fn_expr: str, *args: Any) -> Any:
     return _default_vm().call(fn_expr, *args)

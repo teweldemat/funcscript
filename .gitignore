@@ -28,6 +28,9 @@ x86/
 [Aa][Rr][Mm]64/
 bld/
 [Bb]in/
+# Keep the JS CLI entrypoint script tracked (npm "bin" field points here).
+!js-port/fs-cli/bin/
+!js-port/fs-cli/bin/fs-cli.js
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
@@ -332,6 +335,10 @@ paket-files/
 # Python Tools for Visual Studio (PTVS)
 __pycache__/
 *.pyc
+
+# Python binding native artifacts (copied during pip builds)
+Bindings/Python/funcscript_core/native/
+Bindings/Python/funcscript/native/
 
 # Cake - Uncomment if you are using it
 # tools/**

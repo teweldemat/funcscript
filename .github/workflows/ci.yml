@@ -27,5 +27,6 @@ jobs:
         working-directory: Bindings/Python
         run: |
           python3 -m pip install --upgrade pip
-          PYTHONPATH=. python3 -m unittest discover -s tests -p 'test_*.py' -q
+          python3 -m pip install .
+          python3 -m unittest discover -s tests -p 'test_*.py' -q
 
