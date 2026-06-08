@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -8,7 +8,12 @@ import { describe, expect, it } from 'vitest';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const testPackageRoot = resolve(__dirname, '../..');
 const funcscriptPackageRoot = resolve(testPackageRoot, '../funcscript-js');
-const viteBin = join(testPackageRoot, 'node_modules', '.bin', 'vite');
+const viteBin = join(
+  testPackageRoot,
+  'node_modules',
+  '.bin',
+  process.platform === 'win32' ? 'vite.cmd' : 'vite'
+);
 
 function run(command: string, args: string[], cwd: string) {
   execFileSync(command, args, {
@@ -70,12 +75,29 @@ describe('Vite production bundle compatibility', () => {
       run('npm', ['install', '--ignore-scripts', '--silent'], tempDir);
       run(viteBin, ['build', '--config', 'vite.config.mjs'], tempDir);
 
-      const bundleUrl = pathToFileURL(
-        join(tempDir, 'dist', 'funcscript-vite-smoke.mjs')
-      ).href;
-      const bundledModule = await import(`${bundleUrl}?cache=${Date.now()}`);
+      const distDir = join(tempDir, 'dist');
+      const bundleFile = readdirSync(distDir).find(
+        (fileName) =>
+          fileName.startsWith('funcscript-vite-smoke') &&
+          (fileName.endsWith('.mjs') || fileName.endsWith('.js'))
+      );
+      expect(bundleFile).toBeDefined();
 
-      expect(bundledModule.default).toBe(42);
+      const bundleUrl = pathToFileURL(join(distDir, bundleFile!)).href;
+      execFileSync(
+        process.execPath,
+        [
+          '--input-type=module',
+          '--eval',
+          [
+            `const bundledModule = await import(${JSON.stringify(bundleUrl)});`,
+            'if (bundledModule.default !== 42) {',
+            '  throw new Error(`Expected bundle default export to be 42, got ${bundledModule.default}`);',
+            '}',
+          ].join('\n'),
+        ],
+        { cwd: tempDir, stdio: 'pipe' }
+      );
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
