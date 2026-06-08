@@ -22,11 +22,14 @@ npm run build
 popd >/dev/null
 
 log "Installing MkDocs dependencies"
-python3 -m pip install --upgrade pip --user
-python3 -m pip install --user -r docs/requirements.txt
+MKDOCS_VENV_DIR="$(mktemp -d)"
+trap 'rm -rf "$MKDOCS_VENV_DIR"' EXIT
+python3 -m venv "$MKDOCS_VENV_DIR"
+"$MKDOCS_VENV_DIR/bin/python" -m pip install --upgrade pip
+"$MKDOCS_VENV_DIR/bin/python" -m pip install -r docs/requirements.txt
 
 log "Building MkDocs site into ./public"
-python3 -m mkdocs build --strict --clean --site-dir public
+"$MKDOCS_VENV_DIR/bin/python" -m mkdocs build --strict --clean --site-dir public
 
 log "Hydrating FuncScript Studio into ./public/fsstudio"
 FSTUDIO_OUTPUT_DIR="${ROOT_DIR}/public/fsstudio" \

@@ -53,4 +53,11 @@ describe('TextFunctions', () => {
       expect(valueOf(result), expression).to.equal(expected);
     }
   });
+
+  it('parse with fs format evaluates nested FuncScript without loading the browser entry', () => {
+    const result = evaluate('parse("40 + 2", "fs")');
+
+    expect(typeOf(result)).to.equal(FSDataType.Integer);
+    expect(valueOf(result)).to.equal(42);
+  });
 });
