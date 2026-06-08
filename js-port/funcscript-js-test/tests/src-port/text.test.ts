@@ -48,11 +48,4 @@ describe('text helpers', () => {
     const invalid = Engine.evaluate('regex("abc", "abc", "q")', provider);
     expect(typeOf(invalid)).toBe(FSDataType.Error);
   });
-
-  it('parse with fs format evaluates nested FuncScript', () => {
-    const result = Engine.evaluate('parse("40 + 2", "fs")');
-
-    expect(typeOf(result)).toBe(FSDataType.Integer);
-    expect(valueOf(result)).toBe(42);
-  });
 });

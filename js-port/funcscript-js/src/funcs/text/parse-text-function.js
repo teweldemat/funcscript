@@ -1,16 +1,6 @@
 const { BaseFunction, CallType } = require('../../core/function-base');
 const helpers = require('../helpers');
 const { FSDataType } = require('../../core/fstypes');
-const { FuncScriptParser } = require('../../parser/funcscript-parser');
-
-function evaluateFuncScriptText(text, provider) {
-  const parseOutcome = FuncScriptParser.parse(provider, text);
-  const block = parseOutcome?.block;
-  if (!block) {
-    throw new Error('Failed to parse expression');
-  }
-  return helpers.assertTyped(block.evaluate(provider));
-}
 
 class ParseTextFunction extends BaseFunction {
   constructor() {
@@ -65,7 +55,9 @@ class ParseTextFunction extends BaseFunction {
       }
       case 'fs': {
         try {
-          return evaluateFuncScriptText(text, provider);
+          const { evaluate } = require('../../funcscript.browser');
+          const result = evaluate(text, provider);
+          return result;
         } catch (error) {
           return helpers.makeError(helpers.FsError.ERROR_TYPE_INVALID_PARAMETER, `${this.symbol}: error evaluating expression`);
         }
